@@ -1,0 +1,25 @@
+{
+  "name": "@markdownai/core",
+  "version": "0.0.1",
+  "type": "module",
+  "bin": { "mai": "./dist/cli.js" },
+  "exports": { ".": "./dist/index.js" },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && node -e \"import('node:fs').then(fs => { const p = './dist/cli.js'; const c = fs.readFileSync(p,'utf8'); if (!c.startsWith('#!')) fs.writeFileSync(p,'#!/usr/bin/env node\\n'+c); fs.chmodSync(p, 0o755); })\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@markdownai/engine": "*",
+    "@markdownai/parser": "*",
+    "@markdownai/renderer": "*",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

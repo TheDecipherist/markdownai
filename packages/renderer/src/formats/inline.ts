@@ -1,0 +1,10 @@
+import type { FormatModule, RendererInput } from '../types.js'
+
+const inline: FormatModule = {
+  name: 'inline',
+  render(input: RendererInput): string {
+    return input.data.join(' ')
+  },
+}
+
+export default inline
