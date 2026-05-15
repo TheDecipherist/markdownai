@@ -1,20 +1,29 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { resolve, join, dirname } from 'node:path'
+import { readFileSync, statSync, existsSync } from 'node:fs'
+import { resolve, dirname } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import type {
-  ASTNode, ParseResult, IncludeNode, ImportNode, ListNode,
-  ReadNode, TreeNode, CountNode, DateNode, ConnectNode,
-  DefineNode, CallNode, PhaseNode, ConditionalNode, PipeNode,
+  ASTNode, ParseResult, IncludeNode, ImportNode,
+  ConnectNode, DefineNode, CallNode, PhaseNode, ConditionalNode, PipeNode,
   InterpolationSpan, RenderNode,
 } from '@markdownai/parser'
 import { parse } from '@markdownai/parser'
 import { render } from '@markdownai/renderer'
 import type { RenderType, RendererInput } from '@markdownai/renderer'
-import { makeContext, resolveEnv, type EngineContext } from './context.js'
+import { makeContext, resolveEnv, type EngineContext, type Connection } from './context.js'
 import { substituteParams } from './macros.js'
 import { evalCondition } from './conditions.js'
 import { runBuiltin, isBuiltin } from './pipe.js'
 import { runShell } from './shell.js'
+import { executeList, executeRead, executeCount, executeDate, executeTree, executeDb, executeHttp, executeQuery, formatDate } from './sources.js'
+
+const MARKDOWNAI_VERSION = '1.0'
+
+class FatalError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'FatalError'
+  }
+}
 
 export interface EngineOptions {
   ctx?: Partial<EngineContext>
@@ -24,16 +33,33 @@ export interface EngineOptions {
 export interface EngineResult {
   output: string
   errors: string[]
+  warnings: string[]
+}
+
+function versionIsNewer(required: string, installed: string): boolean {
+  const [rMaj = 0, rMin = 0] = required.split('.').map(Number)
+  const [iMaj = 0, iMin = 0] = installed.split('.').map(Number)
+  if (rMaj !== iMaj) return rMaj > iMaj
+  return rMin > iMin
 }
 
 export function execute(ast: ParseResult, options?: EngineOptions): EngineResult {
   if (!ast.isMarkdownAI) {
-    return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'] }
+    return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [] }
   }
   const base = makeContext(options?.ctx)
-  if (options?.filePath) base.docDir = dirname(resolve(options.filePath))
+  const mainFile = options?.filePath ? resolve(options.filePath) : null
+  if (mainFile) {
+    base.docDir = dirname(mainFile)
+    base.resolutionStack.add(mainFile)
+  }
   const errors: string[] = []
   const parts: string[] = []
+
+  if (ast.version && versionIsNewer(ast.version, MARKDOWNAI_VERSION)) {
+    base.warnings.push(`Document requires @markdownai v${ast.version} but installed version is v${MARKDOWNAI_VERSION}`)
+  }
+
   for (const node of ast.nodes) {
     try {
       const out = walkNode(node, base)
@@ -42,7 +68,11 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
       errors.push(String(err))
     }
   }
-  return { output: parts.join('\n'), errors }
+  if (mainFile) {
+    base.resolutionStack.delete(mainFile)
+    base.completedSet.add(mainFile)
+  }
+  return { output: parts.join('\n'), errors, warnings: base.warnings }
 }
 
 function walkNodes(nodes: ASTNode[], ctx: EngineContext): string[] {
@@ -51,7 +81,10 @@ function walkNodes(nodes: ASTNode[], ctx: EngineContext): string[] {
     try {
       const out = walkNode(node, ctx)
       if (out !== '') parts.push(out)
-    } catch { /* caller handles */ }
+    } catch (err) {
+      if (err instanceof FatalError) throw err
+      // non-fatal: swallow and continue
+    }
   }
   return parts
 }
@@ -76,25 +109,40 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
     case 'read':
     case 'tree':
     case 'count':
-    case 'date': return executeSource(node, ctx).join('\n')
+    case 'date':
+    case 'db':
+    case 'http':
+    case 'query': return executeSource(node, ctx).join('\n')
     default: return ''
   }
 }
 
+const VALID_CONNECTION_TYPES = new Set(['mongodb', 'postgres', 'mysql', 'mssql', 'sqlite', 'redis', 'elasticsearch'])
+
 function handleConnect(node: ConnectNode, ctx: EngineContext): string {
+  if (!VALID_CONNECTION_TYPES.has(node.connectionType)) {
+    ctx.warnings.push(`Unknown connection type: "${node.connectionType}" for connection "${node.name}"`)
+  }
   ctx.connections[node.name] = { type: node.connectionType, args: node.args }
+  if (node.local) ctx.localConnectionNames.add(node.name)
   return ''
 }
 
 function handleDefine(node: DefineNode, ctx: EngineContext): string {
-  ctx.macros[node.name] = { body: node.body }
+  ctx.macros[node.name] = { body: node.body, params: node.params }
   return ''
 }
 
 function handleCall(node: CallNode, ctx: EngineContext): string {
   const macro = ctx.macros[node.name]
   if (!macro) return ''
-  return walkNodes(substituteParams(macro.body, node.args), ctx).join('\n')
+  // Map positional call args to named args using macro param list
+  const namedArgs: Record<string, string> = { ...node.args }
+  for (let i = 0; i < node.positionalArgs.length; i++) {
+    const paramName = macro.params[i]
+    if (paramName !== undefined) namedArgs[paramName] = node.positionalArgs[i] ?? ''
+  }
+  return walkNodes(substituteParams(macro.body, namedArgs), ctx).join('\n')
 }
 
 function handlePhase(node: PhaseNode, ctx: EngineContext): string {
@@ -141,75 +189,72 @@ function executeSource(node: ASTNode, ctx: EngineContext): string[] {
     }
     case 'list': return executeList(node, ctx)
     case 'read': return executeRead(node, ctx)
-    case 'tree': return buildTree(resolve(ctx.docDir, node.path), '')
+    case 'tree': return executeTree(node, ctx)
     case 'count': return executeCount(node, ctx)
     case 'date': return executeDate(node)
+    case 'db': return executeDb(node, ctx)
+    case 'http': return executeHttp(node, ctx)
+    case 'query': return executeQuery(node, ctx)
     default: throw new Error(`"@${node.type}" cannot be used as a pipe source`)
   }
 }
 
-function executeList(node: ListNode, ctx: EngineContext): string[] {
-  const full = resolve(ctx.docDir, node.path)
-  try {
-    return readdirSync(full).map(e => join(node.path.replace(/\/$/, ''), e))
-  } catch { return [] }
-}
-
-function executeRead(node: ReadNode, ctx: EngineContext): string[] {
-  try {
-    return readFileSync(resolve(ctx.docDir, node.path), 'utf8').split('\n').filter(l => l !== '')
-  } catch { return [] }
-}
-
-function executeCount(node: CountNode, ctx: EngineContext): string[] {
-  try {
-    const full = resolve(ctx.docDir, node.path)
-    const st = statSync(full)
-    if (st.isDirectory()) return [String(readdirSync(full).length)]
-    return [String(readFileSync(full, 'utf8').split('\n').length)]
-  } catch { return ['0'] }
-}
-
-function executeDate(node: DateNode): string[] {
-  const fmt = node.args['format'] ?? 'ISO'
-  const now = new Date()
-  if (fmt === 'date') return [now.toISOString().split('T')[0] ?? '']
-  return [now.toISOString()]
-}
-
-function buildTree(dir: string, prefix: string): string[] {
-  let entries: import('node:fs').Dirent[]
-  try { entries = readdirSync(dir, { withFileTypes: true }) } catch { return [] }
-  const lines: string[] = []
-  entries.forEach((entry, i) => {
-    const isLast = i === entries.length - 1
-    lines.push(prefix + (isLast ? '└── ' : '├── ') + entry.name)
-    if (entry.isDirectory()) {
-      lines.push(...buildTree(join(dir, entry.name), prefix + (isLast ? '    ' : '│   ')))
-    }
-  })
-  return lines
-}
 
 function executeInclude(node: IncludeNode, ctx: EngineContext): string {
+  // Evaluate inline condition if present
+  if (node.condition !== null && !evalCondition(node.condition, ctx)) return ''
+
   const full = resolve(ctx.docDir, node.path)
+  if (ctx.resolutionStack.has(full)) {
+    const chain = [...ctx.resolutionStack, full].join(' → ')
+    throw new FatalError(`Circular reference detected: ${chain}`)
+  }
   let source: string
   try { source = readFileSync(full, 'utf8') } catch { return '' }
   const ast = parse(source, { filePath: full })
   if (!ast.isMarkdownAI) return ''
-  return walkNodes(ast.nodes, { ...ctx, docDir: dirname(full) }).join('\n')
+  ctx.resolutionStack.add(full)
+  // Fresh connections copy so @local connections don't leak to parent
+  const includeConns: Record<string, Connection> = { ...ctx.connections }
+  const includeLocalNames = new Set<string>()
+  // phase: null strips @phase wrappers in included files (body always renders)
+  const includeCtx = { ...ctx, docDir: dirname(full), phase: null, connections: includeConns, localConnectionNames: includeLocalNames }
+  try {
+    const out = walkNodes(ast.nodes, includeCtx).join('\n')
+    ctx.resolutionStack.delete(full)
+    ctx.completedSet.add(full)
+    // Merge non-@local connections back to parent
+    for (const [name, conn] of Object.entries(includeConns)) {
+      if (!includeLocalNames.has(name)) ctx.connections[name] = conn
+    }
+    return out
+  } catch (err) {
+    ctx.resolutionStack.delete(full)
+    throw err
+  }
 }
 
 function executeImport(node: ImportNode, ctx: EngineContext): void {
   const full = resolve(ctx.docDir, node.path)
+  if (ctx.completedSet.has(full)) return  // first-wins: already imported
+  if (ctx.resolutionStack.has(full)) {
+    const chain = [...ctx.resolutionStack, full].join(' → ')
+    throw new FatalError(`Circular reference detected: ${chain}`)
+  }
   let source: string
   try { source = readFileSync(full, 'utf8') } catch { return }
   const ast = parse(source, { filePath: full, inImport: true })
   if (!ast.isMarkdownAI) return
+  ctx.resolutionStack.add(full)
+  const importCtx = { ...ctx, docDir: dirname(full) }
   for (const n of ast.nodes) {
     if (n.type === 'env' && n.fallback !== null) ctx.envFallbacks[n.name] = n.fallback
-    else if (n.type === 'define') ctx.macros[n.name] = { body: n.body }
+    else if (n.type === 'define') ctx.macros[n.name] = { body: n.body, params: n.params }
+    else if (n.type === 'connect') ctx.connections[n.name] = { type: n.connectionType, args: n.args }
+    else if (n.type === 'import') executeImport(n, importCtx)
   }
+  ctx.resolutionStack.delete(full)
+  ctx.completedSet.add(full)
 }
 
 function resolveInterpolations(text: string, spans: InterpolationSpan[], ctx: EngineContext): string {
@@ -226,9 +271,26 @@ function resolveInterpolations(text: string, spans: InterpolationSpan[], ctx: En
 
 function evalExpr(expr: string, ctx: EngineContext): string {
   const trimmed = expr.trim()
+
+  // Shortcut: bare uppercase env key (e.g. NAME → resolveEnv)
   if (/^[A-Z_][A-Z0-9_]*$/.test(trimmed)) return resolveEnv(trimmed, null, ctx)
+
+  // Directive-style date expression: date format="YYYY"
+  const dateFmtMatch = trimmed.match(/^date\s+format="([^"]*)"$/)
+  if (dateFmtMatch) return formatDate(new Date(), dateFmtMatch[1] ?? 'ISO')
+
+  const envObj: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
+  const fileHelper = {
+    exists: (p: string): boolean => existsSync(p),
+    isFile: (p: string): boolean => { try { return statSync(p).isFile() } catch { return false } },
+    isDir: (p: string): boolean => { try { return statSync(p).isDirectory() } catch { return false } },
+  }
   try {
-    const result = runInNewContext(trimmed, { ...ctx.env, ...ctx.envFiles }, { timeout: 500 })
+    const result = runInNewContext(trimmed, { ...envObj, env: envObj, file: fileHelper }, { timeout: 500 })
     return String(result ?? '')
-  } catch { return '' }
+  } catch {
+    ctx.warnings.push(`Unresolvable expression: ${trimmed}`)
+    return ''
+  }
 }
+

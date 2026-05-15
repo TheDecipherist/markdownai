@@ -40,6 +40,21 @@ describe('Parser', () => {
       const result = parse('@markdownai v1.0\n# Hello')
       expect(result.nodes[0]?.type).toBe('header')
     })
+
+    it('returns isMarkdownAI: false when blank line precedes @markdownai', () => {
+      const result = parse('\n@markdownai\n# Hello')
+      expect(result.isMarkdownAI).toBe(false)
+    })
+
+    it('returns isMarkdownAI: false when @markdownai is not on line 1', () => {
+      const result = parse('# Header first\n@markdownai')
+      expect(result.isMarkdownAI).toBe(false)
+    })
+
+    it('version pin with major.minor only — v2.0 extracts correctly', () => {
+      const result = parse('@markdownai v2.0\n')
+      expect(result.version).toBe('2.0')
+    })
   })
 
   describe('@include directive', () => {
@@ -112,6 +127,34 @@ describe('Parser', () => {
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.local).toBe(true)
     })
+
+    it('parses no params when no parens', () => {
+      const result = parse('@markdownai\n@define footer\ncontent\n@end')
+      const n = node<DefineNode>(result.nodes, 1)
+      expect(n.params).toEqual([])
+    })
+
+    it('parses @define name(param) syntax — single param', () => {
+      const result = parse('@markdownai\n@define greet(name)\nHello {{name}}\n@end')
+      const n = node<DefineNode>(result.nodes, 1)
+      expect(n.name).toBe('greet')
+      expect(n.params).toEqual(['name'])
+    })
+
+    it('parses @define name(param1, param2) syntax — multiple params', () => {
+      const result = parse('@markdownai\n@define row(title, value)\n{{title}}: {{value}}\n@end')
+      const n = node<DefineNode>(result.nodes, 1)
+      expect(n.name).toBe('row')
+      expect(n.params).toEqual(['title', 'value'])
+    })
+
+    it('parses @define name(param) @local', () => {
+      const result = parse('@markdownai\n@define cell(content) @local\n{{content}}\n@end')
+      const n = node<DefineNode>(result.nodes, 1)
+      expect(n.name).toBe('cell')
+      expect(n.params).toEqual(['content'])
+      expect(n.local).toBe(true)
+    })
   })
 
   describe('@call directive', () => {
@@ -126,6 +169,23 @@ describe('Parser', () => {
       const result = parse('@markdownai\n@call header title="My Doc"')
       const n = node<CallNode>(result.nodes, 1)
       expect(n.args['title']).toBe('My Doc')
+    })
+
+    it('parses @call name(arg1, arg2) positional paren syntax', () => {
+      const result = parse('@markdownai\n@call greet(Alice, Admin)')
+      const n = node<CallNode>(result.nodes, 1)
+      expect(n.name).toBe('greet')
+      expect(n.positionalArgs).toEqual(['Alice', 'Admin'])
+      expect(n.args).toEqual({})
+    })
+
+    it('parses @call name(key=value) named paren syntax', () => {
+      const result = parse('@markdownai\n@call row(title=Hello, value=World)')
+      const n = node<CallNode>(result.nodes, 1)
+      expect(n.name).toBe('row')
+      expect(n.args['title']).toBe('Hello')
+      expect(n.args['value']).toBe('World')
+      expect(n.positionalArgs).toEqual([])
     })
   })
 
@@ -298,6 +358,19 @@ describe('Parser', () => {
       expect(n.text).toBe('# Hello World')
       expect(n.interpolations).toHaveLength(0)
     })
+
+    it('fenced code block is immune to interpolation scanning', () => {
+      const src = '@markdownai\n```js\nconst x = "{{ env.NAME }}"\n```'
+      const result = parse(src)
+      const n = node<MarkdownNode>(result.nodes, 1)
+      expect(n.interpolations).toHaveLength(0)
+    })
+
+    it('inline backtick span is immune to interpolation scanning', () => {
+      const result = parse('@markdownai\nUse `{{ env.NAME }}` in config')
+      const n = node<MarkdownNode>(result.nodes, 1)
+      expect(n.interpolations).toHaveLength(0)
+    })
   })
 
   describe('unknown directives', () => {
@@ -309,11 +382,55 @@ describe('Parser', () => {
     })
   })
 
+  describe('as="type" shorthand', () => {
+    it('@list with as="list" produces PipeNode with source and sink', () => {
+      const result = parse('@markdownai\n@list ./src/ as="list"')
+      const n = node<PipeNode>(result.nodes, 1)
+      expect(n.type).toBe('pipe')
+      expect(n.stages[0]?.type).toBe('source')
+      const sink = n.stages[n.stages.length - 1]
+      expect(sink?.type).toBe('sink')
+      if (sink?.type === 'sink') {
+        expect((sink.node as RenderNode).args['type']).toBe('list')
+      }
+    })
+
+    it('as="type" does not appear in the source node args', () => {
+      const result = parse('@markdownai\n@list ./src/ as="numbered"')
+      const n = node<PipeNode>(result.nodes, 1)
+      const src = n.stages[0]
+      if (src?.type === 'source') {
+        expect((src.node as ListNode).args['as']).toBeUndefined()
+      }
+    })
+  })
+
+  describe('pipe scalar stage', () => {
+    it('pipe without @render sink gets scalar stage appended', () => {
+      const result = parse('@markdownai\n@list ./src/ | wc -l')
+      const n = node<PipeNode>(result.nodes, 1)
+      const last = n.stages[n.stages.length - 1]
+      expect(last?.type).toBe('scalar')
+    })
+  })
+
   describe('parse errors', () => {
     it('throws ParseError for @on outside @phase', () => {
       expect(() =>
         parse('@markdownai\n@on complete -> @phase test')
       ).toThrow()
+    })
+
+    it('throws ParseError for @include with absolute path', () => {
+      expect(() =>
+        parse('@markdownai\n@include /etc/passwd')
+      ).toThrow(/absolute/)
+    })
+
+    it('throws ParseError for standalone @render', () => {
+      expect(() =>
+        parse('@markdownai\n@render type="list"')
+      ).toThrow(/pipe chain/)
     })
   })
 })

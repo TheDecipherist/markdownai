@@ -35,6 +35,6 @@ The full language spec lives at: `MDs/markdownai-spec-v1.0.md` (reference this t
 | Wave | File | Demo-state | Status |
 |------|------|------------|--------|
 | Wave 1 | waves/markdownai-core-wave-1.md | `mai render input.md` produces output. `mai validate input.md` reports errors. | complete |
-| Wave 2 | waves/markdownai-core-wave-2.md | Every directive renders correctly. All language features work end to end. | planned |
+| Wave 2 | waves/markdownai-core-wave-2.md | Every directive renders correctly. All language features work end to end. | complete |
 | Wave 3 | waves/markdownai-core-wave-3.md | Jailed directives strip by default. Security config controls execution. Masking fires on sensitive file reads. | planned |
 | Wave 4 | waves/markdownai-core-wave-4.md | `mai strip` produces clean markdown. MCP server starts and intercepts AI reads. All CLI commands functional. `@cache` works. | planned |

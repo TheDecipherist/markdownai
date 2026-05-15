@@ -5,6 +5,13 @@ export function scanInterpolations(text: string): InterpolationSpan[] {
   let i = 0
 
   while (i < text.length) {
+    // Skip inline backtick code spans
+    if (text[i] === '`') {
+      const end = text.indexOf('`', i + 1)
+      i = end !== -1 ? end + 1 : text.length
+      continue
+    }
+
     // Check for escaped \{{
     if (text[i] === '\\' && text.slice(i, i + 3) === '\\{{') {
       const end = text.indexOf('}}', i + 3)

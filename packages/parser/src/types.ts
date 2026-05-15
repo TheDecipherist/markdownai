@@ -46,6 +46,7 @@ export interface EnvNode extends ASTNodeBase {
 export interface DefineNode extends ASTNodeBase {
   type: 'define'
   name: string
+  params: string[]
   local: boolean
   body: ASTNode[]
 }
@@ -54,6 +55,7 @@ export interface CallNode extends ASTNodeBase {
   type: 'call'
   name: string
   args: Record<string, string>
+  positionalArgs: string[]
 }
 
 export type TransitionAction =

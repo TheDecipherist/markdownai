@@ -18,6 +18,7 @@ export interface MCPContext {
 
 export interface MacroDefinition {
   body: ASTNode[]
+  params: string[]
 }
 
 export interface EngineContext {
@@ -25,12 +26,16 @@ export interface EngineContext {
   envFiles: Record<string, string>
   envFallbacks: Record<string, string>
   connections: Record<string, Connection>
+  localConnectionNames: Set<string>
   macros: Record<string, MacroDefinition>
   phase: string | null
   cwd: string
   docDir: string
   security: SecurityConfig
   mcp: MCPContext | null
+  warnings: string[]
+  resolutionStack: Set<string>
+  completedSet: Set<string>
 }
 
 export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
@@ -39,18 +44,31 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     if (v !== undefined) env[k] = v
   }
   const cwd = process.cwd()
-  return {
+  const base: EngineContext = {
     env,
     envFiles: {},
     envFallbacks: {},
     connections: {},
+    localConnectionNames: new Set<string>(),
     macros: {},
     phase: null,
     cwd,
     docDir: cwd,
     security: { allowShell: false, allowHttp: false, allowDb: false, jailRoot: null },
     mcp: null,
-    ...overrides,
+    warnings: [],
+    resolutionStack: new Set<string>(),
+    completedSet: new Set<string>(),
+  }
+  if (!overrides) return base
+  const { warnings, resolutionStack, completedSet, localConnectionNames, ...rest } = overrides
+  return {
+    ...base,
+    ...rest,
+    warnings: warnings ?? base.warnings,
+    resolutionStack: resolutionStack ?? base.resolutionStack,
+    completedSet: completedSet ?? base.completedSet,
+    localConnectionNames: localConnectionNames ?? base.localConnectionNames,
   }
 }
 
