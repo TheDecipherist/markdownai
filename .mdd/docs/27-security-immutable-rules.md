@@ -6,10 +6,10 @@ depends_on: [23-security-filesystem, 24-security-shell, 25-security-database, 26
 source_files:
   - packages/engine/src/security/rules.ts
 wave: markdownai-core-wave-3
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-15
+status: complete
 mdd_version: 1
 tags: [security, immutable-rules, always-block, always-alert, security-floor]
 path: Security

@@ -7,10 +7,10 @@ source_files:
   - packages/engine/src/security/filesystem.ts
   - packages/engine/src/security/masking.ts
 wave: markdownai-core-wave-3
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-15
+status: complete
 mdd_version: 1
 tags: [security, filesystem, confinement, masking, document-root, content-masking, credential-protection]
 path: Security
