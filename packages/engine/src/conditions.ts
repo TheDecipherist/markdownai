@@ -21,10 +21,17 @@ export function evalExpression(expr: string, ctx: EngineContext): string {
   return result === undefined ? '' : String(result)
 }
 
+function preprocessExpr(expr: string): string {
+  // Convert file.exists "./path" → file.exists("./path") (and isFile, isDir)
+  return expr.replace(/\bfile\.(exists|isFile|isDir)\s+"([^"]*)"/g, 'file.$1("$2")')
+             .replace(/\bfile\.(exists|isFile|isDir)\s+'([^']*)'/g, "file.$1('$2')")
+}
+
 function runExpr(expr: string, ctx: EngineContext): unknown {
-  const sandbox: Record<string, unknown> = { ...ctx.env, ...ctx.envFiles, file }
+  const envObj = { ...ctx.env, ...ctx.envFiles }
+  const sandbox: Record<string, unknown> = { ...envObj, env: envObj, file }
   try {
-    return runInNewContext(expr, sandbox, { timeout: 500 })
+    return runInNewContext(preprocessExpr(expr), sandbox, { timeout: 500 })
   } catch {
     return undefined
   }

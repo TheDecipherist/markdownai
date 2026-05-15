@@ -123,9 +123,22 @@ function collectBody(state: State, closeTag: string): ASTNode[] {
   return nodes
 }
 
+function extractAs(node: ASTNode): string | null {
+  if ('args' in node && node.args !== null && typeof node.args === 'object' && !Array.isArray(node.args)) {
+    const args = node.args as Record<string, string>
+    const asType = args['as']
+    if (typeof asType === 'string') {
+      delete args['as']
+      return asType
+    }
+  }
+  return null
+}
+
 function parsePipeLine(raw: string, line: number, state: State): PipeNode {
   const segments = splitUnquotedPipe(raw)
   const stages: PipeStage[] = []
+  let sourceAsType: string | null = null
 
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i]!
@@ -133,8 +146,9 @@ function parsePipeLine(raw: string, line: number, state: State): PipeNode {
 
     if (i === 0) {
       const trimmed = seg.trim()
-      const node = parseDirective(trimmed, line, state, true)
-      stages.push({ type: 'source', node })
+      const sourceNode = parseDirective(trimmed, line, state, true)
+      sourceAsType = extractAs(sourceNode)
+      stages.push({ type: 'source', node: sourceNode })
     } else if (isLast && seg.trimStart().startsWith('@render')) {
       const renderArgs = seg.trimStart().replace(/^@render\s*/, '')
       const renderNode = parseDirective(`@render ${renderArgs}`, line, state, true) as RenderNode
@@ -146,6 +160,17 @@ function parsePipeLine(raw: string, line: number, state: State): PipeNode {
       } else {
         stages.push({ type: 'shell', command: seg.trim() })
       }
+    }
+  }
+
+  // If no explicit sink, add implicit sink (from as="type") or scalar stage
+  const lastStage = stages[stages.length - 1]
+  if (!lastStage || lastStage.type !== 'sink') {
+    if (sourceAsType !== null) {
+      const renderNode: RenderNode = { type: 'render', line, args: { type: sourceAsType } }
+      stages.push({ type: 'sink', node: renderNode })
+    } else {
+      stages.push({ type: 'scalar' })
     }
   }
 
@@ -194,14 +219,14 @@ function parseNextNode(state: State): ASTNode | null {
   if (raw.trimStart().startsWith('```')) {
     const lang = raw.trimStart().slice(3).trim()
     if (lang === 'mai-graph') return parseGraphBlock(state, lineNumber)
-    // Regular fenced block: collect until closing ```
+    // Regular fenced block: collect until closing ``` — immune to interpolation scanning
     const chunks = [raw]
     while (state.pos < state.lines.length) {
       const bodyLine = consume(state)
       chunks.push(bodyLine)
       if (bodyLine.trimStart().startsWith('```')) break
     }
-    return makeMarkdown(chunks.join('\n'), lineNumber)
+    return { type: 'markdown' as const, line: lineNumber, text: chunks.join('\n'), interpolations: [] }
   }
 
   const trimmed = raw.trimStart()
@@ -212,12 +237,23 @@ function parseNextNode(state: State): ASTNode | null {
     throw new ParseError('@on transition is only valid inside a @phase block', lineNumber, state.filePath)
   }
 
+  // @render is only valid as the last stage of a pipe chain
+  if (trimmed === '@render' || trimmed.startsWith('@render ')) {
+    throw new ParseError('@render is only valid as the last stage of a pipe chain', lineNumber, state.filePath)
+  }
+
   // Detect pipe line
   if (splitUnquotedPipe(trimmed).length > 1) {
     return parsePipeLine(trimmed, lineNumber, state)
   }
 
-  return parseDirective(trimmed, lineNumber, state)
+  const n = parseDirective(trimmed, lineNumber, state)
+  const asType = extractAs(n)
+  if (asType !== null) {
+    const renderNode: RenderNode = { type: 'render', line: lineNumber, args: { type: asType } }
+    return { type: 'pipe', line: lineNumber, stages: [{ type: 'source', node: n }, { type: 'sink', node: renderNode }] }
+  }
+  return n
 }
 
 export function parse(source: string, options?: ParseOptions): ParseResult {

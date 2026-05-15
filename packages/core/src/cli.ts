@@ -21,10 +21,13 @@ universalOptions(
     .option('-o, --output <path>', 'write output to file instead of stdout')
 ).action((file: string, opts: Record<string, string | boolean | undefined>) => {
   const result = runRender(file, opts)
-  for (const err of result.errors) {
-    if (!opts['silent']) process.stderr.write(`WARN: ${err}\n`)
+  for (const warn of result.warnings) {
+    if (!opts['silent']) process.stderr.write(`WARN: ${warn}\n`)
   }
-  if (result.exitCode !== 0 && result.errors.length > 0) process.exit(1)
+  for (const err of result.errors) {
+    if (!opts['silent']) process.stderr.write(`ERROR: ${err}\n`)
+  }
+  if (result.exitCode !== 0) process.exit(1)
   if (opts['output']) {
     writeFileSync(String(opts['output']), result.output)
   } else {

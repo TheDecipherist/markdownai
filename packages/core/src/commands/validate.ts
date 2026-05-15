@@ -1,12 +1,13 @@
 import { readFileSync, existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { parse, ParseError } from '@markdownai/parser'
-import type { ASTNode, ConditionalBranch } from '@markdownai/parser'
+import type { ASTNode, ConditionalBranch, PhaseNode, GraphNode } from '@markdownai/parser'
 
 export interface ValidateOptions {
   env?: string
   cwd?: string
   strict?: boolean
+  verbose?: boolean
 }
 
 export interface ValidateResult {
@@ -34,6 +35,7 @@ export function runValidate(filePath: string, options: ValidateOptions = {}): Va
     } else {
       const defines = collectDefines(ast.nodes)
       checkNodes(ast.nodes, defines, errors, warnings, resolved)
+      if (options.verbose) checkGraphPhaseAlignment(ast.nodes, warnings)
     }
   } catch (err) {
     errors.push(err instanceof ParseError ? err.message : String(err))
@@ -82,5 +84,17 @@ function checkNode(node: ASTNode, defines: Set<string>, errors: string[], warnin
   }
   if (node.type === 'conditional') {
     node.branches.forEach((b: ConditionalBranch) => checkNodes(b.body, defines, errors, warnings, filePath))
+  }
+}
+
+function checkGraphPhaseAlignment(nodes: ASTNode[], warnings: string[]): void {
+  const phaseNames = nodes.filter((n): n is PhaseNode => n.type === 'phase').map(n => n.name)
+  const graphNodes = nodes.filter((n): n is GraphNode => n.type === 'graph')
+  if (phaseNames.length === 0 || graphNodes.length === 0) return
+  const graphRaw = graphNodes.map(g => g.raw).join('\n')
+  for (const name of phaseNames) {
+    if (!graphRaw.includes(name)) {
+      warnings.push(`@graph: phase "${name}" declared but not referenced in @graph (--verbose)`)
+    }
   }
 }

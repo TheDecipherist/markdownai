@@ -15,6 +15,7 @@ export interface RenderOptions {
 export interface RenderResult {
   output: string
   errors: string[]
+  warnings: string[]
   exitCode: number
 }
 
@@ -24,14 +25,14 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
   try {
     source = readFileSync(resolved, 'utf8')
   } catch {
-    return { output: '', errors: [`Cannot read file: ${filePath}`], exitCode: 1 }
+    return { output: '', errors: [`Cannot read file: ${filePath}`], warnings: [], exitCode: 1 }
   }
 
   let ast
   try {
     ast = parse(source, { filePath: resolved })
   } catch (err) {
-    return { output: '', errors: [String(err)], exitCode: 1 }
+    return { output: '', errors: [String(err)], warnings: [], exitCode: 1 }
   }
 
   const envFiles = options.env ? loadEnvFile(options.env) : {}
@@ -40,6 +41,8 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
     ctx: { envFiles, cwd: options.cwd ? resolve(options.cwd) : process.cwd() },
   })
 
-  const exitCode = options.strict && result.errors.length > 0 ? 1 : 0
-  return { output: result.output, errors: result.errors, exitCode }
+  const allErrors = options.strict ? [...result.errors, ...result.warnings] : result.errors
+  const warnings = options.strict ? [] : result.warnings
+  const exitCode = allErrors.length > 0 ? 1 : 0
+  return { output: result.output, errors: allErrors, warnings, exitCode }
 }
