@@ -1,0 +1,7 @@
+export type { EngineContext, Connection, SecurityConfig, MCPContext, MacroDefinition } from './context.js'
+export { makeContext, resolveEnv } from './context.js'
+export { isBuiltin, runBuiltin } from './pipe.js'
+export { evalCondition, evalExpression } from './conditions.js'
+export { cacheKey, readCache, writeCache } from './cache.js'
+export { execute } from './engine.js'
+export type { EngineOptions, EngineResult } from './engine.js'

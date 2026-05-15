@@ -36,14 +36,14 @@ models: []
 test_files:
   - packages/parser/src/__tests__/parser.test.ts
 data_flow: greenfield
-last_synced: 2026-05-14
-status: draft
-phase: documentation
+last_synced: 2026-05-15
+status: complete
+phase: all
 mdd_version: 1
 tags: [parser, ast, directive-registry, single-pass, node-types, lexer, modularity]
 path: Toolchain/Parser
 wave: markdownai-core-wave-1
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
 known_issues: []
 ---
