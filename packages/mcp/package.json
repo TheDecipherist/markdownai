@@ -1,0 +1,24 @@
+{
+  "name": "@markdownai/mcp",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": { ".": "./dist/index.js" },
+  "types": "./dist/index.d.ts",
+  "bin": { "mai-serve": "./dist/server.js" },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@markdownai/engine": "*",
+    "@markdownai/parser": "*",
+    "@markdownai/renderer": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}
