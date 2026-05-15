@@ -8,10 +8,10 @@ source_files:
   - packages/engine/src/security/audit.ts
   - packages/engine/src/security/modes.ts
 wave: markdownai-core-wave-3
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-15
+status: complete
 mdd_version: 1
 tags: [security, jail-model, config-file, runtime-modes, audit-log, principles]
 path: Security
