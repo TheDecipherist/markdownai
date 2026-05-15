@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlinkSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { CacheConfig } from '@markdownai/parser'
@@ -47,4 +47,58 @@ export function writeCache(key: string, value: string, config: CacheConfig): voi
     mkdirSync(CACHE_DIR, { recursive: true })
     writeFileSync(join(CACHE_DIR, key + '.json'), JSON.stringify({ value, expires: Date.now() + ttlMs }))
   }
+}
+
+export function clearSessionCache(): void {
+  SESSION_CACHE.clear()
+}
+
+export function clearPersistCache(directiveType?: string): void {
+  try {
+    const files = readdirSync(CACHE_DIR)
+    for (const file of files) {
+      if (!file.endsWith('.json')) continue
+      const path = join(CACHE_DIR, file)
+      if (directiveType) {
+        try {
+          const entry = JSON.parse(readFileSync(path, 'utf8')) as { directive?: string }
+          if (entry.directive !== directiveType) continue
+        } catch { continue }
+      }
+      try { unlinkSync(path) } catch { /* ignore */ }
+    }
+  } catch { /* ignore — cache dir may not exist */ }
+}
+
+export interface CacheEntry {
+  key: string
+  mode: 'session' | 'persist'
+  expired?: boolean
+  size?: number
+}
+
+export function showCacheEntries(mode?: 'session' | 'persist'): CacheEntry[] {
+  const entries: CacheEntry[] = []
+  if (!mode || mode === 'session') {
+    for (const key of SESSION_CACHE.keys()) {
+      entries.push({ key, mode: 'session' })
+    }
+  }
+  if (!mode || mode === 'persist') {
+    try {
+      const files = readdirSync(CACHE_DIR)
+      for (const file of files) {
+        if (!file.endsWith('.json')) continue
+        const path = join(CACHE_DIR, file)
+        try {
+          const raw = readFileSync(path, 'utf8')
+          const entry = JSON.parse(raw) as PersistEntry
+          const expired = Date.now() > entry.expires
+          const size = statSync(path).size
+          entries.push({ key: file.replace('.json', ''), mode: 'persist', expired, size })
+        } catch { /* skip malformed entries */ }
+      }
+    } catch { /* cache dir may not exist */ }
+  }
+  return entries
 }
