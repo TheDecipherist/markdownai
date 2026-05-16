@@ -5,7 +5,6 @@ import type { RenderOptions } from './render.js'
 
 export interface BuildOptions extends RenderOptions {
   output?: string
-  watch?: boolean
 }
 
 export interface BuildResult {

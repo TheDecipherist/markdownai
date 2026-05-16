@@ -10,9 +10,15 @@ Tagline: "documentation that cannot lie."
 
 ## Build Approach
 
-This project uses MDD (Methodology-Driven Development). Always start a session with `/mdd` to load project context. Features are built in wave order. Do not skip waves.
+This project uses MDD (Manual-Driven Development). Always start a session with `/mdd` to load project context. Features are built in wave order. Do not skip waves.
 
 The .mdd/docs/ directory contains one feature doc per feature. Each feature doc is the authoritative source of truth for what to build. When implementing a feature, read its doc fully before writing any code.
+
+**MDD Workflow - Learning from mistakes** 
+All code in this project is created by the MDD workflow. Whenever errors/flaws/mistakes are found in this project, or if new frontmatter fields are added to a feature doc in .mdd/docs or a mdd feature doc is changed in anyway, we need to document why it happened or was needed, and how it could have been prevented. Whenever a fix has been made, the mdd workflow (~/projects/mdd) must be updated/patched so next time it wont happen again according to best practices, security hardening and performance optimization
+
+**Always when done updating mdd (~/projects/mdd)**
+In the mdd project (~/projects/mdd) - commit and merge to main and push and publish npm package and update npm package locally on this computer to newest version to stay in sync and check if mdd update is needed to run as well
 
 ## Architecture
 

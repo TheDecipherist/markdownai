@@ -1,11 +1,13 @@
 import type { ParseModule, ParseContext, ASTNode, CallNode } from '../types.js'
 import { parseArgs } from '../args.js'
+import { ParseError } from '../types.js'
 
 const call: ParseModule = {
   name: 'call',
   block: false,
   parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
     const raw = args.trim()
+    if (!raw) throw new ParseError('@call requires a macro name', ctx.line, ctx.filePath)
 
     // Detect name(arg1, arg2) or name(key=value) paren syntax
     const parenMatch = raw.match(/^(\w+)\(([^)]*)\)$/)
@@ -28,6 +30,7 @@ const call: ParseModule = {
     // Space-separated syntax: @call name key=value
     const parsed = parseArgs(raw)
     const name = parsed.positional[0] ?? ''
+    if (!name) throw new ParseError('@call requires a macro name', ctx.line, ctx.filePath)
     return { type: 'call', line: ctx.line, name, args: parsed.named, positionalArgs: parsed.positional.slice(1) }
   },
 }

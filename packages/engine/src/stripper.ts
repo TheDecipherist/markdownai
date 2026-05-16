@@ -53,6 +53,7 @@ function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[
     case 'count': return ''
     case 'pipe': return ''
     case 'graph': return node.raw
+    case 'interpolation': return ''
     case 'passthrough': return node.raw
     case 'markdown': return stripInterpolations(node.text, node.interpolations, env)
     case 'phase': {

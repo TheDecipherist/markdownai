@@ -19,9 +19,9 @@ function classifyLine(raw: string, lineNumber: number): LexToken {
 
   if (!trimmed) return { kind: 'blank', raw, lineNumber }
 
-  if (trimmed.startsWith('```')) {
-    // fenced_open if no matching closing on same line (simple heuristic)
-    const lang = trimmed.slice(3).trim()
+  if (trimmed.startsWith('```') || trimmed.startsWith('~~~')) {
+    const fence = trimmed.startsWith('```') ? '```' : '~~~'
+    const lang = trimmed.slice(fence.length).trim()
     const kind = lang === '' ? 'fenced_close' : 'fenced_open'
     const token: LexToken = { kind, raw, lineNumber }
     if (lang) token.fenceLang = lang

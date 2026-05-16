@@ -1,15 +1,32 @@
 import { runInNewContext } from 'node:vm'
 import { existsSync, statSync } from 'node:fs'
+import { resolve, relative } from 'node:path'
 import type { EngineContext } from './context.js'
 
-const file = {
-  exists: (p: string): boolean => existsSync(p),
-  isFile: (p: string): boolean => {
-    try { return statSync(p).isFile() } catch { return false }
-  },
-  isDir: (p: string): boolean => {
-    try { return statSync(p).isDirectory() } catch { return false }
-  },
+function makeFileHelpers(jailRoot: string | null) {
+  function confined(p: string): string | null {
+    if (!jailRoot) return p
+    const abs = resolve(jailRoot, p)
+    const rel = relative(jailRoot, abs)
+    if (rel.startsWith('..')) return null
+    return abs
+  }
+  return {
+    exists: (p: string): boolean => {
+      const abs = confined(p)
+      return abs !== null ? existsSync(abs) : false
+    },
+    isFile: (p: string): boolean => {
+      const abs = confined(p)
+      if (abs === null) return false
+      try { return statSync(abs).isFile() } catch { return false }
+    },
+    isDir: (p: string): boolean => {
+      const abs = confined(p)
+      if (abs === null) return false
+      try { return statSync(abs).isDirectory() } catch { return false }
+    },
+  }
 }
 
 export function evalCondition(expr: string, ctx: EngineContext): boolean {
@@ -37,10 +54,13 @@ function runExpr(expr: string, ctx: EngineContext): unknown {
   for (const [k, v] of Object.entries(envObj)) {
     if (SAFE_ENV_KEY.test(k)) rootEnv[k] = v
   }
+  const jailRoot = ctx.security.jailRoot ?? ctx.docDir ?? null
+  const file = makeFileHelpers(jailRoot)
   const sandbox: Record<string, unknown> = { ...rootEnv, env: envObj, file }
   try {
     return runInNewContext(preprocessExpr(expr), sandbox, { timeout: 500 })
   } catch {
+    ctx.warnings.push(`Unresolvable expression: ${expr.trim()}`)
     return undefined
   }
 }

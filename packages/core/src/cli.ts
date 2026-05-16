@@ -12,6 +12,7 @@ import { runCacheShow, runCacheClear } from './commands/cache.js'
 import { runListPhases } from './commands/list-phases.js'
 import { runListMacros } from './commands/list-macros.js'
 import { runListImports } from './commands/list-imports.js'
+import { runWatch } from './commands/watch.js'
 import {
   securityShow, securityInit, securityDisable,
   securityShellEnable, securityShellAdd, securityShellRemove, securityShellList,
@@ -124,6 +125,21 @@ universalOptions(
   if (!opts['output'] && !opts['silent']) {
     process.stdout.write(result.output + '\n')
   }
+})
+
+universalOptions(
+  program
+    .command('watch <file>')
+    .description('watch a file and re-render on change')
+    .option('-o, --output <path>', 'write output to file on each change')
+).action((file: string, opts: Record<string, string | boolean | undefined>) => {
+  const watchOpts: import('./commands/watch.js').WatchOptions = {}
+  if (opts['env']) watchOpts.env = String(opts['env'])
+  if (opts['cwd']) watchOpts.cwd = String(opts['cwd'])
+  if (opts['verbose']) watchOpts.verbose = true
+  if (opts['strict']) watchOpts.strict = true
+  if (opts['output']) watchOpts.output = String(opts['output'])
+  runWatch(file, watchOpts)
 })
 
 program

@@ -1,5 +1,5 @@
 import { readFileSync, statSync, existsSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { resolve, dirname, relative } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import type {
   ASTNode, ParseResult, IncludeNode, ImportNode,
@@ -220,7 +220,10 @@ function executeInclude(node: IncludeNode, ctx: EngineContext): string {
     throw new FatalError(`Circular reference detected: ${chain}`)
   }
   let source: string
-  try { source = readFileSync(full, 'utf8') } catch { return '' }
+  try { source = readFileSync(full, 'utf8') } catch (err) {
+    ctx.warnings.push(`@include: cannot read file "${node.path}": ${String(err)}`)
+    return ''
+  }
   const ast = parse(source, { filePath: full })
   if (!ast.isMarkdownAI) return ''
   ctx.resolutionStack.add(full)
@@ -257,7 +260,10 @@ function executeImport(node: ImportNode, ctx: EngineContext): void {
     throw new FatalError(`Circular reference detected: ${chain}`)
   }
   let source: string
-  try { source = readFileSync(full, 'utf8') } catch { return }
+  try { source = readFileSync(full, 'utf8') } catch (err) {
+    ctx.warnings.push(`@import: cannot read file "${node.path}": ${String(err)}`)
+    return
+  }
   const ast = parse(source, { filePath: full, inImport: true })
   if (!ast.isMarkdownAI) return
   ctx.resolutionStack.add(full)
@@ -295,10 +301,23 @@ function evalExpr(expr: string, ctx: EngineContext): string {
   if (dateFmtMatch) return formatDate(new Date(), dateFmtMatch[1] ?? 'ISO')
 
   const envObj: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
+  const jailRoot = ctx.security.jailRoot ?? ctx.docDir ?? null
   const fileHelper = {
-    exists: (p: string): boolean => existsSync(p),
-    isFile: (p: string): boolean => { try { return statSync(p).isFile() } catch { return false } },
-    isDir: (p: string): boolean => { try { return statSync(p).isDirectory() } catch { return false } },
+    exists: (p: string): boolean => {
+      const abs = jailRoot ? resolve(jailRoot, p) : p
+      if (jailRoot && relative(jailRoot, abs).startsWith('..')) return false
+      return existsSync(abs)
+    },
+    isFile: (p: string): boolean => {
+      const abs = jailRoot ? resolve(jailRoot, p) : p
+      if (jailRoot && relative(jailRoot, abs).startsWith('..')) return false
+      try { return statSync(abs).isFile() } catch { return false }
+    },
+    isDir: (p: string): boolean => {
+      const abs = jailRoot ? resolve(jailRoot, p) : p
+      if (jailRoot && relative(jailRoot, abs).startsWith('..')) return false
+      try { return statSync(abs).isDirectory() } catch { return false }
+    },
   }
   try {
     const result = runInNewContext(trimmed, { ...envObj, env: envObj, file: fileHelper }, { timeout: 500 })
