@@ -7,13 +7,15 @@ source_files:
   - packages/parser/src/directives/interpolation.ts
   - packages/engine/src/conditions.ts
 wave: markdownai-core-wave-2
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [interpolation, expressions, inline, template, env-vars, ternary, optional-chaining]
 path: Language/Interpolation
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

@@ -18,13 +18,35 @@ source_files:
   - packages/mcp/src/connections.ts
   - packages/mcp/index.ts
 wave: markdownai-core-wave-4
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [mcp, server, ai-integration, phase-management, lazy-loading, tools, cache-invalidation]
 path: Toolchain/MCP
+integration_contracts:
+  - caller_feature: 30-mcp-server
+    function: validateMcpInput(params, schema)
+    when: before every MCP tool dispatches user-supplied filePath, macroName, args, cwd, directive values
+    mandatory: true
+  - caller_feature: 30-mcp-server
+    function: filterEnvKeys(key, allowedKeys)
+    when: in get_env.ts before any process.env lookup
+    mandatory: true
+  - caller_feature: 30-mcp-server
+    function: applyMasking(args, security)
+    when: before storing connection args in connections singleton
+    mandatory: true
+satisfies_contracts:
+  - from: 23-security-filesystem
+    function: checkFilePath(resolved, ctx.jailRoot, ctx.security)
+    when: before reading files in next_phase, list_phases, resolve_phase
+    status: pending
+  - from: 27-security-immutable-rules
+    function: Object.freeze() on all rule arrays at definition
+    when: in security/rules.ts — all exported arrays
+    status: pending
 known_issues: []
 ---
 

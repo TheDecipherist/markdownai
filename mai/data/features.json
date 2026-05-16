@@ -1,0 +1,15 @@
+[
+  { "name": "include", "description": "Include content from another file", "stable": true },
+  { "name": "import", "description": "Import definitions from another file", "stable": true },
+  { "name": "define", "description": "Define reusable macros", "stable": true },
+  { "name": "call", "description": "Invoke a named macro", "stable": true },
+  { "name": "if", "description": "Conditional rendering blocks", "stable": true },
+  { "name": "env", "description": "Environment variable resolution", "stable": true },
+  { "name": "list", "description": "List files or data items", "stable": true },
+  { "name": "read", "description": "Read structured data from files", "stable": true },
+  { "name": "tree", "description": "Render directory as ASCII tree", "stable": true },
+  { "name": "date", "description": "Insert date values", "stable": true },
+  { "name": "count", "description": "Count filesystem entries", "stable": true },
+  { "name": "phase", "description": "Named phase declarations", "stable": true },
+  { "name": "render", "description": "Format piped output as markdown", "stable": true }
+]

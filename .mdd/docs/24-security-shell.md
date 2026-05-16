@@ -13,6 +13,12 @@ status: complete
 mdd_version: 1
 tags: [security, shell, allowlist, deny-patterns, require-confirmation, audit-log]
 path: Security
+integration_contracts:
+  - caller_feature: 03-engine
+    function: checkShellCommand(command, ctx.security)
+    when: before every execSync/spawn call in engine/shell.ts; must refuse if result.allowed !== true
+    mandatory: true
+satisfies_contracts: []
 known_issues: []
 ---
 

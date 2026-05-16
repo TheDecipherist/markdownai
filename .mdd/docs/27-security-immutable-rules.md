@@ -13,6 +13,12 @@ status: complete
 mdd_version: 1
 tags: [security, immutable-rules, always-block, always-alert, security-floor]
 path: Security
+integration_contracts:
+  - caller_feature: 22-security-config
+    function: Object.freeze() + readonly on all exported rule arrays
+    when: at definition — SHELL_ALWAYS_BLOCK, HTTP_ALWAYS_BLOCK_DOMAINS, FILESYSTEM_ALWAYS_BLOCK_PATHS etc. must be Object.freeze()'d
+    mandatory: true
+satisfies_contracts: []
 known_issues: []
 ---
 

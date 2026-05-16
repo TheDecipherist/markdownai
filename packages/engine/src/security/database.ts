@@ -24,9 +24,10 @@ export function checkDbOperation(
     }
   }
 
-  // 2. Always-block MongoDB patterns — immutable
+  // 2. Always-block MongoDB patterns — immutable (case-insensitive to prevent bypass)
+  const lowerOp = op.toLowerCase()
   for (const pattern of DB_ALWAYS_BLOCK_MONGO) {
-    if (op.includes(pattern)) {
+    if (lowerOp.includes(pattern.toLowerCase())) {
       return { allowed: false, tier: 'always_block', reason: `Immutable block MongoDB pattern: "${pattern}"` }
     }
   }

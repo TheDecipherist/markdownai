@@ -130,20 +130,16 @@ describe('file resolution — circular detection and deduplication', () => {
   })
 
   it('detects circular @import and reports error', () => {
-    const x = join(TMP, 'cimp-x.md')
-    const y = join(TMP, 'cimp-y.md')
-    writeFileSync(x, `@markdownai\n\n@import ${y}\n\n# Hello\n`)
-    writeFileSync(y, `@markdownai\n\n@import ${x}\n`)
-    const result = runRender(x)
+    writeFileSync(join(TMP, 'cimp-x.md'), `@markdownai\n\n@import ./cimp-y.md\n\n# Hello\n`)
+    writeFileSync(join(TMP, 'cimp-y.md'), `@markdownai\n\n@import ./cimp-x.md\n`)
+    const result = runRender(join(TMP, 'cimp-x.md'))
     expect(result.errors.some(e => e.toLowerCase().includes('circular'))).toBe(true)
   })
 
   it('duplicate @import is skipped (first-wins)', () => {
-    const shared = join(TMP, 'shared-dedup.md')
-    const main = join(TMP, 'main-dedup.md')
-    writeFileSync(shared, '@markdownai\n\n@env DEDUP_VAR fallback="from-shared"\n')
-    writeFileSync(main, `@markdownai\n\n@import ${shared}\n@import ${shared}\n\n@env DEDUP_VAR\n`)
-    const result = runRender(main)
+    writeFileSync(join(TMP, 'shared-dedup.md'), '@markdownai\n\n@env DEDUP_VAR fallback="from-shared"\n')
+    writeFileSync(join(TMP, 'main-dedup.md'), '@markdownai\n\n@import ./shared-dedup.md\n@import ./shared-dedup.md\n\n@env DEDUP_VAR\n')
+    const result = runRender(join(TMP, 'main-dedup.md'))
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('from-shared')
   })
@@ -375,8 +371,8 @@ describe('@phase and @graph directives', () => {
 
 describe('@env resolution and @import fallback registration', () => {
   it('@env inside @import registers fallback — subsequent @env in main doc resolves it', () => {
-    const shared = write('shared-env.md', '@markdownai\n\n@env MDD_TEST_APP fallback="MyApp"\n')
-    const main = write('main-env.md', `@markdownai\n\n@import ${shared}\n\n@env MDD_TEST_APP\n`)
+    write('shared-env.md', '@markdownai\n\n@env MDD_TEST_APP fallback="MyApp"\n')
+    const main = write('main-env.md', '@markdownai\n\n@import ./shared-env.md\n\n@env MDD_TEST_APP\n')
     const result = runRender(main)
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('MyApp')

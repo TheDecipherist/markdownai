@@ -87,5 +87,8 @@ export function loadSecurityConfig(filePath?: string): SecurityJsonConfig {
       db: { ...(loaded.db ?? {}) },
       filesystem: { ...defaults.filesystem, ...(loaded.filesystem ?? {}) },
     }
-  } catch { return defaultSecurityConfig() }
+  } catch (err) {
+    process.stderr.write(`[markdownai] security config parse error (${path}): ${String(err)}\n`)
+    return defaultSecurityConfig()
+  }
 }

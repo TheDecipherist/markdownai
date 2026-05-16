@@ -1,0 +1,17 @@
+{
+  "name": "@markdownai/e2e",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:unit": "vitest run"
+  },
+  "dependencies": {
+    "@markdownai/core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

@@ -9,13 +9,15 @@ source_files:
   - packages/engine/src/pipe.ts
   - packages/renderer/src/renderer.ts
 wave: markdownai-core-wave-2
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [pipeline, pipe, render, output, ascii-charts, cross-platform, builtins]
 path: Language/Pipeline
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

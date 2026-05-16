@@ -14,8 +14,7 @@ export function checkShellCommand(command: string, config: ShellSecurityConfig):
 
   // 1. Built-in always_block — immutable, no config can override
   for (const pattern of SHELL_ALWAYS_BLOCK) {
-    const prefix = pattern.replace(/\*.*$/, '').trim()
-    if (matchShellPattern(pattern, cmd) || (prefix.length > 0 && cmd.startsWith(prefix + ' ')) || cmd === prefix) {
+    if (matchShellPattern(pattern, cmd)) {
       return { allowed: false, tier: 'always_block', reason: `Immutable block: "${pattern}"` }
     }
   }
@@ -39,12 +38,14 @@ export function checkShellCommand(command: string, config: ShellSecurityConfig):
   // 4. User allowlist check
   const inAllowlist = config.allow_patterns.some(p => matchGlob(p, cmd) || matchShellPattern(p, cmd))
 
+  // enabled:false blocks everything not in always_block (already handled above) — check before allowlist
+  if (!config.enabled) return { allowed: false, tier: 'not_allowed', reason: 'Shell execution disabled' }
+
   if (alertPattern) {
     if (inAllowlist) return { allowed: true, tier: 'always_alert', reason: `Alert pattern in allowlist: "${alertPattern}"` }
     return { allowed: false, tier: 'always_alert', reason: `Alert pattern not in allowlist: "${alertPattern}"` }
   }
 
-  if (!config.enabled) return { allowed: false, tier: 'not_allowed', reason: 'Shell execution disabled' }
   if (!inAllowlist) return { allowed: false, tier: 'not_allowed', reason: 'Command not in allowlist' }
 
   return { allowed: true, tier: 'allowed', reason: 'In allowlist' }

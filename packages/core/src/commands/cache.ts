@@ -30,8 +30,9 @@ export function runCacheShow(options: CacheShowOptions = {}): CacheShowResult {
 }
 
 export function runCacheClear(options: CacheClearOptions = {}): CacheClearResult {
-  const clearSess = options.session !== false && !options.persist
-  const clearPers = options.persist !== false && !options.session
+  // When neither flag is set, clear both. When one is explicitly true, clear only that one.
+  const clearSess = !options.persist || Boolean(options.session)
+  const clearPers = !options.session || Boolean(options.persist)
 
   if (clearSess) clearSessionCache()
   if (clearPers) clearPersistCache(options.directive)

@@ -7,13 +7,15 @@ source_files:
   - packages/parser/src/directives/read.ts
   - packages/engine/src/engine.ts
 wave: markdownai-core-wave-2
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [read, json, yaml, toml, csv, env-file, structured-data]
 path: Language/Sources
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

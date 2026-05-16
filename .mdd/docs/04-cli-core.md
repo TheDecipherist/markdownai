@@ -25,6 +25,12 @@ path: Toolchain/CLI
 wave: markdownai-core-wave-1
 wave_status: complete
 initiative: markdownai-core
+integration_contracts: []
+satisfies_contracts:
+  - from: 23-security-filesystem
+    function: checkFilePath(resolved, documentRoot, defaultConfig)
+    when: before reading files in list-imports recursive resolver
+    status: pending
 known_issues: []
 ---
 

@@ -1,5 +1,5 @@
 import { readFileSync, statSync, existsSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { resolve, dirname, relative } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import type {
   ASTNode, ParseResult, IncludeNode, ImportNode,
@@ -15,6 +15,7 @@ import { evalCondition } from './conditions.js'
 import { runBuiltin, isBuiltin } from './pipe.js'
 import { runShell } from './shell.js'
 import { executeList, executeRead, executeCount, executeDate, executeTree, executeDb, executeHttp, executeQuery, formatDate } from './sources.js'
+import { checkFilePath } from './security/filesystem.js'
 
 const MARKDOWNAI_VERSION = '1.0'
 
@@ -52,6 +53,10 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
   if (mainFile) {
     base.docDir = dirname(mainFile)
     base.resolutionStack.add(mainFile)
+    // Set jailRoot once from the main document's directory — never changes during recursion
+    if (base.security.jailRoot === null) {
+      base.security = { ...base.security, jailRoot: dirname(mainFile) }
+    }
   }
   const errors: string[] = []
   const parts: string[] = []
@@ -83,7 +88,7 @@ function walkNodes(nodes: ASTNode[], ctx: EngineContext): string[] {
       if (out !== '') parts.push(out)
     } catch (err) {
       if (err instanceof FatalError) throw err
-      // non-fatal: swallow and continue
+      ctx.warnings.push(String(err))
     }
   }
   return parts
@@ -204,13 +209,21 @@ function executeInclude(node: IncludeNode, ctx: EngineContext): string {
   // Evaluate inline condition if present
   if (node.condition !== null && !evalCondition(node.condition, ctx)) return ''
 
+  const jailRoot = ctx.security.jailRoot ?? ctx.docDir
+  const check = checkFilePath(node.path, jailRoot, ctx.security.filesystemConfig)
+  if (check.level === 'blocked') throw new FatalError(`@include blocked: ${check.reason}`)
+  if (check.level === 'alert') ctx.warnings.push(`@include SECURITY_ALERT: ${check.reason} (${node.path})`)
+
   const full = resolve(ctx.docDir, node.path)
   if (ctx.resolutionStack.has(full)) {
     const chain = [...ctx.resolutionStack, full].join(' → ')
     throw new FatalError(`Circular reference detected: ${chain}`)
   }
   let source: string
-  try { source = readFileSync(full, 'utf8') } catch { return '' }
+  try { source = readFileSync(full, 'utf8') } catch (err) {
+    ctx.warnings.push(`@include: cannot read file "${node.path}": ${String(err)}`)
+    return ''
+  }
   const ast = parse(source, { filePath: full })
   if (!ast.isMarkdownAI) return ''
   ctx.resolutionStack.add(full)
@@ -235,6 +248,11 @@ function executeInclude(node: IncludeNode, ctx: EngineContext): string {
 }
 
 function executeImport(node: ImportNode, ctx: EngineContext): void {
+  const jailRoot = ctx.security.jailRoot ?? ctx.docDir
+  const check = checkFilePath(node.path, jailRoot, ctx.security.filesystemConfig)
+  if (check.level === 'blocked') throw new FatalError(`@import blocked: ${check.reason}`)
+  if (check.level === 'alert') ctx.warnings.push(`@import SECURITY_ALERT: ${check.reason} (${node.path})`)
+
   const full = resolve(ctx.docDir, node.path)
   if (ctx.completedSet.has(full)) return  // first-wins: already imported
   if (ctx.resolutionStack.has(full)) {
@@ -242,7 +260,10 @@ function executeImport(node: ImportNode, ctx: EngineContext): void {
     throw new FatalError(`Circular reference detected: ${chain}`)
   }
   let source: string
-  try { source = readFileSync(full, 'utf8') } catch { return }
+  try { source = readFileSync(full, 'utf8') } catch (err) {
+    ctx.warnings.push(`@import: cannot read file "${node.path}": ${String(err)}`)
+    return
+  }
   const ast = parse(source, { filePath: full, inImport: true })
   if (!ast.isMarkdownAI) return
   ctx.resolutionStack.add(full)
@@ -280,10 +301,23 @@ function evalExpr(expr: string, ctx: EngineContext): string {
   if (dateFmtMatch) return formatDate(new Date(), dateFmtMatch[1] ?? 'ISO')
 
   const envObj: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
+  const jailRoot = ctx.security.jailRoot ?? ctx.docDir ?? null
   const fileHelper = {
-    exists: (p: string): boolean => existsSync(p),
-    isFile: (p: string): boolean => { try { return statSync(p).isFile() } catch { return false } },
-    isDir: (p: string): boolean => { try { return statSync(p).isDirectory() } catch { return false } },
+    exists: (p: string): boolean => {
+      const abs = jailRoot ? resolve(jailRoot, p) : p
+      if (jailRoot && relative(jailRoot, abs).startsWith('..')) return false
+      return existsSync(abs)
+    },
+    isFile: (p: string): boolean => {
+      const abs = jailRoot ? resolve(jailRoot, p) : p
+      if (jailRoot && relative(jailRoot, abs).startsWith('..')) return false
+      try { return statSync(abs).isFile() } catch { return false }
+    },
+    isDir: (p: string): boolean => {
+      const abs = jailRoot ? resolve(jailRoot, p) : p
+      if (jailRoot && relative(jailRoot, abs).startsWith('..')) return false
+      try { return statSync(abs).isDirectory() } catch { return false }
+    },
   }
   try {
     const result = runInNewContext(trimmed, { ...envObj, env: envObj, file: fileHelper }, { timeout: 500 })

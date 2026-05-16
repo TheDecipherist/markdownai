@@ -177,6 +177,12 @@ export interface PassthroughNode extends ASTNodeBase {
   raw: string
 }
 
+export interface InterpolationNode extends ASTNodeBase {
+  type: 'interpolation'
+  expression: string
+  escaped: boolean
+}
+
 export type ASTNode =
   | HeaderNode
   | IncludeNode
@@ -201,6 +207,7 @@ export type ASTNode =
   | GraphNode
   | MarkdownNode
   | PassthroughNode
+  | InterpolationNode
 
 export interface ParseResult {
   isMarkdownAI: boolean

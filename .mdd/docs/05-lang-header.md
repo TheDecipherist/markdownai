@@ -6,13 +6,15 @@ depends_on: [01-parser]
 source_files:
   - packages/parser/src/directives/header.ts
 wave: markdownai-core-wave-2
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [header, declaration, runtime-detection, opt-in, version-pin]
 path: Language/Header
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

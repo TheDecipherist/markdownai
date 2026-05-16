@@ -42,9 +42,43 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
   const p = req.params ?? {}
   try {
     switch (req.method) {
-      case 'read_file':
-        respond(req.id, readFile({ path: String(p['path'] ?? ''), phase: p['phase'] != null ? String(p['phase']) : undefined }, cwd))
+      case 'initialize':
+        respond(req.id, {
+          protocolVersion: '2024-11-05',
+          capabilities: { tools: {} },
+          serverInfo: { name: 'markdownai', version: '1.0.0' },
+        })
         break
+      case 'notifications/initialized':
+        // No response needed for notifications
+        break
+      case 'tools/list':
+        respond(req.id, {
+          tools: [
+            { name: 'read_file', description: 'Read and render a MarkdownAI document', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' } }, required: ['path'] } },
+            { name: 'list_phases', description: 'List all phases in a MarkdownAI document', inputSchema: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'] } },
+            { name: 'resolve_phase', description: 'Resolve a named phase in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' } }, required: ['file', 'phase'] } },
+            { name: 'next_phase', description: 'Get the next phase after current_phase', inputSchema: { type: 'object', properties: { file: { type: 'string' }, current_phase: { type: 'string' } }, required: ['file', 'current_phase'] } },
+            { name: 'call_macro', description: 'Call a named macro in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, macro: { type: 'string' }, args: { type: 'object' } }, required: ['file', 'macro'] } },
+            { name: 'get_env', description: 'Get an environment variable value', inputSchema: { type: 'object', properties: { key: { type: 'string' }, fallback: { type: 'string' } }, required: ['key'] } },
+            { name: 'execute_directive', description: 'Execute a MarkdownAI directive string', inputSchema: { type: 'object', properties: { directive: { type: 'string' } }, required: ['directive'] } },
+            { name: 'invalidate_cache', description: 'Invalidate the directive cache', inputSchema: { type: 'object', properties: { directive: { type: 'string' } } } },
+          ],
+        })
+        break
+      case 'tools/call': {
+        const toolName = String((p['name'] as string) ?? '')
+        const toolParams = (p['arguments'] as Record<string, unknown>) ?? {}
+        const syntheticReq: JsonRpcRequest = { jsonrpc: '2.0', id: req.id, method: toolName, params: toolParams }
+        handleRequest(syntheticReq, cwd)
+        break
+      }
+      case 'read_file': {
+        const rfArgs: Parameters<typeof readFile>[0] = { path: String(p['path'] ?? '') }
+        if (p['phase'] != null) rfArgs.phase = String(p['phase'])
+        respond(req.id, readFile(rfArgs, cwd))
+        break
+      }
       case 'list_phases':
         respond(req.id, listPhases(String(p['file'] ?? ''), cwd))
         break
@@ -54,9 +88,14 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
       case 'next_phase':
         respond(req.id, nextPhase(String(p['file'] ?? ''), String(p['current_phase'] ?? ''), cwd))
         break
-      case 'call_macro':
-        respond(req.id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), (p['args'] as Record<string, string>) ?? {}, cwd))
+      case 'call_macro': {
+        const rawArgs = p['args']
+        const macroArgs: Record<string, string> = (typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs))
+          ? Object.fromEntries(Object.entries(rawArgs).map(([k, v]) => [k, String(v)]))
+          : {}
+        respond(req.id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), macroArgs, cwd))
         break
+      }
       case 'get_env':
         respond(req.id, getEnv(String(p['key'] ?? ''), p['fallback'] != null ? String(p['fallback']) : undefined))
         break

@@ -15,6 +15,8 @@ status: complete
 mdd_version: 1
 tags: [security, jail-model, config-file, runtime-modes, audit-log, principles]
 path: Security
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

@@ -6,13 +6,19 @@ depends_on: []
 source_files:
   - packages/engine/src/cache.ts
 wave: markdownai-core-wave-4
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [caching, cache, session-cache, persist-cache, mock-cache, ttl, ai-consistency, fixture-system]
 path: Toolchain/Cache
+integration_contracts:
+  - caller_feature: 03-engine
+    function: applyMasking(value, ctx.security)
+    when: before every SESSION_CACHE.set() and writeFileSync in writeCache
+    mandatory: true
+satisfies_contracts: []
 known_issues: []
 ---
 

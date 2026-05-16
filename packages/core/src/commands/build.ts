@@ -5,7 +5,6 @@ import type { RenderOptions } from './render.js'
 
 export interface BuildOptions extends RenderOptions {
   output?: string
-  watch?: boolean
 }
 
 export interface BuildResult {
@@ -25,5 +24,5 @@ export function runBuild(filePath: string, options: BuildOptions = {}): BuildRes
     writeFileSync(outputPath, result.output)
   }
 
-  return { ...result, outputPath }
+  return { ...result, ...(outputPath !== undefined ? { outputPath } : {}) }
 }

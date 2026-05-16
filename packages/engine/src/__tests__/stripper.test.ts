@@ -26,7 +26,7 @@ describe('strip — node removal rules', () => {
   })
 
   it('removes @connect directives', () => {
-    const ast = parse('@markdownai\n@connect primary mongodb uri=env.MONGO\nSome text')
+    const ast = parse('@markdownai\n@connect primary type=mongodb uri=env.MONGO\nSome text')
     const result = strip(ast)
     expect(result.output).not.toContain('@connect')
     expect(result.output).toContain('Some text')

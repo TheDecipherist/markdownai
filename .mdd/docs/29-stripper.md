@@ -7,13 +7,15 @@ source_files:
   - packages/core/src/commands/strip.ts
   - packages/engine/src/stripper.ts
 wave: markdownai-core-wave-4
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [stripper, strip, clean-markdown, removal-rules, conditional-stripping, mai-strip]
 path: Toolchain/Stripper
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 
