@@ -8,6 +8,7 @@ import { callMacro } from './tools/call_macro.js'
 import { getEnv } from './tools/get_env.js'
 import { executeDirective } from './tools/execute_directive.js'
 import { invalidateCache } from './tools/invalidate_cache.js'
+import { getConstraints } from './tools/get_constraints.js'
 
 interface JsonRpcRequest {
   jsonrpc: '2.0'
@@ -55,7 +56,7 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
       case 'tools/list':
         respond(req.id, {
           tools: [
-            { name: 'read_file', description: 'Read and render a MarkdownAI document', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' } }, required: ['path'] } },
+            { name: 'read_file', description: 'Read and render a MarkdownAI document. Returns ai-format (token-efficient) by default. Pass format="standard" to override.', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' } }, required: ['path'] } },
             { name: 'list_phases', description: 'List all phases in a MarkdownAI document', inputSchema: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'] } },
             { name: 'resolve_phase', description: 'Resolve a named phase in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' } }, required: ['file', 'phase'] } },
             { name: 'next_phase', description: 'Get the next phase after current_phase', inputSchema: { type: 'object', properties: { file: { type: 'string' }, current_phase: { type: 'string' } }, required: ['file', 'current_phase'] } },
@@ -63,6 +64,7 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
             { name: 'get_env', description: 'Get an environment variable value', inputSchema: { type: 'object', properties: { key: { type: 'string' }, fallback: { type: 'string' } }, required: ['key'] } },
             { name: 'execute_directive', description: 'Execute a MarkdownAI directive string', inputSchema: { type: 'object', properties: { directive: { type: 'string' } }, required: ['directive'] } },
             { name: 'invalidate_cache', description: 'Invalidate the directive cache', inputSchema: { type: 'object', properties: { directive: { type: 'string' } } } },
+            { name: 'get_constraints', description: 'Get all @constraint declarations from a MarkdownAI document, sorted by severity', inputSchema: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'] } },
           ],
         })
         break
@@ -76,6 +78,9 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
       case 'read_file': {
         const rfArgs: Parameters<typeof readFile>[0] = { path: String(p['path'] ?? '') }
         if (p['phase'] != null) rfArgs.phase = String(p['phase'])
+        if (p['format'] === 'standard' || p['format'] === 'ai') rfArgs.format = p['format']
+        if (p['budget'] != null) rfArgs.budget = Number(p['budget'])
+        if (p['consumer'] != null) rfArgs.consumer = String(p['consumer'])
         respond(req.id, readFile(rfArgs, cwd))
         break
       }
@@ -104,6 +109,9 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
         break
       case 'invalidate_cache':
         respond(req.id, invalidateCache(p['directive'] != null ? String(p['directive']) : undefined))
+        break
+      case 'get_constraints':
+        respond(req.id, getConstraints(String(p['file'] ?? ''), cwd))
         break
       default:
         respondError(req.id, -32601, `Method not found: ${req.method}`)

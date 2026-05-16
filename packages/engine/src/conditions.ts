@@ -40,8 +40,13 @@ export function evalExpression(expr: string, ctx: EngineContext): string {
 
 function preprocessExpr(expr: string): string {
   // Convert file.exists "./path" → file.exists("./path") (and isFile, isDir)
-  return expr.replace(/\bfile\.(exists|isFile|isDir)\s+"([^"]*)"/g, 'file.$1("$2")')
-             .replace(/\bfile\.(exists|isFile|isDir)\s+'([^']*)'/g, "file.$1('$2')")
+  let result = expr.replace(/\bfile\.(exists|isFile|isDir)\s+"([^"]*)"/g, 'file.$1("$2")')
+                   .replace(/\bfile\.(exists|isFile|isDir)\s+'([^']*)'/g, "file.$1('$2')")
+  // Convert MarkdownAI equality syntax: identifier="value" → identifier === "value"
+  // Lookbehind ensures we don't transform !=, <=, >=, == — only bare =
+  result = result.replace(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*(?<![!<>=])=(?!=)\s*"([^"]*)"/g, '$1 === "$2"')
+                 .replace(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*(?<![!<>=])=(?!=)\s*'([^']*)'/g, "$1 === '$2'")
+  return result
 }
 
 const SAFE_ENV_KEY = /^[A-Z_][A-Z0-9_]*$/i
@@ -56,7 +61,7 @@ function runExpr(expr: string, ctx: EngineContext): unknown {
   }
   const jailRoot = ctx.security.jailRoot ?? ctx.docDir ?? null
   const file = makeFileHelpers(jailRoot)
-  const sandbox: Record<string, unknown> = { ...rootEnv, env: envObj, file }
+  const sandbox: Record<string, unknown> = { ...rootEnv, env: envObj, file, consumer: ctx.consumer ?? '' }
   try {
     return runInNewContext(preprocessExpr(expr), sandbox, { timeout: 500 })
   } catch {

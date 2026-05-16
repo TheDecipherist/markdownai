@@ -19,10 +19,16 @@ import render from './directives/render.js'
 import ifDir from './directives/if.js'
 import graph from './directives/graph.js'
 import pipe from './directives/pipe.js'
+import prompt from './directives/prompt.js'
+import section from './directives/section.js'
+import chunkBoundary from './directives/chunk-boundary.js'
+import defineConcept from './directives/define-concept.js'
+import constraint from './directives/constraint.js'
 
 const modules: ParseModule[] = [
   header, include, importDir, env, define, call, phase, connect,
   list, read, query, db, http, tree, date, count, render, ifDir, graph, pipe,
+  prompt, section, chunkBoundary, defineConcept, constraint,
 ]
 
 const registry = new Map<string, ParseModule>(

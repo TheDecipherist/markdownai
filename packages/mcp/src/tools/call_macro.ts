@@ -67,6 +67,6 @@ export function callMacro(
   const ast = parse(callDoc)
   if (!ast.isMarkdownAI) return { output: '', warnings: [], found: false }
 
-  const result = execute(ast, { ctx: { envFiles: env ?? {}, cwd } })
+  const result = execute(ast, { ctx: { envFiles: env ?? {}, cwd, docDir: resolve(cwd) } })
   return { output: result.output, warnings: result.warnings, found: true }
 }

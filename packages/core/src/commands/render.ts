@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import { execute } from '@markdownai/engine'
+import { aiFilter } from '@markdownai/renderer'
 import { loadEnvFile } from '../env-loader.js'
 
 export interface RenderOptions {
@@ -10,6 +11,9 @@ export interface RenderOptions {
   verbose?: boolean
   strict?: boolean
   silent?: boolean
+  consumer?: string
+  format?: 'standard' | 'ai'
+  budget?: number
 }
 
 export interface RenderResult {
@@ -17,6 +21,55 @@ export interface RenderResult {
   errors: string[]
   warnings: string[]
   exitCode: number
+}
+
+const SECTION_RE = /<!-- mda-section priority="(critical|high|medium|low)"(?:\s+id="([^"]*)")?\s*-->([\s\S]*?)<!-- \/mda-section -->/g
+const SEVERITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
+
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4)
+}
+
+function applyBudget(output: string, budget: number): string {
+  if (budget <= 0) return output
+
+  // Collect sections with their match positions
+  interface Section { full: string; priority: string; content: string }
+  const sections: Section[] = []
+  for (const m of output.matchAll(SECTION_RE)) {
+    sections.push({ full: m[0]!, priority: m[1]!, content: m[3]! })
+  }
+
+  if (sections.length === 0) return output
+
+  // Base cost: everything outside sections
+  let base = output
+  for (const s of sections) base = base.replace(s.full, '')
+  let remaining = budget - estimateTokens(base)
+
+  // Sort by priority (critical first, low last) — but drop low first
+  const byPriority = [...sections].sort((a, b) => (SEVERITY_ORDER[a.priority] ?? 4) - (SEVERITY_ORDER[b.priority] ?? 4))
+
+  // Determine which sections to keep (greedy from critical down)
+  const keep = new Set<Section>()
+  for (const s of byPriority) {
+    if (s.priority === 'critical') { keep.add(s); continue }
+    const cost = estimateTokens(s.content)
+    if (remaining >= cost) { keep.add(s); remaining -= cost }
+  }
+  // Always keep critical regardless
+  for (const s of sections) if (s.priority === 'critical') keep.add(s)
+
+  // Rebuild: replace dropped sections with placeholder, keep others with content only
+  let result = output
+  for (const s of sections) {
+    if (keep.has(s)) {
+      result = result.replace(s.full, s.content.trim())
+    } else {
+      result = result.replace(s.full, `<!-- [Section omitted — budget ${budget} tokens] -->`)
+    }
+  }
+  return result
 }
 
 export function runRender(filePath: string, options: RenderOptions = {}): RenderResult {
@@ -38,11 +91,31 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
   const envFiles = options.env ? loadEnvFile(options.env) : {}
   const result = execute(ast, {
     filePath: resolved,
-    ctx: { envFiles, cwd: options.cwd ? resolve(options.cwd) : process.cwd() },
+    ctx: {
+      envFiles,
+      cwd: options.cwd ? resolve(options.cwd) : process.cwd(),
+      consumer: options.consumer,
+    },
   })
+
+  let output = result.output
+
+  // Budget pass (post-render, pre-filter)
+  if (options.budget && options.budget > 0) {
+    output = applyBudget(output, options.budget)
+  } else {
+    // No budget: strip section markers from output
+    output = output.replace(/<!-- mda-section priority="[^"]*"(?:\s+id="[^"]*")?\s*-->\n?/g, '')
+    output = output.replace(/<!-- \/mda-section -->\n?/g, '')
+  }
+
+  // AI format pass
+  if (options.format === 'ai') {
+    output = aiFilter(output)
+  }
 
   const allErrors = options.strict ? [...result.errors, ...result.warnings] : result.errors
   const warnings = options.strict ? [] : result.warnings
   const exitCode = allErrors.length > 0 ? 1 : 0
-  return { output: result.output, errors: allErrors, warnings, exitCode }
+  return { output, errors: allErrors, warnings, exitCode }
 }

@@ -2,7 +2,7 @@ import type {
   ASTNode, ParseResult, ParseOptions, ParseContext,
   HeaderNode, MarkdownNode, PassthroughNode, TransitionNode, TransitionAction,
   PhaseNode, DefineNode, ConditionalNode, ConditionalBranch, PipeNode, PipeStage,
-  RenderNode, GraphNode,
+  RenderNode, GraphNode, PromptNode, SectionNode, ConstraintNode,
 } from './types.js'
 import { ParseError } from './types.js'
 import { getModule } from './registry.js'
@@ -192,8 +192,34 @@ function parseDirective(raw: string, line: number, state: State, inline = false)
     if (name === 'define') return parseDefineBlock(state, trimmed, line)
     if (name === 'phase') return parsePhaseBlock(state, trimmed, line)
     if (name === 'if') return parseIfBlock(state, args.trim(), line)
+    if (name === 'section') return parseSectionBlock(state, trimmed, line)
+    if (name === 'prompt') return parseTextBlock(state, trimmed, args, line, 'prompt')
+    if (name === 'constraint') return parseTextBlock(state, trimmed, args, line, 'constraint')
   }
   return mod.parse(trimmed, args, ctx)
+}
+
+function parseSectionBlock(state: State, openLine: string, line: number): SectionNode {
+  const mod = getModule('section')!
+  const args = openLine.replace(/^@section\s*/, '')
+  const ctx: ParseContext = { line, filePath: state.filePath, inImport: state.inImport }
+  const node = mod.parse(openLine, args, ctx) as SectionNode
+  node.body = collectBody(state, 'end')
+  return node
+}
+
+function parseTextBlock(state: State, openLine: string, args: string, line: number, name: 'prompt' | 'constraint'): PromptNode | ConstraintNode {
+  const mod = getModule(name)!
+  const ctx: ParseContext = { line, filePath: state.filePath, inImport: state.inImport }
+  const node = mod.parse(openLine, args, ctx) as PromptNode | ConstraintNode
+  const bodyLines: string[] = []
+  while (state.pos < state.lines.length) {
+    const raw = peek(state)!
+    if (raw.trim() === '@end') { consume(state); break }
+    bodyLines.push(consume(state))
+  }
+  node.body = bodyLines.join('\n').trim()
+  return node
 }
 
 function parseGraphBlock(state: State, line: number): GraphNode {

@@ -32,6 +32,9 @@ universalOptions(
     .command('render <file>')
     .description('render a MarkdownAI document to markdown')
     .option('-o, --output <path>', 'write output to file instead of stdout')
+    .option('--consumer <type>', 'target consumer: ai, human, or any custom value')
+    .option('--format <mode>', 'output format: standard (default) or ai (token-efficient)')
+    .option('--budget <n>', 'token budget — drop low-priority @section blocks to fit', parseInt)
 ).action((file: string, opts: Record<string, string | boolean | undefined>) => {
   const result = runRender(file, opts)
   for (const warn of result.warnings) {

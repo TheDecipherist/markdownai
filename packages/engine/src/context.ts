@@ -24,6 +24,12 @@ export interface MacroDefinition {
   params: string[]
 }
 
+export interface ConstraintEntry {
+  id: string
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  body: string
+}
+
 export interface EngineContext {
   env: Record<string, string>
   envFiles: Record<string, string>
@@ -39,6 +45,9 @@ export interface EngineContext {
   warnings: string[]
   resolutionStack: Set<string>
   completedSet: Set<string>
+  consumer: string | undefined
+  glossary: Map<string, string>
+  constraints: ConstraintEntry[]
 }
 
 export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
@@ -62,9 +71,12 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     warnings: [],
     resolutionStack: new Set<string>(),
     completedSet: new Set<string>(),
+    consumer: undefined,
+    glossary: new Map<string, string>(),
+    constraints: [],
   }
   if (!overrides) return base
-  const { warnings, resolutionStack, completedSet, localConnectionNames, ...rest } = overrides
+  const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, ...rest } = overrides
   return {
     ...base,
     ...rest,
@@ -72,6 +84,8 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     resolutionStack: resolutionStack ?? base.resolutionStack,
     completedSet: completedSet ?? base.completedSet,
     localConnectionNames: localConnectionNames ?? base.localConnectionNames,
+    glossary: glossary ?? base.glossary,
+    constraints: constraints ?? base.constraints,
   }
 }
 

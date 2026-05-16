@@ -4,7 +4,7 @@ import { runInNewContext } from 'node:vm'
 import type {
   ASTNode, ParseResult, IncludeNode, ImportNode,
   ConnectNode, DefineNode, CallNode, PhaseNode, ConditionalNode, PipeNode,
-  InterpolationSpan, RenderNode,
+  InterpolationSpan, RenderNode, PromptNode, SectionNode, ConceptNode, ConstraintNode, ChunkBoundaryNode,
 } from '@markdownai/parser'
 import { parse } from '@markdownai/parser'
 import { render } from '@markdownai/renderer'
@@ -77,7 +77,24 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
     base.resolutionStack.delete(mainFile)
     base.completedSet.add(mainFile)
   }
-  return { output: parts.join('\n'), errors, warnings: base.warnings }
+  const body = parts.join('\n')
+  const output = base.consumer === 'ai' ? injectAiPrefixes(body, base) : body
+  return { output, errors, warnings: base.warnings }
+}
+
+function injectAiPrefixes(body: string, ctx: EngineContext): string {
+  const prefixes: string[] = []
+  if (ctx.glossary.size > 0) {
+    const rows = [...ctx.glossary.entries()].map(([k, v]) => `**${k}** — ${v}`).join('\n')
+    prefixes.push(`## Glossary\n\n${rows}\n\n---`)
+  }
+  if (ctx.constraints.length > 0) {
+    const SEVERITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
+    const sorted = [...ctx.constraints].sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 4) - (SEVERITY_ORDER[b.severity] ?? 4))
+    const rows = sorted.map(c => `| ${c.id} | ${c.severity.toUpperCase()} | ${c.body.replace(/\n/g, ' ')} |`).join('\n')
+    prefixes.push(`## Constraints\n\n| ID | Severity | Rule |\n|----|----------|------|\n${rows}\n\n---`)
+  }
+  return prefixes.length > 0 ? prefixes.join('\n\n') + '\n\n' + body : body
 }
 
 function walkNodes(nodes: ASTNode[], ctx: EngineContext): string[] {
@@ -118,8 +135,59 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
     case 'db':
     case 'http':
     case 'query': return executeSource(node, ctx).join('\n')
+    case 'prompt': return executePrompt(node, ctx)
+    case 'section': return executeSection(node, ctx)
+    case 'chunk-boundary': return executeChunkBoundary(node, ctx)
+    case 'define-concept': return executeConcept(node, ctx)
+    case 'constraint': return executeConstraint(node, ctx)
     default: return ''
   }
+}
+
+function executePrompt(node: PromptNode, ctx: EngineContext): string {
+  if (ctx.consumer === 'ai') {
+    return `[AI INSTRUCTION — ${node.role}]\n${node.body}\n[/AI INSTRUCTION]`
+  }
+  // Human or unset: render as blockquote callout
+  const lines = node.body.split('\n').map(l => `> ${l}`).join('\n')
+  return `> **Note (${node.role}):**\n${lines}`
+}
+
+function executeSection(node: SectionNode, ctx: EngineContext): string {
+  const id = node.id ?? ''
+  const content = walkNodes(node.body, ctx).join('\n')
+  return `<!-- mda-section priority="${node.priority}"${id ? ` id="${id}"` : ''} -->\n${content}\n<!-- /mda-section -->`
+}
+
+function executeChunkBoundary(node: ChunkBoundaryNode, ctx: EngineContext): string {
+  if (ctx.consumer === 'ai') return `---chunk:${node.id}---`
+  return `<!-- chunk: ${node.id} -->`
+}
+
+function executeConcept(node: ConceptNode, ctx: EngineContext): string {
+  if (node.name) {
+    const existing = ctx.glossary.get(node.name)
+    if (existing) ctx.warnings.push(`@define-concept "${node.name}" redefined`)
+    ctx.glossary.set(node.name, node.definition)
+  }
+  if (ctx.consumer === 'human' || ctx.consumer === undefined) {
+    return `**${node.name}** — ${node.definition}`
+  }
+  return ''
+}
+
+function executeConstraint(node: ConstraintNode, ctx: EngineContext): string {
+  const existing = ctx.constraints.find(c => c.id === node.id)
+  if (existing) {
+    ctx.warnings.push(`@constraint id="${node.id}" redefined`)
+    Object.assign(existing, { severity: node.severity, body: node.body })
+  } else {
+    ctx.constraints.push({ id: node.id, severity: node.severity, body: node.body })
+  }
+  if (ctx.consumer === 'human' || ctx.consumer === undefined) {
+    return `> **CONSTRAINT [${node.id}] — ${node.severity.toUpperCase()}**\n> ${node.body}`
+  }
+  return ''
 }
 
 const VALID_CONNECTION_TYPES = new Set(['mongodb', 'postgres', 'mysql', 'mssql', 'sqlite', 'redis', 'elasticsearch'])

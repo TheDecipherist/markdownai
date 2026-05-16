@@ -9,6 +9,13 @@ import { runRender, runStrip, runValidate, runCacheClear } from '@markdownai/cor
 const ROOT = resolve(import.meta.dirname, '..')
 const MAI = join(ROOT, 'mai')
 const CLI = join(ROOT, 'packages/core/dist/cli.js')
+const RENDERED = join(ROOT, 'e2e/rendered')
+
+mkdirSync(RENDERED, { recursive: true })
+
+function saveRendered(name: string, output: string): void {
+  writeFileSync(join(RENDERED, name), output, 'utf8')
+}
 
 function fixture(name: string): string {
   return join(MAI, name)
@@ -35,6 +42,7 @@ describe('E2E — mai render', () => {
 
     beforeAll(() => {
       result = runRender(fixture('01-docs-hub.md'), { cwd: ROOT })
+      if (result.exitCode === 0) saveRendered('01-docs-hub.md', result.output)
     })
 
     it('renders with exitCode 0', () => {
@@ -79,6 +87,7 @@ describe('E2E — mai render', () => {
 
     beforeAll(() => {
       result = runRender(fixture('02-project-report.md'), { cwd: ROOT })
+      if (result.exitCode === 0) saveRendered('02-project-report.md', result.output)
     })
 
     it('renders with exitCode 0', () => {
@@ -123,6 +132,7 @@ describe('E2E — mai render', () => {
 
     beforeAll(() => {
       result = runRender(fixture('03-api-reference.md'), { cwd: ROOT })
+      if (result.exitCode === 0) saveRendered('03-api-reference.md', result.output)
     })
 
     it('renders with exitCode 0', () => {
@@ -163,6 +173,7 @@ describe('E2E — mai render', () => {
 
     beforeAll(() => {
       result = runRender(fixture('04-config-showcase.md'), { cwd: ROOT })
+      if (result.exitCode === 0) saveRendered('04-config-showcase.md', result.output)
     })
 
     it('renders with exitCode 0', () => {

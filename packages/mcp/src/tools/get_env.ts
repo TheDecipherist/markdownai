@@ -1,5 +1,5 @@
 // Sensitive key patterns — MCP callers must never be able to read these
-const DENIED_KEY_PATTERNS = /SECRET|PASSWORD|TOKEN|KEY|CREDENTIAL|PRIVATE|AUTH|CERT|API_/i
+const DENIED_KEY_PATTERNS = /SECRET|PASSWORD|TOKEN|KEY|CREDENTIAL|PRIVATE|AUTH|CERT|API_|DATABASE|CONNECTION_STRING/i
 
 export interface GetEnvResult {
   value: string

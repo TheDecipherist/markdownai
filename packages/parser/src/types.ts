@@ -183,6 +183,38 @@ export interface InterpolationNode extends ASTNodeBase {
   escaped: boolean
 }
 
+export interface PromptNode extends ASTNodeBase {
+  type: 'prompt'
+  role: string
+  body: string
+}
+
+export interface SectionNode extends ASTNodeBase {
+  type: 'section'
+  id: string | null
+  priority: 'critical' | 'high' | 'medium' | 'low'
+  body: ASTNode[]
+}
+
+export interface ChunkBoundaryNode extends ASTNodeBase {
+  type: 'chunk-boundary'
+  id: string
+  standalone: boolean
+}
+
+export interface ConceptNode extends ASTNodeBase {
+  type: 'define-concept'
+  name: string
+  definition: string
+}
+
+export interface ConstraintNode extends ASTNodeBase {
+  type: 'constraint'
+  id: string
+  severity: 'critical' | 'high' | 'medium' | 'low'
+  body: string
+}
+
 export type ASTNode =
   | HeaderNode
   | IncludeNode
@@ -208,6 +240,11 @@ export type ASTNode =
   | MarkdownNode
   | PassthroughNode
   | InterpolationNode
+  | PromptNode
+  | SectionNode
+  | ChunkBoundaryNode
+  | ConceptNode
+  | ConstraintNode
 
 export interface ParseResult {
   isMarkdownAI: boolean
