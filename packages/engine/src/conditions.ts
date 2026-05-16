@@ -27,9 +27,17 @@ function preprocessExpr(expr: string): string {
              .replace(/\bfile\.(exists|isFile|isDir)\s+'([^']*)'/g, "file.$1('$2')")
 }
 
+const SAFE_ENV_KEY = /^[A-Z_][A-Z0-9_]*$/i
+
 function runExpr(expr: string, ctx: EngineContext): unknown {
-  const envObj = { ...ctx.env, ...ctx.envFiles }
-  const sandbox: Record<string, unknown> = { ...envObj, env: envObj, file }
+  const envObj: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
+  // Only spread env vars with safe identifier names into root scope to prevent prototype collision.
+  // All vars are always available under env.VAR_NAME regardless.
+  const rootEnv: Record<string, string> = {}
+  for (const [k, v] of Object.entries(envObj)) {
+    if (SAFE_ENV_KEY.test(k)) rootEnv[k] = v
+  }
+  const sandbox: Record<string, unknown> = { ...rootEnv, env: envObj, file }
   try {
     return runInNewContext(preprocessExpr(expr), sandbox, { timeout: 500 })
   } catch {

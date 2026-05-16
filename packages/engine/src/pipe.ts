@@ -11,12 +11,18 @@ export function runBuiltin(command: string, lines: string[]): string[] {
   switch (cmd) {
     case 'grep': return runGrep(parts.slice(1), lines)
     case 'sort': return runSort(parts.slice(1), lines)
-    case 'head': return lines.slice(0, parseN(parts[2], 10))
-    case 'tail': return lines.slice(-parseN(parts[2], 10))
+    case 'head': return lines.slice(0, parseCount(parts.slice(1), 10))
+    case 'tail': return lines.slice(-parseCount(parts.slice(1), 10))
     case 'wc': return [String(lines.length)]
     case 'uniq': return lines.filter((l, i) => i === 0 || l !== lines[i - 1])
     default: throw new Error(`Unknown built-in command: "${cmd}"`)
   }
+}
+
+function parseCount(args: string[], def: number): number {
+  // Supports: `head 5` and `head -n 5`
+  if (args[0] === '-n') return parseN(args[1], def)
+  return parseN(args[0], def)
 }
 
 function parseN(raw: string | undefined, def: number): number {
@@ -34,7 +40,12 @@ function runGrep(args: string[], lines: string[]): string[] {
     else if (arg === '-iv' || arg === '-vi') { caseInsensitive = true; negate = true }
     else patternParts.push(arg)
   }
-  const re = new RegExp(patternParts.join(' '), caseInsensitive ? 'i' : '')
+  let re: RegExp
+  try {
+    re = new RegExp(patternParts.join(' '), caseInsensitive ? 'i' : '')
+  } catch {
+    throw new Error(`grep: invalid pattern: ${patternParts.join(' ')}`)
+  }
   return lines.filter(l => negate ? !re.test(l) : re.test(l))
 }
 

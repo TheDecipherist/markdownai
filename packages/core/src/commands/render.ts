@@ -28,7 +28,7 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
     return { output: '', errors: [`Cannot read file: ${filePath}`], warnings: [], exitCode: 1 }
   }
 
-  let ast
+  let ast: ReturnType<typeof parse>
   try {
     ast = parse(source, { filePath: resolved })
   } catch (err) {

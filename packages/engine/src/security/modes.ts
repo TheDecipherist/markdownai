@@ -5,7 +5,7 @@ const ALWAYS_TERMINAL = new Set<LogLevel>(['ERROR', 'FATAL', 'SECURITY_ALERT', '
 
 export function shouldPrintToTerminal(level: LogLevel, mode: RuntimeMode): boolean {
   if (ALWAYS_TERMINAL.has(level)) return true
-  if (mode === 'verbose') return level === 'WARN'
+  if (mode === 'verbose') return true  // verbose emits all levels
   return false
 }
 

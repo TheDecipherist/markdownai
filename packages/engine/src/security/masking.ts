@@ -19,11 +19,15 @@ export function applyMasking(
   content: string,
   config?: FilesystemSecurityConfig,
   filePath?: string
-): { masked: string; wasMasked: boolean } {
-  // Skip masking if file path is in allow_unmasked_paths
+): { masked: string; wasMasked: boolean; alert?: string } {
+  // Skip masking if file path is in allow_unmasked_paths — emit SECURITY_ALERT when this fires
   if (filePath && config?.allow_unmasked_paths?.length) {
     if (config.allow_unmasked_paths.some(p => matchGlob(p, filePath))) {
-      return { masked: content, wasMasked: false }
+      return {
+        masked: content,
+        wasMasked: false,
+        alert: `SECURITY_ALERT: masking bypassed via allow_unmasked_paths for: ${filePath}`,
+      }
     }
   }
 
