@@ -1,4 +1,5 @@
 import type { ASTNode } from '@markdownai/parser'
+import type { FilesystemSecurityConfig, ShellSecurityConfig } from './security/config.js'
 
 export interface Connection {
   type: string
@@ -10,6 +11,8 @@ export interface SecurityConfig {
   allowHttp: boolean
   allowDb: boolean
   jailRoot: string | null
+  filesystemConfig?: FilesystemSecurityConfig
+  shellConfig?: ShellSecurityConfig
 }
 
 export interface MCPContext {

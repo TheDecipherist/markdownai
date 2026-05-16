@@ -15,10 +15,10 @@ source_files:
   - packages/core/src/commands/list-macros.ts
   - packages/core/src/commands/list-imports.ts
 wave: markdownai-core-wave-4
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [cli, mai, strip, build, watch, serve, cache, security, init, all-commands]
 path: Toolchain/CLI

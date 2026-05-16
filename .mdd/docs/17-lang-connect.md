@@ -7,10 +7,10 @@ source_files:
   - packages/parser/src/directives/connect.ts
   - packages/engine/src/context.ts
 wave: markdownai-core-wave-2
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [connect, database, connections, registry, local-scope, mongodb, postgres, redis]
 path: Language/Connect

@@ -7,10 +7,10 @@ source_files:
   - packages/core/src/hook.ts
   - packages/core/src/commands/init.ts
 wave: markdownai-core-wave-4
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [hook, preToolUse, routing, detection, invisible-runtime, mai-init]
 path: Toolchain/Hook

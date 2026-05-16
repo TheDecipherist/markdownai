@@ -18,10 +18,10 @@ source_files:
   - packages/mcp/src/connections.ts
   - packages/mcp/index.ts
 wave: markdownai-core-wave-4
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [mcp, server, ai-integration, phase-management, lazy-loading, tools, cache-invalidation]
 path: Toolchain/MCP

@@ -133,7 +133,7 @@ program
   .option('--port <n>', 'port number (informational only — server uses stdio)')
   .action(async (opts: Record<string, string | undefined>) => {
     const { startServer } = await import('@markdownai/mcp')
-    startServer({ cwd: opts['cwd'] })
+    startServer(opts['cwd'] ? { cwd: opts['cwd'] } : {})
   })
 
 program
@@ -142,7 +142,7 @@ program
   .option('--client <type>', 'client type: claude-code, cursor (auto-detects if omitted)')
   .action((opts: Record<string, string | undefined>) => {
     const clientOpt = opts['client'] as import('./commands/init.js').ClientType | undefined
-    const result = runInit({ client: clientOpt })
+    const result = runInit(clientOpt ? { client: clientOpt } : {})
     if (result.alreadyInstalled) {
       process.stdout.write(`ℹ ${result.message}\n`)
     } else {
@@ -159,8 +159,11 @@ cache
   .option('--persist', 'show persist cache only')
   .option('--expired', 'show only expired entries')
   .action((_file: string | undefined, opts: Record<string, boolean | undefined>) => {
-    const mode = opts['session'] ? 'session' : opts['persist'] ? 'persist' : undefined
-    const result = runCacheShow({ mode, expired: opts['expired'] })
+    const mode = opts['session'] ? 'session' as const : opts['persist'] ? 'persist' as const : undefined
+    const showOpts: Parameters<typeof runCacheShow>[0] = {}
+    if (mode !== undefined) showOpts.mode = mode
+    if (opts['expired']) showOpts.expired = true
+    const result = runCacheShow(showOpts)
     if (result.entries.length === 0) {
       process.stdout.write('No cache entries\n')
     } else {
@@ -178,11 +181,12 @@ cache
   .option('--persist', 'clear persist cache only')
   .option('--directive <type>', 'clear only entries for this directive type')
   .action((_file: string | undefined, opts: Record<string, string | boolean | undefined>) => {
-    const result = runCacheClear({
+    const clearOpts: Parameters<typeof runCacheClear>[0] = {
       session: Boolean(opts['session']),
       persist: Boolean(opts['persist']),
-      directive: opts['directive'] ? String(opts['directive']) : undefined,
-    })
+    }
+    if (opts['directive']) clearOpts.directive = String(opts['directive'])
+    const result = runCacheClear(clearOpts)
     const parts = []
     if (result.cleared.session) parts.push('session')
     if (result.cleared.persist) parts.push('persist')
@@ -227,7 +231,7 @@ program
   .description('list all phases and their transitions')
   .option('--cwd <path>', 'working directory')
   .action((file: string, opts: Record<string, string | undefined>) => {
-    const result = runListPhases(file, { cwd: opts['cwd'] })
+    const result = runListPhases(file, opts['cwd'] ? { cwd: opts['cwd'] } : {})
     for (const err of result.errors) process.stderr.write(`ERROR: ${err}\n`)
     if (result.exitCode !== 0) process.exit(1)
     if (result.phases.length === 0) process.stdout.write('No phases found\n')
@@ -244,7 +248,7 @@ program
   .description('list all macros defined in the document')
   .option('--cwd <path>', 'working directory')
   .action((file: string, opts: Record<string, string | undefined>) => {
-    const result = runListMacros(file, { cwd: opts['cwd'] })
+    const result = runListMacros(file, opts['cwd'] ? { cwd: opts['cwd'] } : {})
     for (const err of result.errors) process.stderr.write(`ERROR: ${err}\n`)
     if (result.exitCode !== 0) process.exit(1)
     for (const m of result.macros) {
@@ -259,7 +263,7 @@ program
   .description('list all @include and @import dependencies')
   .option('--cwd <path>', 'working directory')
   .action((file: string, opts: Record<string, string | undefined>) => {
-    const result = runListImports(file, { cwd: opts['cwd'] })
+    const result = runListImports(file, opts['cwd'] ? { cwd: opts['cwd'] } : {})
     for (const err of result.errors) process.stderr.write(`ERROR: ${err}\n`)
     for (const i of result.imports) {
       process.stdout.write(`@${i.type} ${i.path} (line ${i.line})\n`)

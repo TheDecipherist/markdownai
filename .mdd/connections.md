@@ -11,34 +11,34 @@ overlap_count: 30
 
 ```
 Language/Conditionals
-  └── 12-lang-conditionals  (draft)
+  └── 12-lang-conditionals  (complete)
 Language/Connect
-  └── 17-lang-connect  (draft)
+  └── 17-lang-connect  (complete)
 Language/Env
-  └── 07-lang-env  (draft)
+  └── 07-lang-env  (complete)
 Language/FileResolution
-  └── 09-lang-file-resolution  (draft)
+  └── 09-lang-file-resolution  (complete)
 Language/Header
-  └── 05-lang-header  (draft)
+  └── 05-lang-header  (complete)
 Language/Import
-  └── 11-lang-import  (draft)
+  └── 11-lang-import  (complete)
 Language/Include
-  └── 10-lang-include  (draft)
+  └── 10-lang-include  (complete)
 Language/Interpolation
-  └── 06-lang-interpolation  (draft)
+  └── 06-lang-interpolation  (complete)
 Language/Macros
-  └── 08-lang-macros  (draft)
+  └── 08-lang-macros  (complete)
 Language/Phases
-  └── 21-lang-phases  (draft)
+  └── 21-lang-phases  (complete)
 Language/Pipeline
-  └── 13-lang-pipeline  (draft)
+  └── 13-lang-pipeline  (complete)
 Language/Sources
-  ├── 14-lang-sources-list  (draft)
-  ├── 15-lang-sources-read  (draft)
-  ├── 16-lang-sources-utilities  (draft)
-  ├── 18-lang-sources-db  (draft)
-  ├── 19-lang-sources-http  (draft)
-  └── 20-lang-sources-query  (draft)
+  ├── 14-lang-sources-list  (complete)
+  ├── 15-lang-sources-read  (complete)
+  ├── 16-lang-sources-utilities  (complete)
+  ├── 18-lang-sources-db  (complete)
+  ├── 19-lang-sources-http  (complete)
+  └── 20-lang-sources-query  (complete)
 Security
   ├── 22-security-config  (complete)
   ├── 23-security-filesystem  (complete)
@@ -48,21 +48,21 @@ Security
   └── 27-security-immutable-rules  (complete)
 Toolchain/CLI
   ├── 04-cli-core  (complete)
-  └── 32-cli-complete  (draft)
+  └── 32-cli-complete  (complete)
 Toolchain/Cache
-  └── 28-caching  (draft)
+  └── 28-caching  (complete)
 Toolchain/Engine
   └── 03-engine  (complete)
 Toolchain/Hook
-  └── 31-hook  (draft)
+  └── 31-hook  (complete)
 Toolchain/MCP
-  └── 30-mcp-server  (draft)
+  └── 30-mcp-server  (complete)
 Toolchain/Parser
   └── 01-parser  (complete)
 Toolchain/Renderer
   └── 02-renderer  (complete)
 Toolchain/Stripper
-  └── 29-stripper  (draft)
+  └── 29-stripper  (complete)
 ```
 
 ## Dependency Graph
@@ -73,38 +73,38 @@ graph LR
   classDef in_progress fill:#e9c46a,color:#000
   classDef draft fill:#aaa,color:#fff
   classDef deprecated fill:#999,color:#fff
-  12_lang_conditionals["12-lang-conditionals: Language — @if Conditionals "]:::draft
-  17_lang_connect["17-lang-connect: Language — @connect Database"]:::draft
-  07_lang_env["07-lang-env: Language — @env Environment "]:::draft
-  09_lang_file_resolution["09-lang-file-resolution: Language — File Resolution M"]:::draft
-  05_lang_header["05-lang-header: Language — Header Declaratio"]:::draft
-  11_lang_import["11-lang-import: Language — @import Definitio"]:::draft
-  10_lang_include["10-lang-include: Language — @include Content "]:::draft
-  06_lang_interpolation["06-lang-interpolation: Language — Inline Interpolat"]:::draft
-  08_lang_macros["08-lang-macros: Language — @define and @call"]:::draft
-  21_lang_phases["21-lang-phases: Language — @phase, @on compl"]:::draft
-  13_lang_pipeline["13-lang-pipeline: Language — Pipe Operator and"]:::draft
-  14_lang_sources_list["14-lang-sources-list: Language — @list Source Dire"]:::draft
-  15_lang_sources_read["15-lang-sources-read: Language — @read Source Dire"]:::draft
-  16_lang_sources_utilities["16-lang-sources-utilities: Language — @tree, @date, @co"]:::draft
-  18_lang_sources_db["18-lang-sources-db: Language — @db Database Quer"]:::draft
-  19_lang_sources_http["19-lang-sources-http: Language — @http HTTP Reques"]:::draft
-  20_lang_sources_query["20-lang-sources-query: Language — @query Shell Comm"]:::draft
-  22_security_config["22-security-config: Security — Config File, Runt"]:::complete
-  23_security_filesystem["23-security-filesystem: Security — Filesystem Confin"]:::complete
-  24_security_shell["24-security-shell: Security — Shell Execution J"]:::complete
-  25_security_database["25-security-database: Security — Database Query Ja"]:::complete
-  26_security_http["26-security-http: Security — HTTP Request Jail"]:::complete
-  27_security_immutable_rules["27-security-immutable-rules: Security — Built-in Immutabl"]:::complete
-  04_cli_core["04-cli-core: CLI Core — mai render, valid"]:::complete
-  32_cli_complete["32-cli-complete: CLI Complete — All Remaining"]:::draft
-  28_caching["28-caching: Caching — @cache Modifier Sy"]:::draft
+  12_lang_conditionals["12-lang-conditionals: Language — @if Conditionals an"]:::complete
+  17_lang_connect["17-lang-connect: Language — @connect Database R"]:::complete
+  07_lang_env["07-lang-env: Language — @env Environment Va"]:::complete
+  09_lang_file_resolution["09-lang-file-resolution: Language — File Resolution Mod"]:::complete
+  05_lang_header["05-lang-header: Language — Header Declaration "]:::complete
+  11_lang_import["11-lang-import: Language — @import Definition "]:::complete
+  10_lang_include["10-lang-include: Language — @include Content In"]:::complete
+  06_lang_interpolation["06-lang-interpolation: Language — Inline Interpolatio"]:::complete
+  08_lang_macros["08-lang-macros: Language — @define and @call M"]:::complete
+  21_lang_phases["21-lang-phases: Language — @phase, @on complet"]:::complete
+  13_lang_pipeline["13-lang-pipeline: Language — Pipe Operator and @"]:::complete
+  14_lang_sources_list["14-lang-sources-list: Language — @list Source Direct"]:::complete
+  15_lang_sources_read["15-lang-sources-read: Language — @read Source Direct"]:::complete
+  16_lang_sources_utilities["16-lang-sources-utilities: Language — @tree, @date, @coun"]:::complete
+  18_lang_sources_db["18-lang-sources-db: Language — @db Database Query "]:::complete
+  19_lang_sources_http["19-lang-sources-http: Language — @http HTTP Request "]:::complete
+  20_lang_sources_query["20-lang-sources-query: Language — @query Shell Comman"]:::complete
+  22_security_config["22-security-config: Security — Config File, Runtim"]:::complete
+  23_security_filesystem["23-security-filesystem: Security — Filesystem Confinem"]:::complete
+  24_security_shell["24-security-shell: Security — Shell Execution Jai"]:::complete
+  25_security_database["25-security-database: Security — Database Query Jail"]:::complete
+  26_security_http["26-security-http: Security — HTTP Request Jail ("]:::complete
+  27_security_immutable_rules["27-security-immutable-rules: Security — Built-in Immutable "]:::complete
+  04_cli_core["04-cli-core: CLI Core — mai render, validat"]:::complete
+  32_cli_complete["32-cli-complete: CLI Complete — All Remaining m"]:::complete
+  28_caching["28-caching: Caching — @cache Modifier Syst"]:::complete
   03_engine["03-engine: Engine — AST Execution"]:::complete
-  31_hook["31-hook: Hook — PreToolUse AI Routing"]:::draft
-  30_mcp_server["30-mcp-server: MCP Server — AI Integration"]:::draft
+  31_hook["31-hook: Hook — PreToolUse AI Routing"]:::complete
+  30_mcp_server["30-mcp-server: MCP Server — AI Integration"]:::complete
   01_parser["01-parser: Parser — AST Production"]:::complete
-  02_renderer["02-renderer: Renderer — Output Format Mod"]:::complete
-  29_stripper["29-stripper: Stripper — mai strip Command"]:::draft
+  02_renderer["02-renderer: Renderer — Output Format Modul"]:::complete
+  29_stripper["29-stripper: Stripper — mai strip Command"]:::complete
   12_lang_conditionals --> 07_lang_env
   12_lang_conditionals --> 06_lang_interpolation
   17_lang_connect --> 07_lang_env

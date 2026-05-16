@@ -3,6 +3,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, unlink
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { CacheConfig } from '@markdownai/parser'
+import { applyMasking } from './security/masking.js'
+import type { FilesystemSecurityConfig } from './security/config.js'
 
 interface PersistEntry {
   value: string
@@ -39,13 +41,19 @@ export function readCache(key: string, config: CacheConfig): string | null {
   return null
 }
 
-export function writeCache(key: string, value: string, config: CacheConfig): void {
+export function writeCache(
+  key: string,
+  value: string,
+  config: CacheConfig,
+  securityConfig?: FilesystemSecurityConfig
+): void {
+  const { masked } = applyMasking(value, securityConfig)
   if (config.mode === 'session') {
-    SESSION_CACHE.set(key, value)
+    SESSION_CACHE.set(key, masked)
   } else if (config.mode === 'persist') {
     const ttlMs = (config.ttl ?? 3600) * 1000
     mkdirSync(CACHE_DIR, { recursive: true })
-    writeFileSync(join(CACHE_DIR, key + '.json'), JSON.stringify({ value, expires: Date.now() + ttlMs }))
+    writeFileSync(join(CACHE_DIR, key + '.json'), JSON.stringify({ value: masked, expires: Date.now() + ttlMs }))
   }
 }
 

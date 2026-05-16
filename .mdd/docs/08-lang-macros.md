@@ -8,10 +8,10 @@ source_files:
   - packages/parser/src/directives/call.ts
   - packages/engine/src/macros.ts
 wave: markdownai-core-wave-2
-wave_status: planned
+wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-14
-status: draft
+last_synced: 2026-05-16
+status: complete
 mdd_version: 1
 tags: [macros, define, call, parameters, local-scope, reusable-blocks]
 path: Language/Macros

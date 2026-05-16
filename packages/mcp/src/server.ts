@@ -42,9 +42,12 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
   const p = req.params ?? {}
   try {
     switch (req.method) {
-      case 'read_file':
-        respond(req.id, readFile({ path: String(p['path'] ?? ''), phase: p['phase'] != null ? String(p['phase']) : undefined }, cwd))
+      case 'read_file': {
+        const rfArgs: Parameters<typeof readFile>[0] = { path: String(p['path'] ?? '') }
+        if (p['phase'] != null) rfArgs.phase = String(p['phase'])
+        respond(req.id, readFile(rfArgs, cwd))
         break
+      }
       case 'list_phases':
         respond(req.id, listPhases(String(p['file'] ?? ''), cwd))
         break
@@ -54,9 +57,14 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
       case 'next_phase':
         respond(req.id, nextPhase(String(p['file'] ?? ''), String(p['current_phase'] ?? ''), cwd))
         break
-      case 'call_macro':
-        respond(req.id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), (p['args'] as Record<string, string>) ?? {}, cwd))
+      case 'call_macro': {
+        const rawArgs = p['args']
+        const macroArgs: Record<string, string> = (typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs))
+          ? Object.fromEntries(Object.entries(rawArgs).map(([k, v]) => [k, String(v)]))
+          : {}
+        respond(req.id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), macroArgs, cwd))
         break
+      }
       case 'get_env':
         respond(req.id, getEnv(String(p['key'] ?? ''), p['fallback'] != null ? String(p['fallback']) : undefined))
         break

@@ -43,9 +43,9 @@ describe('getEnv', () => {
 })
 
 describe('listPhases', () => {
-  it('returns empty array for non-existent file', () => {
+  it('returns empty phases for non-existent file', () => {
     const result = listPhases('nonexistent.md', '/tmp')
-    expect(result).toEqual([])
+    expect(result.phases).toEqual([])
   })
 
   it('returns phases from a document with @phase', () => {
@@ -53,9 +53,9 @@ describe('listPhases', () => {
     const content = '@markdownai\n@phase setup\nContent.\n@on complete -> @phase teardown\n@end\n@phase teardown\nDone.\n@end'
     writeFileSync(join(TMP, 'phases.md'), content)
     const result = listPhases('phases.md', TMP)
-    expect(result.length).toBe(2)
-    expect(result[0]?.name).toBe('setup')
-    expect(result[1]?.name).toBe('teardown')
+    expect(result.phases.length).toBe(2)
+    expect(result.phases[0]?.name).toBe('setup')
+    expect(result.phases[1]?.name).toBe('teardown')
     teardown()
   })
 
@@ -64,17 +64,23 @@ describe('listPhases', () => {
     const content = '@markdownai\n@phase step1\nContent.\n@on complete -> @phase step2\n@end\n@phase step2\nDone.\n@end'
     writeFileSync(join(TMP, 'trans.md'), content)
     const result = listPhases('trans.md', TMP)
-    expect(result[0]?.transitions.length).toBe(1)
-    expect(result[0]?.transitions[0]?.action.name).toBe('step2')
+    expect(result.phases[0]?.transitions.length).toBe(1)
+    expect(result.phases[0]?.transitions[0]?.action.name).toBe('step2')
     teardown()
   })
 
-  it('returns empty for non-MarkdownAI file', () => {
+  it('returns empty phases for non-MarkdownAI file', () => {
     setup()
     writeFileSync(join(TMP, 'plain.md'), '# Just markdown')
     const result = listPhases('plain.md', TMP)
-    expect(result).toEqual([])
+    expect(result.phases).toEqual([])
     teardown()
+  })
+
+  it('blocks path traversal', () => {
+    const result = listPhases('../../etc/passwd', '/tmp')
+    expect(result.error).toBeTruthy()
+    expect(result.phases).toEqual([])
   })
 })
 
@@ -138,15 +144,17 @@ describe('executeDirective', () => {
     expect(result.errors).toHaveLength(0)
   })
 
-  it('returns empty for jailed @query when shell disabled', () => {
+  it('rejects @query — not in MCP allowlist', () => {
     const result = executeDirective('@query "echo hello"', process.cwd())
     expect(result.output.trim()).toBe('')
-    expect(result.errors).toHaveLength(0)  // jailed = silent strip
+    expect(result.errors.length).toBeGreaterThan(0)
+    expect(result.errors[0]).toContain('not permitted via MCP')
   })
 
-  it('does not execute malformed directives without crashing', () => {
+  it('rejects unknown directives via MCP', () => {
     const result = executeDirective('@completely-unknown-directive', process.cwd())
-    expect(result.errors).toHaveLength(0)  // unknown = passthrough
+    expect(result.errors.length).toBeGreaterThan(0)
+    expect(result.errors[0]).toContain('not permitted via MCP')
   })
 })
 

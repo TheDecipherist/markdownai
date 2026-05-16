@@ -25,5 +25,5 @@ export function runBuild(filePath: string, options: BuildOptions = {}): BuildRes
     writeFileSync(outputPath, result.output)
   }
 
-  return { ...result, outputPath }
+  return { ...result, ...(outputPath !== undefined ? { outputPath } : {}) }
 }

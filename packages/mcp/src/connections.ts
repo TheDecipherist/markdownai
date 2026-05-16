@@ -1,24 +1,59 @@
+const SENSITIVE_VALUE_PATTERN = /SECRET|PASSWORD|TOKEN|KEY|CREDENTIAL|PRIVATE|AUTH|CERT/i
+// Regex patterns that detect connection string secrets embedded in values
+const CONNECTION_STRING_PATTERNS = [
+  /mongodb(?:\+srv)?:\/\/[^/\s]+:[^@\s]+@/,
+  /postgres(?:ql)?:\/\/[^/\s]+:[^@\s]+@/,
+  /mysql:\/\/[^/\s]+:[^@\s]+@/,
+  /:[^@\s]{6,}@/,  // generic user:password@ pattern
+]
+
+function maskArgValue(key: string, value: string): string {
+  if (SENSITIVE_VALUE_PATTERN.test(key)) return '***MASKED***'
+  for (const re of CONNECTION_STRING_PATTERNS) {
+    if (re.test(value)) return value.replace(re, (m) => m.replace(/:([^@]+)@/, ':***MASKED***@'))
+  }
+  return value
+}
+
+function maskArgs(args: Record<string, string>): Record<string, string> {
+  const masked: Record<string, string> = {}
+  for (const [k, v] of Object.entries(args)) masked[k] = maskArgValue(k, v)
+  return masked
+}
+
 export interface ConnectionEntry {
   name: string
   type: string
   args: Record<string, string>
 }
 
-// Session-scoped connection registry — established at server startup, reused across calls
-const connections = new Map<string, ConnectionEntry>()
+// Per-session registry — keyed by sessionId so sessions don't share connections
+// Raw (unmasked) args are stored only in the internal Map and never exposed by listConnections
+const sessionRegistries = new Map<string, Map<string, ConnectionEntry>>()
 
-export function registerConnection(name: string, type: string, args: Record<string, string>): void {
-  connections.set(name, { name, type, args })
+function getRegistry(sessionId: string): Map<string, ConnectionEntry> {
+  let reg = sessionRegistries.get(sessionId)
+  if (!reg) { reg = new Map(); sessionRegistries.set(sessionId, reg) }
+  return reg
 }
 
-export function getConnection(name: string): ConnectionEntry | null {
-  return connections.get(name) ?? null
+export function registerConnection(name: string, type: string, args: Record<string, string>, sessionId = 'default'): void {
+  getRegistry(sessionId).set(name, { name, type, args })
 }
 
-export function listConnections(): ConnectionEntry[] {
-  return [...connections.values()]
+export function getConnection(name: string, sessionId = 'default'): ConnectionEntry | null {
+  return getRegistry(sessionId).get(name) ?? null
 }
 
-export function clearConnections(): void {
-  connections.clear()
+/** Returns connections with sensitive arg values masked. Never exposes raw credentials. */
+export function listConnections(sessionId = 'default'): Array<ConnectionEntry & { args: Record<string, string> }> {
+  return [...getRegistry(sessionId).values()].map(c => ({ ...c, args: maskArgs(c.args) }))
+}
+
+export function clearConnections(sessionId = 'default'): void {
+  sessionRegistries.delete(sessionId)
+}
+
+export function clearAllSessions(): void {
+  sessionRegistries.clear()
 }
