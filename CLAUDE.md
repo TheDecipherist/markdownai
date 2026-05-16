@@ -8,17 +8,29 @@ MarkdownAI -- a superset of markdown that makes documents live.
 Full specification: `MDs/markdownai-spec-v1.0.md`
 Tagline: "documentation that cannot lie."
 
-## Build Approach
+## MDD — Build Approach
 
-This project uses MDD (Manual-Driven Development). Always start a session with `/mdd` to load project context. Features are built in wave order. Do not skip waves.
+This project uses MDD (Manual-Driven Development). Always start a session with `/mdd`
+to load project context. Each feature is documented before it is built — use
+`/mdd <description>` for a single feature, or `/mdd plan-initiative` to coordinate
+multiple features in waves. When an initiative is active, build in wave order and
+do not skip waves.
 
-The .mdd/docs/ directory contains one feature doc per feature. Each feature doc is the authoritative source of truth for what to build. When implementing a feature, read its doc fully before writing any code.
+The `.mdd/docs/` directory contains one feature doc per feature. Each doc is the
+authoritative source of truth for what to build. Read it fully before writing any code.
 
-**MDD Workflow - Learning from mistakes** 
-All code in this project is created by the MDD workflow. Whenever errors/flaws/mistakes are found in this project, or if new frontmatter fields are added to a feature doc in .mdd/docs or a mdd feature doc is changed in anyway, we need to document why it happened or was needed, and how it could have been prevented. Whenever a fix has been made, the mdd workflow (~/projects/mdd) must be updated/patched so next time it wont happen again according to best practices, security hardening and performance optimization
+**Learning from mistakes**
+All code in this project is built via the MDD workflow. Whenever a bug, flaw, or gap
+is found — or if a feature doc changes or gains new frontmatter fields — document why
+it happened and how it could have been prevented. When a fix is identified, ask the
+user if you should open a GitHub issue on their behalf at
+https://github.com/TheDecipherist/mdd/issues with a clear description of the problem
+and a suggested fix so it can be patched in the workflow for all users (best practices,
+security hardening, performance optimization).
 
-**Always when done updating mdd (~/projects/mdd)**
-In the mdd project (~/projects/mdd) - commit and merge to main and push and publish npm package and update npm package locally on this computer to newest version to stay in sync and check if mdd update is needed to run as well
+**After an MDD patch is published**
+Run `mdd update` (global) or `mdd update --install-local` (project) to sync this
+project to the latest version.
 
 ## Architecture
 
