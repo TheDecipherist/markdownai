@@ -14,8 +14,7 @@ export function checkShellCommand(command: string, config: ShellSecurityConfig):
 
   // 1. Built-in always_block — immutable, no config can override
   for (const pattern of SHELL_ALWAYS_BLOCK) {
-    const prefix = pattern.replace(/\*.*$/, '').trim()
-    if (matchShellPattern(pattern, cmd) || (prefix.length > 0 && cmd.startsWith(prefix + ' ')) || cmd === prefix) {
+    if (matchShellPattern(pattern, cmd)) {
       return { allowed: false, tier: 'always_block', reason: `Immutable block: "${pattern}"` }
     }
   }

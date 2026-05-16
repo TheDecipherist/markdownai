@@ -42,6 +42,37 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
   const p = req.params ?? {}
   try {
     switch (req.method) {
+      case 'initialize':
+        respond(req.id, {
+          protocolVersion: '2024-11-05',
+          capabilities: { tools: {} },
+          serverInfo: { name: 'markdownai', version: '1.0.0' },
+        })
+        break
+      case 'notifications/initialized':
+        // No response needed for notifications
+        break
+      case 'tools/list':
+        respond(req.id, {
+          tools: [
+            { name: 'read_file', description: 'Read and render a MarkdownAI document', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' } }, required: ['path'] } },
+            { name: 'list_phases', description: 'List all phases in a MarkdownAI document', inputSchema: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'] } },
+            { name: 'resolve_phase', description: 'Resolve a named phase in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' } }, required: ['file', 'phase'] } },
+            { name: 'next_phase', description: 'Get the next phase after current_phase', inputSchema: { type: 'object', properties: { file: { type: 'string' }, current_phase: { type: 'string' } }, required: ['file', 'current_phase'] } },
+            { name: 'call_macro', description: 'Call a named macro in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, macro: { type: 'string' }, args: { type: 'object' } }, required: ['file', 'macro'] } },
+            { name: 'get_env', description: 'Get an environment variable value', inputSchema: { type: 'object', properties: { key: { type: 'string' }, fallback: { type: 'string' } }, required: ['key'] } },
+            { name: 'execute_directive', description: 'Execute a MarkdownAI directive string', inputSchema: { type: 'object', properties: { directive: { type: 'string' } }, required: ['directive'] } },
+            { name: 'invalidate_cache', description: 'Invalidate the directive cache', inputSchema: { type: 'object', properties: { directive: { type: 'string' } } } },
+          ],
+        })
+        break
+      case 'tools/call': {
+        const toolName = String((p['name'] as string) ?? '')
+        const toolParams = (p['arguments'] as Record<string, unknown>) ?? {}
+        const syntheticReq: JsonRpcRequest = { jsonrpc: '2.0', id: req.id, method: toolName, params: toolParams }
+        handleRequest(syntheticReq, cwd)
+        break
+      }
       case 'read_file': {
         const rfArgs: Parameters<typeof readFile>[0] = { path: String(p['path'] ?? '') }
         if (p['phase'] != null) rfArgs.phase = String(p['phase'])
