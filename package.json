@@ -4,11 +4,13 @@
   "version": "0.0.1",
   "type": "module",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "e2e"
   ],
   "scripts": {
     "build": "npm run build --workspaces",
-    "dev": "npm run dev --workspaces"
+    "dev": "npm run dev --workspaces",
+    "test:e2e": "npm run test:unit --workspace=e2e"
   },
   "engines": {
     "node": ">=18"

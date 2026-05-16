@@ -11,7 +11,10 @@ export function substituteParams(body: ASTNode[], args: Record<string, string>):
 
 function subStr(s: string, args: Record<string, string>): string {
   let r = s
-  for (const [k, v] of Object.entries(args)) r = r.replaceAll(`{{${k}}}`, v)
+  for (const [k, v] of Object.entries(args)) {
+    // Match {{ name }} with optional surrounding whitespace (spec uses spaces)
+    r = r.replace(new RegExp(`\\{\\{\\s*${k}\\s*\\}\\}`, 'g'), v)
+  }
   return r
 }
 

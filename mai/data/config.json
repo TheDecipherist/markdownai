@@ -1,0 +1,17 @@
+{
+  "project": "MarkdownAI",
+  "version": "1.0.0",
+  "env": "production",
+  "description": "Documentation that cannot lie.",
+  "features": [
+    { "name": "Parser", "status": "stable", "priority": "high" },
+    { "name": "Renderer", "status": "stable", "priority": "high" },
+    { "name": "Engine", "status": "stable", "priority": "high" },
+    { "name": "MCP Server", "status": "beta", "priority": "medium" },
+    { "name": "Stripper", "status": "stable", "priority": "low" }
+  ],
+  "maintainer": {
+    "name": "TheDecipherist",
+    "contact": "github.com/TheDecipherist"
+  }
+}
