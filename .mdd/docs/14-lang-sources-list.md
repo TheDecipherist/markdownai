@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [list, filesystem, json, csv, source-directive, where-filter, columns, mode]
 path: Language/Sources
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

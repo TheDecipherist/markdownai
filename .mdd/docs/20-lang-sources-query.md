@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [query, shell, command-execution, jailed, allowlist, unix]
 path: Language/Sources
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

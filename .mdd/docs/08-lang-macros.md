@@ -15,6 +15,8 @@ status: draft
 mdd_version: 1
 tags: [macros, define, call, parameters, local-scope, reusable-blocks]
 path: Language/Macros
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

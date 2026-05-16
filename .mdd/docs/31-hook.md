@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [hook, preToolUse, routing, detection, invisible-runtime, mai-init]
 path: Toolchain/Hook
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

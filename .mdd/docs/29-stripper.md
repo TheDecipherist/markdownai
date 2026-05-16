@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [stripper, strip, clean-markdown, removal-rules, conditional-stripping, mai-strip]
 path: Toolchain/Stripper
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

@@ -15,6 +15,8 @@ status: draft
 mdd_version: 1
 tags: [phases, transitions, workflow, mcp, lazy-loading, graph, visualization, mermaid]
 path: Language/Phases
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

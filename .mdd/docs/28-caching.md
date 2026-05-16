@@ -13,6 +13,12 @@ status: draft
 mdd_version: 1
 tags: [caching, cache, session-cache, persist-cache, mock-cache, ttl, ai-consistency, fixture-system]
 path: Toolchain/Cache
+integration_contracts:
+  - caller_feature: 03-engine
+    function: applyMasking(value, ctx.security)
+    when: before every SESSION_CACHE.set() and writeFileSync in writeCache
+    mandatory: true
+satisfies_contracts: []
 known_issues: []
 ---
 

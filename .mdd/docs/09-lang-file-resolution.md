@@ -13,6 +13,8 @@ status: draft
 mdd_version: 1
 tags: [file-resolution, circular-detection, diamond-dependency, first-wins, include, import]
 path: Language/FileResolution
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [connect, database, connections, registry, local-scope, mongodb, postgres, redis]
 path: Language/Connect
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

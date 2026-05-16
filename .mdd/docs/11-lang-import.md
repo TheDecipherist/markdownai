@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [import, module-system, definitions, fallback-registry, circular-detection]
 path: Language/Import
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

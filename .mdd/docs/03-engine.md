@@ -27,6 +27,28 @@ path: Toolchain/Engine
 wave: markdownai-core-wave-1
 wave_status: complete
 initiative: markdownai-core
+integration_contracts: []
+satisfies_contracts:
+  - from: 23-security-filesystem
+    function: checkFilePath(resolved, ctx.jailRoot, ctx.security)
+    when: before readFileSync in executeInclude and executeImport
+    status: pending
+  - from: 24-security-shell
+    function: checkShellCommand(command, ctx.security)
+    when: before execSync in engine/shell.ts
+    status: pending
+  - from: 26-security-http
+    function: checkHttpUrl(url, ctx.security)
+    when: before HTTP execution in engine
+    status: pending
+  - from: 25-security-database
+    function: checkDatabaseOperation(connection, operation, ctx.security)
+    when: before @db/@query execution
+    status: pending
+  - from: 28-caching
+    function: applyMasking(value, ctx.security)
+    when: before writeCache stores any value
+    status: pending
 known_issues: []
 ---
 

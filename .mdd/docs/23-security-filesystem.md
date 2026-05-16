@@ -14,6 +14,20 @@ status: complete
 mdd_version: 1
 tags: [security, filesystem, confinement, masking, document-root, content-masking, credential-protection]
 path: Security
+integration_contracts:
+  - caller_feature: 03-engine
+    function: checkFilePath(resolved, ctx.jailRoot, ctx.security)
+    when: before any readFileSync in executeInclude, executeImport, executeRead
+    mandatory: true
+  - caller_feature: 04-cli-core
+    function: checkFilePath(resolved, documentRoot, defaultConfig)
+    when: before reading any file in list-imports recursive resolver
+    mandatory: true
+  - caller_feature: 30-mcp-server
+    function: checkFilePath(resolved, ctx.jailRoot, ctx.security)
+    when: before reading files in next_phase, list_phases, resolve_phase tools
+    mandatory: true
+satisfies_contracts: []
 known_issues: []
 ---
 

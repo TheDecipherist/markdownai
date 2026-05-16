@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [conditionals, if, expressions, operators, file-existence, where]
 path: Language/Conditionals
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

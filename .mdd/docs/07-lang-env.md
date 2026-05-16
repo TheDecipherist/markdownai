@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [env, environment-variables, fallback, resolution-order, configuration]
 path: Language/Env
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [http, api, request, jailed, domain-allowlist, json-response, headers, post]
 path: Language/Sources
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

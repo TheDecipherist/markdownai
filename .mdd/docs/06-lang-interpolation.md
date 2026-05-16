@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [interpolation, expressions, inline, template, env-vars, ternary, optional-chaining]
 path: Language/Interpolation
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

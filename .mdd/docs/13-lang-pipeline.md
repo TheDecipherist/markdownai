@@ -16,6 +16,8 @@ status: draft
 mdd_version: 1
 tags: [pipeline, pipe, render, output, ascii-charts, cross-platform, builtins]
 path: Language/Pipeline
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

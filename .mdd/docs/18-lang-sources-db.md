@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [db, database, mongodb, sql, query, jailed, columns, where, post-query-filter]
 path: Language/Sources
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

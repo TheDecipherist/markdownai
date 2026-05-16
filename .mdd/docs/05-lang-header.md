@@ -13,6 +13,8 @@ status: draft
 mdd_version: 1
 tags: [header, declaration, runtime-detection, opt-in, version-pin]
 path: Language/Header
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

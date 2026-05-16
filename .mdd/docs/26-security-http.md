@@ -13,6 +13,12 @@ status: complete
 mdd_version: 1
 tags: [security, http, domain-allowlist, internal-network, metadata-endpoint, get-only]
 path: Security
+integration_contracts:
+  - caller_feature: 03-engine
+    function: checkHttpUrl(url, ctx.security)
+    when: before every fetch/http call when executing @http nodes
+    mandatory: true
+satisfies_contracts: []
 known_issues: []
 ---
 

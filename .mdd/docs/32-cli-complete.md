@@ -22,6 +22,8 @@ status: draft
 mdd_version: 1
 tags: [cli, mai, strip, build, watch, serve, cache, security, init, all-commands]
 path: Toolchain/CLI
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

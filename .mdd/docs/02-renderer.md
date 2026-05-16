@@ -32,6 +32,8 @@ path: Toolchain/Renderer
 wave: markdownai-core-wave-1
 wave_status: complete
 initiative: markdownai-core
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 

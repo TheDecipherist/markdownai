@@ -14,6 +14,8 @@ status: draft
 mdd_version: 1
 tags: [include, content-inclusion, scope, bubble-up, local-scope, conditional]
 path: Language/Include
+integration_contracts: []
+satisfies_contracts: []
 known_issues: []
 ---
 
