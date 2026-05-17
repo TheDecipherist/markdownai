@@ -16,7 +16,7 @@
   </a>
 </p>
 
-[![npm](https://img.shields.io/badge/npm-%40markdownai-red)](https://www.npmjs.com/org/markdownai)
+[![npm](https://img.shields.io/badge/npm-%40markdownai%2Fmarkdownai-red)](https://www.npmjs.com/package/@markdownai/markdownai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js >=18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 [![Tests: 689](https://img.shields.io/badge/tests-689_passing-brightgreen)](./packages)
