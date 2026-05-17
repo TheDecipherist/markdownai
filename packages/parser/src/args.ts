@@ -56,6 +56,7 @@ function parseCacheTokens(tokens: string[]): CacheConfig {
 }
 
 function isNamedArg(token: string): boolean {
+  if (token.startsWith('"') || token.startsWith("'")) return false
   const eq = token.indexOf('=')
   if (eq <= 0) return false
   const key = token.slice(0, eq)

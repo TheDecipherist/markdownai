@@ -1,6 +1,7 @@
 import { readFileSync, statSync, existsSync } from 'node:fs'
 import { execSync } from 'node:child_process'
-import { resolve, dirname, relative } from 'node:path'
+import { resolve, dirname, relative, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import type {
   ASTNode, ParseResult, IncludeNode, ImportNode,
@@ -47,11 +48,25 @@ function versionIsNewer(required: string, installed: string): boolean {
   return rMin > iMin
 }
 
+function loadStdlib(ctx: EngineContext): void {
+  try {
+    const stdlibPath = join(dirname(fileURLToPath(import.meta.url)), 'stdlib.md')
+    const source = readFileSync(stdlibPath, 'utf8')
+    const ast = parse(source, { filePath: stdlibPath, inImport: true })
+    for (const n of ast.nodes) {
+      if (n.type === 'define') ctx.macros[n.name] = { body: n.body, params: n.params }
+    }
+  } catch {
+    // stdlib unavailable — not fatal, documents still work without it
+  }
+}
+
 export function execute(ast: ParseResult, options?: EngineOptions): EngineResult {
   if (!ast.isMarkdownAI) {
     return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [] }
   }
   const base = makeContext(options?.ctx)
+  loadStdlib(base)
   const mainFile = options?.filePath ? resolve(options.filePath) : null
   if (mainFile) {
     base.docDir = dirname(mainFile)

@@ -10,7 +10,7 @@ const define: ParseModule = {
     const withoutLocal = local ? raw.slice(0, -6).trim() : raw
 
     // Detect name(param1, param2) syntax
-    const parenMatch = withoutLocal.match(/^(\w+)\(([^)]*)\)$/)
+    const parenMatch = withoutLocal.match(/^([\w-]+)\(([^)]*)\)$/)
     let name: string
     let params: string[]
     if (parenMatch) {

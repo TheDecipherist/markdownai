@@ -1994,6 +1994,7 @@ mai eval "!file.isDir './src/legacy/'"
 | `file.exists` | MarkdownAI | File/dir exists | `file.exists "./path"` |
 | `file.isFile` | MarkdownAI | Exists and is a file | `file.isFile "./config.json"` |
 | `file.isDir` | MarkdownAI | Exists and is a directory | `file.isDir "./src/enterprise/"` |
+| `match` | MarkdownAI | Regex match | `{{ branch }} match "^feat"`, `VERSION match "^v\d+"` |
 
 **The rule:** If it is valid JavaScript or bash, it is valid in a MarkdownAI expression. No exceptions, no special cases, no MarkdownAI-specific operator syntax to learn.
 

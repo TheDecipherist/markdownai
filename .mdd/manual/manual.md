@@ -97,7 +97,7 @@ Security is enforced at every layer. Jailed directives (database queries, HTTP c
 <!-- mdd-section: 01-parser -->
 ### Parser — AST Production
 
-The MarkdownAI parser reads your `.mai` documents and converts them into a structured representation that the rest of the toolchain can act on. It understands every MarkdownAI directive — from database queries to conditional blocks — so downstream components know exactly what a document is asking for, without anything being executed yet.
+The MarkdownAI parser reads your `.md` documents and converts them into a structured representation that the rest of the toolchain can act on. It understands every MarkdownAI directive — from database queries to conditional blocks — so downstream components know exactly what a document is asking for, without anything being executed yet.
 
 #### What It Does
 
@@ -105,7 +105,7 @@ When you run any `mai` command, the parser is the first thing that runs. It read
 
 #### How To Use It
 
-The parser runs automatically whenever you invoke `mai`. You do not call it directly. Any `.mai` file must begin with `@markdownai` (optionally followed by a version pin, e.g. `@markdownai v1.0`) on the very first line — if that line is missing, the file is treated as plain Markdown and no further processing occurs.
+The parser runs automatically whenever you invoke `mai`. You do not call it directly. Any `.md` file must begin with `@markdownai` (optionally followed by a version pin, e.g. `@markdownai v1.0`) on the very first line — if that line is missing, the file is treated as plain Markdown and no further processing occurs.
 
 Write your directives one per line. The parser enforces a small set of structural rules:
 
@@ -209,7 +209,7 @@ When you run `mai`, the Engine takes your parsed document and walks through it f
 
 #### How To Use It
 
-The Engine runs automatically whenever you execute any `mai` command — you do not invoke it directly. Everything you write in your `.mai` document (directives, macros, conditionals, pipes) is processed by the Engine at render time.
+The Engine runs automatically whenever you execute any `mai` command — you do not invoke it directly. Everything you write in your `.md` document (directives, macros, conditionals, pipes) is processed by the Engine at render time.
 
 To control which section of a document runs, use phases. Define phases in your document and pass the active phase when running `mai` — only nodes tagged for that phase (or untagged nodes) will execute.
 
@@ -219,17 +219,17 @@ Caching is built in. Session cache keeps results in memory for the duration of a
 
 Run a document and let the Engine resolve all directives automatically:
 ```
-mai render my-report.mai
+mai render my-report.md
 ```
 
 Run only a specific phase of a document:
 ```
-mai render my-report.mai --phase production
+mai render my-report.md --phase production
 ```
 
 Override environment variables for a run:
 ```
-mai render my-report.mai --env .env.staging
+mai render my-report.md --env .env.staging
 ```
 
 Use an inline fallback so a missing variable never causes an error:
@@ -420,7 +420,7 @@ Declare a default in a shared config import file:
 
 Pass a custom env file when rendering:
 ```
-mai render report.mai --env .env.production
+mai render report.md --env .env.production
 ```
 
 <!-- /mdd-section: 07-lang-env -->
@@ -1472,7 +1472,7 @@ You can strip a single file or an entire folder at once.
 
 Strip a document and preview the output:
 ```bash
-mai strip README.mai.md
+mai strip README.md
 ```
 
 Strip for production export with environment-aware conditionals:
@@ -1676,7 +1676,7 @@ When you render a MarkdownAI document you tell `mai` who the audience is. Sectio
 
 Tag sections in your document using the `@if` / `@endif` block syntax, then pass `--consumer` when you render:
 
-1. Open your `.mai` document and wrap audience-specific content in conditional blocks.
+1. Open your `.md` document and wrap audience-specific content in conditional blocks.
 2. Run `mai render` with the `--consumer` flag to produce output for the intended audience.
 
 #### Commands
@@ -1704,7 +1704,7 @@ Everything is running smoothly. No incidents in the past 30 days.
 
 **Rendering for an AI agent:**
 ```bash
-mai render status.mai --consumer=ai
+mai render status.md --consumer=ai
 ```
 
 <!-- /mdd-section: 34-ai-consumer-mode -->
@@ -1788,7 +1788,7 @@ Background reference material that AI assistants rarely need.
 Render with a 4,000-token budget for an AI consumer:
 
 ```bash
-mai render report.mai --budget=4000 --consumer=ai
+mai render report.md --budget=4000 --consumer=ai
 ```
 
 <!-- /mdd-section: 36-ai-context-budget -->
@@ -1829,7 +1829,7 @@ Once defined, you can reference a concept's definition inline anywhere in the do
 
 **Render with AI glossary injection:**
 ```bash
-mai render my-doc.mai --consumer ai
+mai render my-doc.md --consumer ai
 ```
 
 The output will begin with a `## Glossary` block listing all defined terms before the rest of the document content.

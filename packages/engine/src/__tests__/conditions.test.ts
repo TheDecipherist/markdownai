@@ -240,3 +240,54 @@ describe('{{ }} interpolation in conditions', () => {
     expect(evalCondition('{{ NODE_ENV === "production" ? "yes" : "no" }} === "yes"', ctx)).toBe(true)
   })
 })
+
+describe('match operator', () => {
+  it('matches env var against a regex pattern', () => {
+    const ctx = makeCtx({ BRANCH: 'feat/my-feature' })
+    expect(evalCondition('BRANCH match "^feat"', ctx)).toBe(true)
+    expect(evalCondition('BRANCH match "^fix"', ctx)).toBe(false)
+  })
+
+  it('works with dotted env path', () => {
+    const ctx = makeCtx({ BRANCH: 'main' })
+    expect(evalCondition('env.BRANCH match "^main$"', ctx)).toBe(true)
+    expect(evalCondition('env.BRANCH match "^feat"', ctx)).toBe(false)
+  })
+
+  it('works with {{ }} expanded values', () => {
+    const ctx = makeCtx()
+    ctx.envFiles['current_branch'] = 'feat/auth'
+    expect(evalCondition('{{ current_branch }} match "^feat"', ctx)).toBe(true)
+    expect(evalCondition('{{ current_branch }} match "^main"', ctx)).toBe(false)
+  })
+
+  it('supports regex special chars like \\d and anchors', () => {
+    const ctx = makeCtx({ VERSION: 'v1.2.3' })
+    expect(evalCondition('VERSION match "^v\\d"', ctx)).toBe(true)
+    expect(evalCondition('VERSION match "^\\d"', ctx)).toBe(false)
+  })
+
+  it('can be negated with !()', () => {
+    const ctx = makeCtx({ BRANCH: 'main' })
+    expect(evalCondition('!(BRANCH match "^feat")', ctx)).toBe(true)
+    expect(evalCondition('!(BRANCH match "^main")', ctx)).toBe(false)
+  })
+
+  it('can be combined with && and ||', () => {
+    const ctx = makeCtx({ BRANCH: 'feat/auth', NODE_ENV: 'development' })
+    expect(evalCondition('BRANCH match "^feat" && NODE_ENV === "development"', ctx)).toBe(true)
+    expect(evalCondition('BRANCH match "^fix" || BRANCH match "^feat"', ctx)).toBe(true)
+    expect(evalCondition('BRANCH match "^fix" || BRANCH match "^chore"', ctx)).toBe(false)
+  })
+
+  it('handles single-quoted pattern', () => {
+    const ctx = makeCtx({ BRANCH: 'fix/typo' })
+    expect(evalCondition("BRANCH match '^fix'", ctx)).toBe(true)
+    expect(evalCondition("BRANCH match '^feat'", ctx)).toBe(false)
+  })
+
+  it('unset var match returns false without throwing', () => {
+    const ctx = makeCtx()
+    expect(evalCondition('{{ UNSET }} match "^feat"', ctx)).toBe(false)
+  })
+})

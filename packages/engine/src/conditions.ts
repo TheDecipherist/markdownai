@@ -48,6 +48,13 @@ function preprocessExpr(expr: string): string {
   // Convert file.exists "./path" → file.exists("./path") (and isFile, isDir)
   let result = expr.replace(/\bfile\.(exists|isFile|isDir)\s+"([^"]*)"/g, 'file.$1("$2")')
                    .replace(/\bfile\.(exists|isFile|isDir)\s+'([^']*)'/g, "file.$1('$2')")
+  // Convert: lhs match "pattern" → new RegExp("pattern").test(lhs)
+  // LHS can be a quoted string (after {{ }} expansion) or an identifier/dotted path.
+  result = result
+    .replace(/("[^"]*"|'[^']*'|[A-Za-z_$][A-Za-z0-9_.$]*)\s+\bmatch\b\s+"([^"]*)"/g,
+      (_, lhs, pat) => `new RegExp(${JSON.stringify(pat)}).test(${lhs})`)
+    .replace(/("[^"]*"|'[^']*'|[A-Za-z_$][A-Za-z0-9_.$]*)\s+\bmatch\b\s+'([^']*)'/g,
+      (_, lhs, pat) => `new RegExp(${JSON.stringify(pat)}).test(${lhs})`)
   // Convert MarkdownAI equality syntax: identifier="value" → identifier === "value"
   // Lookbehind ensures we don't transform !=, <=, >=, == — only bare =
   result = result.replace(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*(?<![!<>=])=(?!=)\s*"([^"]*)"/g, '$1 === "$2"')
