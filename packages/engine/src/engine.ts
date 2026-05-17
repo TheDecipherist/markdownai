@@ -6,7 +6,7 @@ import { runInNewContext } from 'node:vm'
 import type {
   ASTNode, ParseResult, IncludeNode, ImportNode,
   ConnectNode, DefineNode, CallNode, PhaseNode, ConditionalNode, PipeNode,
-  InterpolationSpan, ShellInlineSpan, RenderNode, PromptNode, SectionNode, ConceptNode, ConstraintNode, ChunkBoundaryNode,
+  InterpolationSpan, ShellInlineSpan, RenderNode, PromptNode, SectionNode, ConceptNode, ConstraintNode, ChunkBoundaryNode, NoteNode,
 } from '@markdownai/parser'
 import { parse } from '@markdownai/parser'
 import { render } from '@markdownai/renderer'
@@ -164,6 +164,7 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
       return lines.join('\n')
     }
     case 'prompt': return executePrompt(node, ctx)
+    case 'note': return executeNote(node, ctx)
     case 'section': return executeSection(node, ctx)
     case 'chunk-boundary': return executeChunkBoundary(node, ctx)
     case 'define-concept': return executeConcept(node, ctx)
@@ -179,6 +180,16 @@ function executePrompt(node: PromptNode, ctx: EngineContext): string {
   // Human or unset: render as blockquote callout
   const lines = node.body.split('\n').map(l => `> ${l}`).join('\n')
   return `> **Note (${node.role}):**\n${lines}`
+}
+
+function executeNote(node: NoteNode, ctx: EngineContext): string {
+  if (!node.visible) return ''
+  if (node.consumer !== undefined) {
+    const effective = ctx.consumer ?? 'human'
+    if (node.consumer !== effective) return ''
+  }
+  const lines = node.body.split('\n').map((l: string) => `> ${l}`).join('\n')
+  return `> **Note:**\n${lines}`
 }
 
 function executeSection(node: SectionNode, ctx: EngineContext): string {

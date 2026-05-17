@@ -2,7 +2,7 @@ import type {
   ASTNode, ParseResult, ParseOptions, ParseContext,
   HeaderNode, MarkdownNode, PassthroughNode, TransitionNode, TransitionAction,
   PhaseNode, DefineNode, ConditionalNode, ConditionalBranch, PipeNode, PipeStage,
-  RenderNode, GraphNode, PromptNode, SectionNode, ConstraintNode, ShellInlineSpan,
+  RenderNode, GraphNode, PromptNode, SectionNode, ConstraintNode, NoteNode, ShellInlineSpan,
 } from './types.js'
 import { ParseError } from './types.js'
 import { getModule } from './registry.js'
@@ -196,6 +196,7 @@ function parseDirective(raw: string, line: number, state: State, inline = false)
     if (name === 'section') return parseSectionBlock(state, trimmed, line)
     if (name === 'prompt') return parseTextBlock(state, trimmed, args, line, 'prompt')
     if (name === 'constraint') return parseTextBlock(state, trimmed, args, line, 'constraint')
+    if (name === 'note') return parseNoteBlock(state, trimmed, args, line)
   }
   return mod.parse(trimmed, args, ctx)
 }
@@ -217,6 +218,23 @@ function parseTextBlock(state: State, openLine: string, args: string, line: numb
   while (state.pos < state.lines.length) {
     const raw = peek(state)!
     if (raw.trim() === '@end') { consume(state); break }
+    bodyLines.push(consume(state))
+  }
+  node.body = bodyLines.join('\n').trim()
+  return node
+}
+
+function parseNoteBlock(state: State, openLine: string, args: string, line: number): NoteNode {
+  const mod = getModule('note')!
+  const ctx: ParseContext = { line, filePath: state.filePath, inImport: state.inImport }
+  const node = mod.parse(openLine, args, ctx) as NoteNode
+  const bodyLines: string[] = []
+  while (state.pos < state.lines.length) {
+    const raw = peek(state)!
+    if (raw.trim() === '@end') { consume(state); break }
+    if (raw.trim().startsWith('@note')) {
+      throw new ParseError('nested @note is not supported', lineNum(state), state.filePath)
+    }
     bodyLines.push(consume(state))
   }
   node.body = bodyLines.join('\n').trim()

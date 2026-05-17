@@ -222,6 +222,13 @@ export interface ConstraintNode extends ASTNodeBase {
   body: string
 }
 
+export interface NoteNode extends ASTNodeBase {
+  type: 'note'
+  visible: boolean
+  consumer?: string
+  body: string
+}
+
 export type ASTNode =
   | HeaderNode
   | IncludeNode
@@ -252,6 +259,7 @@ export type ASTNode =
   | ChunkBoundaryNode
   | ConceptNode
   | ConstraintNode
+  | NoteNode
 
 export interface ParseResult {
   isMarkdownAI: boolean
