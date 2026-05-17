@@ -1,11 +1,17 @@
 {
   "name": "@markdownai/core",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
-  "bin": { "mai": "./dist/cli.js" },
-  "exports": { ".": "./dist/index.js" },
+  "bin": {
+    "mai": "./dist/cli.js"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "types": "./dist/index.d.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc && node -e \"import('node:fs').then(fs => { const p = './dist/cli.js'; const c = fs.readFileSync(p,'utf8'); if (!c.startsWith('#!')) fs.writeFileSync(p,'#!/usr/bin/env node\\n'+c); fs.chmodSync(p, 0o755); })\"",
     "typecheck": "tsc --noEmit",
