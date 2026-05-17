@@ -55,6 +55,45 @@ describe('Parser', () => {
       const result = parse('@markdownai v2.0\n')
       expect(result.version).toBe('2.0')
     })
+
+    it('returns isMarkdownAI: true when @markdownai follows YAML frontmatter', () => {
+      const source = '---\ndescription: test\nscope: project\n---\n@markdownai\n# Hello'
+      const result = parse(source)
+      expect(result.isMarkdownAI).toBe(true)
+    })
+
+    it('returns isMarkdownAI: true when @markdownai follows YAML frontmatter with blank line separator', () => {
+      const source = '---\ndescription: test\nscope: project\n---\n\n@markdownai\n# Hello'
+      const result = parse(source)
+      expect(result.isMarkdownAI).toBe(true)
+    })
+
+    it('extracts version when @markdownai v1.0 follows YAML frontmatter', () => {
+      const source = '---\ndescription: test\n---\n@markdownai v1.0\n# Hello'
+      const result = parse(source)
+      expect(result.isMarkdownAI).toBe(true)
+      expect(result.version).toBe('1.0')
+    })
+
+    it('includes frontmatter lines as markdown nodes before header node', () => {
+      const source = '---\ndescription: test\n---\n@markdownai\n# Hello'
+      const result = parse(source)
+      expect(result.nodes[0]?.type).toBe('markdown')
+      const headerIdx = result.nodes.findIndex(n => n.type === 'header')
+      expect(headerIdx).toBeGreaterThan(0)
+    })
+
+    it('returns isMarkdownAI: false when content after frontmatter is not @markdownai', () => {
+      const source = '---\ndescription: test\n---\n# Regular markdown'
+      const result = parse(source)
+      expect(result.isMarkdownAI).toBe(false)
+    })
+
+    it('returns isMarkdownAI: false when frontmatter has no closing ---', () => {
+      const source = '---\ndescription: test\n@markdownai\n# Hello'
+      const result = parse(source)
+      expect(result.isMarkdownAI).toBe(false)
+    })
   })
 
   describe('@include directive', () => {

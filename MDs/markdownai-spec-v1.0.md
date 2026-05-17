@@ -117,7 +117,7 @@ If someone wants one `@include` in a markdown file, that is all they need. No co
 
 ## The Header Declaration
 
-A file declares itself as a MarkdownAI document by placing `@markdownai` as the very first line.
+A file declares itself as a MarkdownAI document by placing `@markdownai` as the very first line, or as the first line after an optional YAML frontmatter block (`---` ... `---`).
 
 ```
 @markdownai
@@ -133,18 +133,19 @@ With a version pin:
 
 **Version pin format:** `v` followed by `major.minor` -- e.g. `v1.0`, `v1.1`, `v2.0`. The version pin is optional. When present, the runtime warns if the installed MarkdownAI version is older than the pinned version, allowing the author to signal minimum version requirements. When absent, the runtime uses whatever version is installed without any version check.
 
-**This is the runtime detection mechanism.** The MarkdownAI MCP server intercepts file reads, checks the first line -- approximately 20 bytes -- and routes accordingly. Files without the header are never touched by the runtime.
+**This is the runtime detection mechanism.** The MarkdownAI MCP server intercepts file reads, checks the first ~20 bytes for `@markdownai`, and routes accordingly. If the file begins with YAML frontmatter (`---`), a larger window (up to 2 KB) is checked to find `@markdownai` after the closing `---`. Files without the header are never touched by the runtime.
 
-**Why the first line:**
+**Why the first line (or first post-frontmatter line):**
 
 - Zero configuration -- the file declares itself
-- Near-zero overhead -- only the first line is read before routing decision
+- Near-zero overhead -- only the first line (or frontmatter block) is read before routing decision
 - Self-documenting -- any developer opening the file sees immediately it uses MarkdownAI
 - Opt-in by default -- files without the header always behave as standard markdown
+- Compatible with YAML frontmatter -- Claude Code skill files, Jekyll, Hugo, and similar tools that require frontmatter metadata can coexist with `@markdownai`
 
-**Adding MarkdownAI to an existing file:** Add `@markdownai` as line 1. That is the entire migration.
+**Adding MarkdownAI to an existing file:** Add `@markdownai` as line 1 (or as the first line after existing YAML frontmatter). That is the entire migration.
 
-**Removing MarkdownAI from a file:** Delete line 1. The file returns to standard markdown behavior immediately.
+**Removing MarkdownAI from a file:** Delete the `@markdownai` line. The file returns to standard markdown behavior immediately.
 
 **What a standard renderer does:** Renders `@markdownai` as a plain text paragraph on the first line. Readable, not broken.
 

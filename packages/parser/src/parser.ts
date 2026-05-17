@@ -286,7 +286,30 @@ export function parse(source: string, options?: ParseOptions): ParseResult {
   const filePath = options?.filePath ?? '<input>'
   const inImport = options?.inImport ?? false
   const lines = source.split('\n')
-  const firstLine = lines[0]?.trim() ?? ''
+
+  // Skip optional YAML frontmatter (--- ... ---), preserving lines as markdown passthrough
+  let startPos = 0
+  const frontmatterNodes: ASTNode[] = []
+
+  if (lines[0]?.trim() === '---') {
+    let closeIdx = -1
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i]?.trim() === '---') { closeIdx = i; break }
+    }
+    if (closeIdx !== -1) {
+      for (let i = 0; i <= closeIdx; i++) {
+        frontmatterNodes.push(makeMarkdown(lines[i] ?? '', i + 1))
+      }
+      startPos = closeIdx + 1
+      // Skip blank lines between frontmatter closing --- and @markdownai
+      while (startPos < lines.length && lines[startPos]?.trim() === '') {
+        frontmatterNodes.push(makeMarkdown(lines[startPos] ?? '', startPos + 1))
+        startPos++
+      }
+    }
+  }
+
+  const firstLine = lines[startPos]?.trim() ?? ''
 
   if (!firstLine.startsWith('@markdownai')) {
     return { isMarkdownAI: false, version: null, nodes: [] }
@@ -294,9 +317,9 @@ export function parse(source: string, options?: ParseOptions): ParseResult {
 
   const vMatch = firstLine.match(/^@markdownai(?:\s+v(\d+\.\d+))?/)
   const version = vMatch?.[1] ?? null
-  const header: HeaderNode = { type: 'header', line: 1, version }
+  const header: HeaderNode = { type: 'header', line: startPos + 1, version }
 
-  const state: State = { lines, pos: 1, filePath, inImport }
+  const state: State = { lines, pos: startPos + 1, filePath, inImport }
   const bodyNodes: ASTNode[] = []
 
   while (state.pos < state.lines.length) {
@@ -304,5 +327,5 @@ export function parse(source: string, options?: ParseOptions): ParseResult {
     if (node) bodyNodes.push(node)
   }
 
-  return { isMarkdownAI: true, version, nodes: [header, ...bodyNodes] }
+  return { isMarkdownAI: true, version, nodes: [...frontmatterNodes, header, ...bodyNodes] }
 }
