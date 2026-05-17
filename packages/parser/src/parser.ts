@@ -2,11 +2,11 @@ import type {
   ASTNode, ParseResult, ParseOptions, ParseContext,
   HeaderNode, MarkdownNode, PassthroughNode, TransitionNode, TransitionAction,
   PhaseNode, DefineNode, ConditionalNode, ConditionalBranch, PipeNode, PipeStage,
-  RenderNode, GraphNode, PromptNode, SectionNode, ConstraintNode,
+  RenderNode, GraphNode, PromptNode, SectionNode, ConstraintNode, ShellInlineSpan,
 } from './types.js'
 import { ParseError } from './types.js'
 import { getModule } from './registry.js'
-import { scanInterpolations } from './interpolation.js'
+import { scanInterpolations, scanShellInlines } from './interpolation.js'
 import { splitUnquotedPipe } from './directives/pipe.js'
 
 const BUILTINS = new Set(['grep', 'sort', 'head', 'tail', 'wc', 'uniq'])
@@ -16,6 +16,7 @@ interface State {
   pos: number
   filePath: string
   inImport: boolean
+  shellInlinePassthrough: boolean
 }
 
 function lineNum(state: State): number { return state.pos + 1 }
@@ -28,8 +29,8 @@ function consume(state: State): string {
   return line
 }
 
-function makeMarkdown(text: string, line: number): MarkdownNode {
-  return { type: 'markdown', line, text, interpolations: scanInterpolations(text) }
+function makeMarkdown(text: string, line: number, shellInlines: ShellInlineSpan[] = []): MarkdownNode {
+  return { type: 'markdown', line, text, interpolations: scanInterpolations(text), shellInlines }
 }
 
 function parseTransition(raw: string, line: number, filePath: string): TransitionNode {
@@ -252,11 +253,14 @@ function parseNextNode(state: State): ASTNode | null {
       chunks.push(bodyLine)
       if (bodyLine.trimStart().startsWith('```')) break
     }
-    return { type: 'markdown' as const, line: lineNumber, text: chunks.join('\n'), interpolations: [] }
+    return { type: 'markdown' as const, line: lineNumber, text: chunks.join('\n'), interpolations: [], shellInlines: [] }
   }
 
   const trimmed = raw.trimStart()
-  if (!trimmed.startsWith('@')) return makeMarkdown(raw, lineNumber)
+  if (!trimmed.startsWith('@')) {
+    const shellInlines = state.shellInlinePassthrough ? [] : scanShellInlines(raw)
+    return makeMarkdown(raw, lineNumber, shellInlines)
+  }
 
   // @on outside @phase is an error
   if (trimmed.startsWith('@on ')) {
@@ -319,7 +323,8 @@ export function parse(source: string, options?: ParseOptions): ParseResult {
   const version = vMatch?.[1] ?? null
   const header: HeaderNode = { type: 'header', line: startPos + 1, version }
 
-  const state: State = { lines, pos: startPos + 1, filePath, inImport }
+  const shellInlinePassthrough = firstLine.includes('shell-inline="passthrough"')
+  const state: State = { lines, pos: startPos + 1, filePath, inImport, shellInlinePassthrough }
   const bodyNodes: ASTNode[] = []
 
   while (state.pos < state.lines.length) {

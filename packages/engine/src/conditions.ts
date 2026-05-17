@@ -30,7 +30,13 @@ function makeFileHelpers(jailRoot: string | null) {
 }
 
 export function evalCondition(expr: string, ctx: EngineContext): boolean {
-  return Boolean(runExpr(expr, ctx))
+  // Pre-expand {{ expr }} interpolations so @if {{ label }} == "val" works.
+  // Always produce a valid JS string literal — unset vars become "".
+  const expanded = expr.replace(/\{\{\s*([\s\S]*?)\s*\}\}/g, (_, inner) => {
+    const result = runExpr(inner.trim(), ctx)
+    return JSON.stringify(result === undefined || result === null ? '' : String(result))
+  })
+  return Boolean(runExpr(expanded, ctx))
 }
 
 export function evalExpression(expr: string, ctx: EngineContext): string {
@@ -46,6 +52,13 @@ function preprocessExpr(expr: string): string {
   // Lookbehind ensures we don't transform !=, <=, >=, == — only bare =
   result = result.replace(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*(?<![!<>=])=(?!=)\s*"([^"]*)"/g, '$1 === "$2"')
                  .replace(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*(?<![!<>=])=(?!=)\s*'([^']*)'/g, "$1 === '$2'")
+  // Convert Claude Code skill variable syntax to sandbox identifiers:
+  //   $ARGUMENTS[N] → argsList[N]
+  //   $ARGUMENTS    → ARGUMENTS
+  //   $N (digit)    → argsList[N]
+  result = result.replace(/\$ARGUMENTS\[(\d+)\]/g, 'argsList[$1]')
+                 .replace(/\$ARGUMENTS\b/g, 'ARGUMENTS')
+                 .replace(/\$(\d+)\b/g, 'argsList[$1]')
   return result
 }
 
@@ -61,7 +74,33 @@ function runExpr(expr: string, ctx: EngineContext): unknown {
   }
   const jailRoot = ctx.security.jailRoot ?? ctx.docDir ?? null
   const file = makeFileHelpers(jailRoot)
-  const sandbox: Record<string, unknown> = { ...rootEnv, env: envObj, file, consumer: ctx.consumer ?? '' }
+
+  // Skill context — all Claude Code slash command variables available in @if conditions
+  const skill = ctx.skillContext
+  const ARGUMENTS = skill?.args ?? ''
+  const argsList = skill?.argsList ?? []
+  const skillNamedArgs = skill?.namedArgs ?? {}
+
+  const sandbox: Record<string, unknown> = {
+    ...rootEnv,
+    env: envObj,
+    file,
+    consumer: ctx.consumer ?? '',
+    // $ARGUMENTS and shorthand
+    ARGUMENTS,
+    args: ARGUMENTS,
+    argsList,
+    arg0: argsList[0] ?? '',
+    arg1: argsList[1] ?? '',
+    arg2: argsList[2] ?? '',
+    arg3: argsList[3] ?? '',
+    // Named args spread into root scope (frontmatter arguments: [issue, branch] → $issue, $branch)
+    ...skillNamedArgs,
+    // Session and environment variables from Claude Code
+    CLAUDE_SESSION_ID: skill?.sessionId ?? '',
+    CLAUDE_EFFORT: skill?.effort ?? '',
+    CLAUDE_SKILL_DIR: skill?.skillDir ?? '',
+  }
   try {
     return runInNewContext(preprocessExpr(expr), sandbox, { timeout: 500 })
   } catch {

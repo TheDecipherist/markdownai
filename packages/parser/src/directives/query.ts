@@ -6,8 +6,13 @@ const query: ParseModule = {
   block: false,
   parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
     const parsed = parseArgs(args)
-    // command may be a quoted string as first positional, or in named 'command' arg
-    const command = parsed.positional[0] ?? parsed.named['command'] ?? ''
+    // Single positional: use as-is (e.g. @query "SELECT * FROM users")
+    // Multiple positionals: rejoin, re-quoting any that contain spaces (e.g. bash -c "echo hi")
+    const command = parsed.positional.length === 1
+      ? (parsed.positional[0] ?? '')
+      : parsed.positional.length > 1
+        ? parsed.positional.map(p => p.includes(' ') ? `"${p}"` : p).join(' ')
+        : parsed.named['command'] ?? ''
     const node: QueryNode = {
       type: 'query',
       line: ctx.line,

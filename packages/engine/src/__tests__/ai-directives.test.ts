@@ -4,13 +4,13 @@ import { parse } from '@markdownai/parser'
 
 function render(source: string, consumer?: string): string {
   const ast = parse(source)
-  const result = execute(ast, { ctx: consumer ? { consumer } : undefined })
+  const result = execute(ast, { ctx: consumer ? { consumer } : {} })
   return result.output
 }
 
 function warnings(source: string, consumer?: string): string[] {
   const ast = parse(source)
-  return execute(ast, { ctx: consumer ? { consumer } : undefined }).warnings
+  return execute(ast, { ctx: consumer ? { consumer } : {} }).warnings
 }
 
 // ─── @prompt ─────────────────────────────────────────────────────────────────

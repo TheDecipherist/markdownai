@@ -11,6 +11,12 @@ export interface ReadFileArgs {
   format?: 'ai' | 'standard'
   budget?: number
   consumer?: string
+  // Claude Code skill context — populated when rendering a skill/command file
+  skillArgs?: string                        // $ARGUMENTS raw string
+  skillNamedArgs?: Record<string, string>   // named args from frontmatter arguments:
+  skillSessionId?: string                   // ${CLAUDE_SESSION_ID}
+  skillEffort?: string                      // ${CLAUDE_EFFORT}
+  skillDir?: string                         // ${CLAUDE_SKILL_DIR}
 }
 
 export interface ReadFileResult {
@@ -41,9 +47,28 @@ export function readFile(args: ReadFileArgs, cwd: string): ReadFileResult {
   }
 
   const consumer = args.consumer ?? 'ai'
+
+  // Parse skill args into positional list (shell-style: handles "quoted strings")
+  const rawSkillArgs = args.skillArgs ?? ''
+  const skillArgsList = rawSkillArgs.trim().length > 0
+    ? [...rawSkillArgs.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map(m => m[1] ?? m[2] ?? m[3] ?? '')
+    : []
+
   const result = execute(ast, {
     filePath: fullPath,
-    ctx: { envFiles: args.env ?? {}, phase: args.phase ?? null, consumer },
+    ctx: {
+      envFiles: args.env ?? {},
+      phase: args.phase ?? null,
+      consumer,
+      skillContext: {
+        args: rawSkillArgs,
+        argsList: skillArgsList,
+        namedArgs: args.skillNamedArgs ?? {},
+        sessionId: args.skillSessionId ?? '',
+        effort: args.skillEffort ?? '',
+        skillDir: args.skillDir ?? '',
+      },
+    },
   })
 
   let content = result.output

@@ -16,6 +16,12 @@ export interface InterpolationSpan {
   escaped: boolean
 }
 
+export interface ShellInlineSpan {
+  start: number
+  end: number
+  command: string
+}
+
 export interface HeaderNode extends ASTNodeBase {
   type: 'header'
   version: string | null
@@ -170,6 +176,7 @@ export interface MarkdownNode extends ASTNodeBase {
   type: 'markdown'
   text: string
   interpolations: InterpolationSpan[]
+  shellInlines: ShellInlineSpan[]
 }
 
 export interface PassthroughNode extends ASTNodeBase {

@@ -1,10 +1,11 @@
 import { readFileSync, statSync, existsSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 import { resolve, dirname, relative } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import type {
   ASTNode, ParseResult, IncludeNode, ImportNode,
   ConnectNode, DefineNode, CallNode, PhaseNode, ConditionalNode, PipeNode,
-  InterpolationSpan, RenderNode, PromptNode, SectionNode, ConceptNode, ConstraintNode, ChunkBoundaryNode,
+  InterpolationSpan, ShellInlineSpan, RenderNode, PromptNode, SectionNode, ConceptNode, ConstraintNode, ChunkBoundaryNode,
 } from '@markdownai/parser'
 import { parse } from '@markdownai/parser'
 import { render } from '@markdownai/renderer'
@@ -16,6 +17,8 @@ import { runBuiltin, isBuiltin } from './pipe.js'
 import { runShell } from './shell.js'
 import { executeList, executeRead, executeCount, executeDate, executeTree, executeDb, executeHttp, executeQuery, formatDate } from './sources.js'
 import { checkFilePath } from './security/filesystem.js'
+import { checkShellCommand } from './security/shell.js'
+import type { ShellSecurityConfig } from './security/config.js'
 
 const MARKDOWNAI_VERSION = '1.0'
 
@@ -117,7 +120,7 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
     case 'transition': return ''
     case 'passthrough': return node.raw
     case 'graph': return node.raw
-    case 'markdown': return resolveInterpolations(node.text, node.interpolations, ctx)
+    case 'markdown': return resolveInterpolations(node.text, node.interpolations, ctx, node.shellInlines)
     case 'env': return resolveEnv(node.name, node.fallback, ctx)
     case 'connect': return handleConnect(node, ctx)
     case 'define': return handleDefine(node, ctx)
@@ -134,7 +137,17 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
     case 'date':
     case 'db':
     case 'http':
-    case 'query': return executeSource(node, ctx).join('\n')
+    case 'query': {
+      const lines = executeSource(node, ctx)
+      // Store label in envFiles so @if conditions and {{ }} interpolations can reference it
+      const label = 'args' in node && (node as { args: Record<string, string> }).args?.['label']
+      if (label && typeof label === 'string' && lines.length > 0) {
+        ctx.envFiles[label] = lines[0]!.trim()
+      } else if (label && typeof label === 'string') {
+        ctx.envFiles[label] = ''
+      }
+      return lines.join('\n')
+    }
     case 'prompt': return executePrompt(node, ctx)
     case 'section': return executeSection(node, ctx)
     case 'chunk-boundary': return executeChunkBoundary(node, ctx)
@@ -346,13 +359,47 @@ function executeImport(node: ImportNode, ctx: EngineContext): void {
   ctx.completedSet.add(full)
 }
 
-function resolveInterpolations(text: string, spans: InterpolationSpan[], ctx: EngineContext): string {
-  if (spans.length === 0) return text
+function executeShellInline(command: string, ctx: EngineContext): string {
+  if (!ctx.security.allowShell) {
+    ctx.warnings.push(`Shell inline blocked (allowShell is false): \`${command}\``)
+    return ''
+  }
+  const shellConfig: ShellSecurityConfig = ctx.security.shellConfig ?? {
+    enabled: true,
+    allow_patterns: [],
+    deny_patterns: [],
+    allow_network: false,
+    require_confirmation: false,
+    audit_log: false,
+  }
+  const check = checkShellCommand(command, shellConfig)
+  if (!check.allowed) {
+    ctx.warnings.push(`Shell inline blocked [${check.tier}]: ${check.reason}`)
+    return ''
+  }
+  try {
+    const out = execSync(command, { cwd: ctx.cwd, encoding: 'utf8', timeout: 10_000 })
+    return out.trimEnd()
+  } catch {
+    ctx.warnings.push(`Shell inline failed: \`${command}\``)
+    return ''
+  }
+}
+
+function resolveInterpolations(text: string, spans: InterpolationSpan[], ctx: EngineContext, shellInlines: ShellInlineSpan[] = []): string {
+  if (spans.length === 0 && shellInlines.length === 0) return text
+
+  type AnySpan = { start: number; end: number; resolve: () => string }
+  const all: AnySpan[] = [
+    ...spans.map(s => ({ start: s.start, end: s.end, resolve: () => s.escaped ? `{{${s.expression}}}` : evalExpr(s.expression, ctx) })),
+    ...shellInlines.map(s => ({ start: s.start, end: s.end, resolve: () => executeShellInline(s.command, ctx) })),
+  ].sort((a, b) => a.start - b.start)
+
   let result = ''
   let pos = 0
-  for (const span of spans) {
+  for (const span of all) {
     result += text.slice(pos, span.start)
-    result += span.escaped ? `{{${span.expression}}}` : evalExpr(span.expression, ctx)
+    result += span.resolve()
     pos = span.end
   }
   return result + text.slice(pos)

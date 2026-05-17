@@ -1999,6 +1999,123 @@ mai eval "!file.isDir './src/legacy/'"
 
 **What the stripper does:** Evaluates conditions against the current environment. Renders the matching branch. Removes all directive tags. See the Stripper section for the full behavior table covering unset variables and the `--env` flag requirement.
 
+**Claude Code skill context variables:**
+
+When a MarkdownAI document is executed as a Claude Code slash command skill (via the MCP `read_file` tool with `skill_args` and related fields), all Claude Code invocation variables are available in every `@if` condition and `{{ }}` interpolation expression:
+
+| Variable | Source field | Description |
+|---|---|---|
+| `ARGUMENTS` / `args` | `skill_args` | Full raw argument string passed to the slash command |
+| `argsList` | `skill_args` (parsed) | Positional argument array — shell-style, handles quoted strings |
+| `arg0` `arg1` `arg2` `arg3` | `skill_args` (parsed) | Shorthand for `argsList[0]` through `argsList[3]` |
+| `CLAUDE_SESSION_ID` | `skill_session_id` | Session ID from `${CLAUDE_SESSION_ID}` |
+| `CLAUDE_EFFORT` | `skill_effort` | Effort level: `low`, `medium`, `high`, `xhigh`, or `max` |
+| `CLAUDE_SKILL_DIR` | `skill_dir` | Directory containing the skill file (`${CLAUDE_SKILL_DIR}`) |
+| Named args | `skill_named_args` | Each key from the skill frontmatter `arguments:` list spread into root scope |
+
+**Syntax sugar for `$ARGUMENTS`:**
+
+The preprocessor converts Claude Code variable syntax before expression evaluation:
+
+```
+$ARGUMENTS        →  ARGUMENTS
+$ARGUMENTS[N]     →  argsList[N]
+$N  (digit)       →  argsList[N]
+```
+
+This means both `ARGUMENTS.startsWith("audit")` and `$ARGUMENTS.startsWith("audit")` are valid.
+
+**Skill dispatch pattern** — the canonical use case:
+
+```
+@markdownai
+---
+description: My workflow skill
+---
+
+@import ./shared.md
+
+@if ARGUMENTS.startsWith("audit")
+@include ./mdd-audit.md
+@elseif ARGUMENTS.startsWith("status")
+@include ./mdd-manage.md
+@elseif ARGUMENTS === ""
+Ask the user what they want to do.
+@else
+@include ./mdd-build.md
+@endif
+```
+
+**Effort-gated content:**
+
+```
+@if CLAUDE_EFFORT == "max" || CLAUDE_EFFORT == "xhigh"
+@include ./sections/deep-analysis.md
+@else
+@include ./sections/standard-analysis.md
+@endif
+```
+
+**Named argument access** — if the skill frontmatter declares `arguments: [issue, branch]`, those names are available directly:
+
+```
+@if issue !== "" && branch !== ""
+Working on issue {{ issue }} in branch {{ branch }}.
+@endif
+```
+
+**Positional argument shorthand:**
+
+```
+@if arg0 == "dry-run"
+This is a preview run only. No files will be modified.
+@endif
+
+First argument: {{ arg0 }}
+Second argument: {{ arg1 }}
+```
+
+**Shell inline — `!`command`` interception:**
+
+Claude Code skill files support `` !`command` `` as a native shell injection syntax. In a `@markdownai` document, MarkdownAI intercepts this syntax at the parser level and routes it through the same security gates as `@query`.
+
+```
+Current branch: !`git branch --show-current`
+Files changed:  !`git diff --stat | wc -l`
+```
+
+Output replaces the tag inline. Multi-line output is trimmed and inlined at the substitution point.
+
+**Security behaviour:**
+
+| `allowShell` setting | Result |
+|---|---|
+| `false` (default) | Command blocked. Warning emitted. Empty string substituted. |
+| `true` | Command runs through deny-pattern check and jailRoot confinement. Output substituted. |
+
+The same `ShellSecurityConfig` deny patterns, jailRoot confinement, and immutable block rules that gate `@query` apply here. A `@markdownai` document cannot be used as a vector for ungated shell execution even when an author uses the Claude Code syntax.
+
+Plain inline code spans (`` `code` ``) are never treated as shell inline — the `!` prefix is required.
+
+Fenced code blocks are immune: `` !`command` `` inside a fenced block is emitted as raw text, never evaluated.
+
+**Opt out with `shell-inline="passthrough"`:**
+
+```
+@markdownai shell-inline="passthrough"
+```
+
+With `passthrough`, the parser leaves all `` !`command` `` patterns as raw text. Claude Code's own evaluation handles them. No MarkdownAI security gates apply. This is a deliberate escape hatch — the name is "passthrough" not "disable" to make explicit that you are handing control to an unsecured mechanism.
+
+**Comparison with `@query`:**
+
+| | `@query` | `` !`command` `` via MarkdownAI | `` !`command` `` via Claude Code |
+|---|---|---|---|
+| Security gated | Yes | Yes (same gates) | No |
+| Works outside Claude Code skills | Yes | Yes | No |
+| Named label, reusable in `@if` | Yes | No — inline only | No |
+| Default blocked | Yes | Yes | No — always runs |
+
 ---
 
 ### `@graph` -- Dependency Visualization

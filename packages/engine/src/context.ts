@@ -19,6 +19,15 @@ export interface MCPContext {
   sessionId: string
 }
 
+export interface SkillContext {
+  args: string                        // $ARGUMENTS — full raw argument string
+  argsList: string[]                  // $ARGUMENTS[N] / $N — parsed positional args
+  namedArgs: Record<string, string>   // named args declared in skill frontmatter arguments:
+  sessionId: string                   // ${CLAUDE_SESSION_ID}
+  effort: string                      // ${CLAUDE_EFFORT}
+  skillDir: string                    // ${CLAUDE_SKILL_DIR}
+}
+
 export interface MacroDefinition {
   body: ASTNode[]
   params: string[]
@@ -48,6 +57,7 @@ export interface EngineContext {
   consumer: string | undefined
   glossary: Map<string, string>
   constraints: ConstraintEntry[]
+  skillContext: SkillContext | null
 }
 
 export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
@@ -74,6 +84,7 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     consumer: undefined,
     glossary: new Map<string, string>(),
     constraints: [],
+    skillContext: null,
   }
   if (!overrides) return base
   const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, ...rest } = overrides

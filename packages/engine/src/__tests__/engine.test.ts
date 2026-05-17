@@ -150,7 +150,7 @@ describe('execute', () => {
   it('passes through markdown nodes unchanged', () => {
     const ast: ParseResult = {
       isMarkdownAI: true, version: null,
-      nodes: [header, { type: 'markdown', line: 2, text: '# Hello World', interpolations: [] }],
+      nodes: [header, { type: 'markdown', line: 2, text: '# Hello World', interpolations: [], shellInlines: [] }],
     }
     expect(execute(ast).output).toBe('# Hello World')
   })
@@ -173,6 +173,7 @@ describe('execute', () => {
           type: 'markdown', line: 2,
           text: 'Hello, {{NAME}}!',
           interpolations: [{ start: 7, end: 15, expression: 'NAME', escaped: false }],
+          shellInlines: [],
         },
       ],
     }
@@ -187,7 +188,7 @@ describe('execute', () => {
         header,
         {
           type: 'define', line: 2, name: 'greet', params: [], local: false,
-          body: [{ type: 'markdown', line: 3, text: 'Hello, {{name}}!', interpolations: [] }],
+          body: [{ type: 'markdown', line: 3, text: 'Hello, {{name}}!', interpolations: [], shellInlines: [] }],
         },
         { type: 'call', line: 5, name: 'greet', args: { name: 'World' }, positionalArgs: [] },
       ],
@@ -203,8 +204,8 @@ describe('execute', () => {
         {
           type: 'conditional', line: 2,
           branches: [
-            { condition: 'true', body: [{ type: 'markdown', line: 3, text: 'yes', interpolations: [] }] },
-            { condition: null, body: [{ type: 'markdown', line: 5, text: 'no', interpolations: [] }] },
+            { condition: 'true', body: [{ type: 'markdown', line: 3, text: 'yes', interpolations: [], shellInlines: [] }] },
+            { condition: null, body: [{ type: 'markdown', line: 5, text: 'no', interpolations: [], shellInlines: [] }] },
           ],
         },
       ],
@@ -220,8 +221,8 @@ describe('execute', () => {
         {
           type: 'conditional', line: 2,
           branches: [
-            { condition: 'false', body: [{ type: 'markdown', line: 3, text: 'yes', interpolations: [] }] },
-            { condition: null, body: [{ type: 'markdown', line: 5, text: 'no', interpolations: [] }] },
+            { condition: 'false', body: [{ type: 'markdown', line: 3, text: 'yes', interpolations: [], shellInlines: [] }] },
+            { condition: null, body: [{ type: 'markdown', line: 5, text: 'no', interpolations: [], shellInlines: [] }] },
           ],
         },
       ],
@@ -256,7 +257,7 @@ describe('execute', () => {
         header,
         {
           type: 'phase', line: 2, name: 'setup', transitions: [],
-          body: [{ type: 'markdown', line: 3, text: 'setup content', interpolations: [] }],
+          body: [{ type: 'markdown', line: 3, text: 'setup content', interpolations: [], shellInlines: [] }],
         },
       ],
     }
@@ -271,7 +272,7 @@ describe('execute', () => {
         header,
         {
           type: 'phase', line: 2, name: 'setup', transitions: [],
-          body: [{ type: 'markdown', line: 3, text: 'setup content', interpolations: [] }],
+          body: [{ type: 'markdown', line: 3, text: 'setup content', interpolations: [], shellInlines: [] }],
         },
       ],
     }

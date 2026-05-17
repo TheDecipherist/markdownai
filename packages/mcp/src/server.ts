@@ -56,7 +56,7 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
       case 'tools/list':
         respond(req.id, {
           tools: [
-            { name: 'read_file', description: 'Read and render a MarkdownAI document. Returns ai-format (token-efficient) by default. Pass format="standard" to override.', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' } }, required: ['path'] } },
+            { name: 'read_file', description: 'Read and render a MarkdownAI document. Returns ai-format (token-efficient) by default. Pass format="standard" to override. When reading a skill/command file, pass skill_args and skill_* fields to enable @if conditions on $ARGUMENTS, $CLAUDE_EFFORT, etc.', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' }, skill_args: { type: 'string', description: 'Raw $ARGUMENTS string from the Claude Code slash command invocation' }, skill_named_args: { type: 'object', description: 'Named arguments from the skill frontmatter arguments: list', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string', description: '${CLAUDE_SESSION_ID} from Claude Code' }, skill_effort: { type: 'string', description: '${CLAUDE_EFFORT} from Claude Code (low/medium/high/xhigh/max)' }, skill_dir: { type: 'string', description: '${CLAUDE_SKILL_DIR} — directory containing the skill file' } }, required: ['path'] } },
             { name: 'list_phases', description: 'List all phases in a MarkdownAI document', inputSchema: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'] } },
             { name: 'resolve_phase', description: 'Resolve a named phase in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' } }, required: ['file', 'phase'] } },
             { name: 'next_phase', description: 'Get the next phase after current_phase', inputSchema: { type: 'object', properties: { file: { type: 'string' }, current_phase: { type: 'string' } }, required: ['file', 'current_phase'] } },
@@ -81,6 +81,14 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
         if (p['format'] === 'standard' || p['format'] === 'ai') rfArgs.format = p['format']
         if (p['budget'] != null) rfArgs.budget = Number(p['budget'])
         if (p['consumer'] != null) rfArgs.consumer = String(p['consumer'])
+        // Skill context fields
+        if (p['skill_args'] != null) rfArgs.skillArgs = String(p['skill_args'])
+        if (p['skill_session_id'] != null) rfArgs.skillSessionId = String(p['skill_session_id'])
+        if (p['skill_effort'] != null) rfArgs.skillEffort = String(p['skill_effort'])
+        if (p['skill_dir'] != null) rfArgs.skillDir = String(p['skill_dir'])
+        if (p['skill_named_args'] != null && typeof p['skill_named_args'] === 'object' && !Array.isArray(p['skill_named_args'])) {
+          rfArgs.skillNamedArgs = Object.fromEntries(Object.entries(p['skill_named_args']).map(([k, v]) => [k, String(v)]))
+        }
         respond(req.id, readFile(rfArgs, cwd))
         break
       }

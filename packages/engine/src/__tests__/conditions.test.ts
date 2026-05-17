@@ -113,3 +113,130 @@ describe('file.* helpers confinement', () => {
     expect(evalCondition('file.isDir("../../etc")', ctx)).toBe(false)
   })
 })
+
+describe('skill context variables', () => {
+  function makeSkillCtx(args: string, opts: { sessionId?: string; effort?: string; skillDir?: string; namedArgs?: Record<string, string> } = {}): EngineContext {
+    const ctx = makeCtx()
+    const argsList = args.trim().length > 0
+      ? [...args.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map(m => m[1] ?? m[2] ?? m[3] ?? '')
+      : []
+    ctx.skillContext = {
+      args,
+      argsList,
+      namedArgs: opts.namedArgs ?? {},
+      sessionId: opts.sessionId ?? '',
+      effort: opts.effort ?? '',
+      skillDir: opts.skillDir ?? '',
+    }
+    return ctx
+  }
+
+  it('ARGUMENTS equals the raw args string', () => {
+    expect(evalCondition('ARGUMENTS === "audit"', makeSkillCtx('audit'))).toBe(true)
+  })
+
+  it('args shorthand equals ARGUMENTS', () => {
+    expect(evalCondition('args === "audit"', makeSkillCtx('audit'))).toBe(true)
+  })
+
+  it('ARGUMENTS.startsWith works for dispatch', () => {
+    expect(evalCondition('ARGUMENTS.startsWith("audit")', makeSkillCtx('audit section-1'))).toBe(true)
+    expect(evalCondition('ARGUMENTS.startsWith("audit")', makeSkillCtx('build my feature'))).toBe(false)
+  })
+
+  it('$ARGUMENTS preprocessed to ARGUMENTS', () => {
+    expect(evalCondition('$ARGUMENTS === "status"', makeSkillCtx('status'))).toBe(true)
+  })
+
+  it('argsList[0] gives first positional arg', () => {
+    expect(evalCondition('argsList[0] === "audit"', makeSkillCtx('audit wave-1'))).toBe(true)
+    expect(evalCondition('argsList[1] === "wave-1"', makeSkillCtx('audit wave-1'))).toBe(true)
+  })
+
+  it('$ARGUMENTS[N] preprocessed to argsList[N]', () => {
+    expect(evalCondition('$ARGUMENTS[0] === "plan-wave"', makeSkillCtx('plan-wave auth-wave-1'))).toBe(true)
+  })
+
+  it('$N shorthand preprocessed to argsList[N]', () => {
+    expect(evalCondition('$0 === "ops"', makeSkillCtx('ops deploy swarmk'))).toBe(true)
+    expect(evalCondition('$1 === "deploy"', makeSkillCtx('ops deploy swarmk'))).toBe(true)
+  })
+
+  it('arg0/arg1/arg2 shortcuts work', () => {
+    expect(evalCondition('arg0 === "update"', makeSkillCtx('update 04'))).toBe(true)
+    expect(evalCondition('arg1 === "04"', makeSkillCtx('update 04'))).toBe(true)
+  })
+
+  it('handles quoted args in argsList', () => {
+    const ctx = makeSkillCtx('"hello world" second')
+    expect(evalCondition('argsList[0] === "hello world"', ctx)).toBe(true)
+    expect(evalCondition('argsList[1] === "second"', ctx)).toBe(true)
+  })
+
+  it('empty ARGUMENTS', () => {
+    expect(evalCondition('ARGUMENTS === ""', makeSkillCtx(''))).toBe(true)
+  })
+
+  it('CLAUDE_EFFORT is accessible', () => {
+    expect(evalCondition('CLAUDE_EFFORT === "high"', makeSkillCtx('', { effort: 'high' }))).toBe(true)
+  })
+
+  it('CLAUDE_SESSION_ID is accessible', () => {
+    const ctx = makeSkillCtx('', { sessionId: 'abc123' })
+    expect(evalCondition('CLAUDE_SESSION_ID === "abc123"', ctx)).toBe(true)
+  })
+
+  it('CLAUDE_SKILL_DIR is accessible', () => {
+    const ctx = makeSkillCtx('', { skillDir: '/home/user/.claude/commands' })
+    expect(evalCondition('CLAUDE_SKILL_DIR.includes("commands")', ctx)).toBe(true)
+  })
+
+  it('named args spread into root scope', () => {
+    const ctx = makeSkillCtx('', { namedArgs: { issue: '42', branch: 'feat/auth' } })
+    expect(evalCondition('issue === "42"', ctx)).toBe(true)
+    expect(evalCondition('branch === "feat/auth"', ctx)).toBe(true)
+  })
+
+  it('skillContext null — all skill vars default to empty string', () => {
+    const ctx = makeCtx()
+    ctx.skillContext = null
+    expect(evalCondition('ARGUMENTS === ""', ctx)).toBe(true)
+    expect(evalCondition('CLAUDE_EFFORT === ""', ctx)).toBe(true)
+  })
+})
+
+describe('{{ }} interpolation in conditions', () => {
+  it('expands {{ envVar }} before evaluating', () => {
+    const ctx = makeCtx({ MY_VAR: 'hello' })
+    expect(evalCondition('{{ MY_VAR }} === "hello"', ctx)).toBe(true)
+  })
+
+  it('expands {{ envFiles label }} — query label stored in envFiles', () => {
+    const ctx = makeCtx()
+    ctx.envFiles['doc_count'] = '5'
+    expect(evalCondition('{{ doc_count }} === "5"', ctx)).toBe(true)
+    expect(evalCondition('{{ doc_count }} === "0"', ctx)).toBe(false)
+  })
+
+  it('{{ }} resolves to empty string when var unset — condition still evaluates', () => {
+    const ctx = makeCtx()
+    expect(evalCondition('{{ UNSET_VAR }} === ""', ctx)).toBe(true)
+  })
+
+  it('{{ }} works with != operator', () => {
+    const ctx = makeCtx()
+    ctx.envFiles['stale_job'] = '.mdd/jobs/audit-2026/MANIFEST.md'
+    expect(evalCondition('{{ stale_job }} !== ""', ctx)).toBe(true)
+  })
+
+  it('{{ }} works in compound conditions', () => {
+    const ctx = makeCtx()
+    ctx.envFiles['doc_count'] = '0'
+    expect(evalCondition('{{ doc_count }} === "0" || {{ doc_count }} === "1"', ctx)).toBe(true)
+  })
+
+  it('nested expression in {{ }} is evaluated', () => {
+    const ctx = makeCtx({ NODE_ENV: 'production' })
+    expect(evalCondition('{{ NODE_ENV === "production" ? "yes" : "no" }} === "yes"', ctx)).toBe(true)
+  })
+})
