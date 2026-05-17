@@ -4,7 +4,7 @@ title: DB — Security System
 type: SPEC
 initiative: markdownai-db
 wave: markdownai-db-wave-3
-wave_status: planned
+wave_status: complete
 edition: Both
 depends_on: [68-db-executor, 66-db-raw-escape-hatch]
 source_files:
@@ -14,8 +14,8 @@ models: []
 test_files: []
 data_flow: greenfield
 last_synced: 2026-05-17
-status: draft
-phase: documentation
+status: complete
+phase: all
 mdd_version: 1
 tags: [db, security, security-config, allowed-operations, denied-collections, max-results, immutable-rules, allow-raw]
 path: DB/Security

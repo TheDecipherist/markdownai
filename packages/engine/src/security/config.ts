@@ -22,8 +22,11 @@ export interface HttpSecurityConfig {
 
 export interface DbConnectionSecurityConfig {
   allowed_operations: string[]
+  denied_operations: string[]
   denied_keywords: string[]
   allowed_collections: string[]
+  denied_collections: string[]
+  allow_raw: boolean
   readonly: boolean
   max_results: number
 }

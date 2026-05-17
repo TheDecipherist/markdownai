@@ -384,8 +384,11 @@ describe('database jail', () => {
   const config: Record<string, import('../security/config.js').DbConnectionSecurityConfig> = {
     primary: {
       allowed_operations: ['find', 'aggregate'],
+      denied_operations: [],
       denied_keywords: ['DELETE', 'UPDATE'],
       allowed_collections: ['products'],
+      denied_collections: [],
+      allow_raw: false,
       readonly: true,
       max_results: 1000,
     },
