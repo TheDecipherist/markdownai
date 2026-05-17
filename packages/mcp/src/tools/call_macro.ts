@@ -20,8 +20,9 @@ function isConfined(filePath: string, cwd: string): boolean {
 }
 
 function escapeArgValue(v: string): string {
-  // Remove characters that could inject new directives or break the @call arg list
-  return v.replace(/[`@\n\r]/g, '')
+  // Remove characters that could inject new directives or break the @call arg list.
+  // ) closes the arg list prematurely; , injects extra positional args.
+  return v.replace(/[`@\n\r),]/g, '')
 }
 
 export function callMacro(

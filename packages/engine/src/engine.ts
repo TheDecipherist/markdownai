@@ -169,7 +169,10 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
     case 'chunk-boundary': return executeChunkBoundary(node, ctx)
     case 'define-concept': return executeConcept(node, ctx)
     case 'constraint': return executeConstraint(node, ctx)
-    default: return ''
+    default: {
+      ctx.warnings.push(`walkNode: unhandled AST node type "${(node as { type: string }).type}"`)
+      return ''
+    }
   }
 }
 

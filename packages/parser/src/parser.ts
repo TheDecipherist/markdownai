@@ -68,10 +68,11 @@ function parsePhaseBlock(state: State, openLine: string, line: number): PhaseNod
   const transitions: TransitionNode[] = []
   const body: ASTNode[] = []
 
+  let phaseClosed = false
   while (state.pos < state.lines.length) {
     const raw = peek(state)!
     const trimmed = raw.trim()
-    if (trimmed === '@end') { consume(state); break }
+    if (trimmed === '@end') { consume(state); phaseClosed = true; break }
     if (trimmed.startsWith('@on ')) {
       transitions.push(parseTransition(trimmed, lineNum(state), state.filePath))
       consume(state)
@@ -80,6 +81,7 @@ function parsePhaseBlock(state: State, openLine: string, line: number): PhaseNod
       if (child) body.push(child)
     }
   }
+  if (!phaseClosed) throw new ParseError(`Unclosed @phase block — expected @end`, line, state.filePath)
 
   node.body = body
   node.transitions = transitions
@@ -89,11 +91,12 @@ function parsePhaseBlock(state: State, openLine: string, line: number): PhaseNod
 function parseIfBlock(state: State, condition: string, line: number): ConditionalNode {
   const branches: ConditionalBranch[] = [{ condition, body: [] }]
   let current = branches[0]!
+  let ifClosed = false
 
   while (state.pos < state.lines.length) {
     const raw = peek(state)!
     const trimmed = raw.trim()
-    if (trimmed === '@endif') { consume(state); break }
+    if (trimmed === '@endif') { consume(state); ifClosed = true; break }
     if (trimmed.startsWith('@elseif ')) {
       const cond = trimmed.replace(/^@elseif\s+/, '')
       branches.push({ condition: cond, body: [] })
@@ -108,19 +111,22 @@ function parseIfBlock(state: State, condition: string, line: number): Conditiona
       if (child) current.body.push(child)
     }
   }
+  if (!ifClosed) throw new ParseError(`Unclosed @if block — expected @endif`, line, state.filePath)
 
   return { type: 'conditional', line, branches }
 }
 
 function collectBody(state: State, closeTag: string): ASTNode[] {
   const nodes: ASTNode[] = []
+  let bodyClosed = false
   while (state.pos < state.lines.length) {
     const raw = peek(state)!
     const trimmed = raw.trim()
-    if (trimmed === `@${closeTag}`) { consume(state); break }
+    if (trimmed === `@${closeTag}`) { consume(state); bodyClosed = true; break }
     const node = parseNextNode(state)
     if (node) nodes.push(node)
   }
+  if (!bodyClosed) throw new ParseError(`Unclosed block — expected @${closeTag}`, 0, state.filePath)
   return nodes
 }
 
@@ -215,11 +221,13 @@ function parseTextBlock(state: State, openLine: string, args: string, line: numb
   const ctx: ParseContext = { line, filePath: state.filePath, inImport: state.inImport }
   const node = mod.parse(openLine, args, ctx) as PromptNode | ConstraintNode
   const bodyLines: string[] = []
+  let textClosed = false
   while (state.pos < state.lines.length) {
     const raw = peek(state)!
-    if (raw.trim() === '@end') { consume(state); break }
+    if (raw.trim() === '@end') { consume(state); textClosed = true; break }
     bodyLines.push(consume(state))
   }
+  if (!textClosed) throw new ParseError(`Unclosed @${name} block — expected @end`, line, state.filePath)
   node.body = bodyLines.join('\n').trim()
   return node
 }
@@ -229,14 +237,16 @@ function parseNoteBlock(state: State, openLine: string, args: string, line: numb
   const ctx: ParseContext = { line, filePath: state.filePath, inImport: state.inImport }
   const node = mod.parse(openLine, args, ctx) as NoteNode
   const bodyLines: string[] = []
+  let noteClosed = false
   while (state.pos < state.lines.length) {
     const raw = peek(state)!
-    if (raw.trim() === '@end') { consume(state); break }
+    if (raw.trim() === '@end') { consume(state); noteClosed = true; break }
     if (raw.trim().startsWith('@note')) {
       throw new ParseError('nested @note is not supported', lineNum(state), state.filePath)
     }
     bodyLines.push(consume(state))
   }
+  if (!noteClosed) throw new ParseError(`Unclosed @note block — expected @end`, line, state.filePath)
   node.body = bodyLines.join('\n').trim()
   return node
 }

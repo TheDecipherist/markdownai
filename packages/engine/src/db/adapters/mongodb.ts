@@ -19,6 +19,7 @@ export class MongoDbAdapter implements DbAdapter {
       case 'one': return this.executeOne(plan)
       case 'count': return this.executeCount(plan)
       case 'aggregate': return this.executeAggregate(plan)
+      default: throw new Error(`@db mongodb: unhandled operation: ${plan.operation}`)
     }
   }
 
@@ -30,7 +31,15 @@ export class MongoDbAdapter implements DbAdapter {
       throw new Error('@db mongodb: raw= requires format "<collection>:<pipeline_json_array>"')
     }
     const collection = query.slice(0, colonIdx).trim()
-    const pipeline = JSON.parse(query.slice(colonIdx + 1).trim()) as Record<string, unknown>[]
+    if (!/^[a-zA-Z0-9_.-]+$/.test(collection)) {
+      throw new Error(`@db mongodb: invalid collection name: "${collection}"`)
+    }
+    let pipeline: Record<string, unknown>[]
+    try {
+      pipeline = JSON.parse(query.slice(colonIdx + 1).trim()) as Record<string, unknown>[]
+    } catch (err) {
+      throw new Error(`@db mongodb: invalid pipeline JSON: ${String(err)}`)
+    }
     const docs = await this.db.collection(collection).aggregate(pipeline).toArray()
     return docs.map(doc => normalizeRow(doc as Record<string, unknown>))
   }
@@ -91,7 +100,7 @@ export class MongoDbAdapter implements DbAdapter {
 
 function buildFilter(plan: QueryPlan): Record<string, unknown> {
   if (plan.where.length === 0) return {}
-  const hasOr = (plan as unknown as Record<string, unknown>)._hasOrFilters === true
+  const hasOr = plan._hasOrFilters === true
   const conditions = plan.where.map(buildCondition)
   if (hasOr) return { $or: conditions }
   return Object.assign({}, ...conditions) as Record<string, unknown>
@@ -105,6 +114,7 @@ function buildCondition(f: Filter): Record<string, unknown> {
     case '<':  return { [f.field]: { $lt: f.value } }
     case '>=': return { [f.field]: { $gte: f.value } }
     case '<=': return { [f.field]: { $lte: f.value } }
+    default: throw new Error(`@db mongodb: unhandled filter operator: ${f.operator}`)
   }
 }
 
@@ -128,6 +138,7 @@ function buildAccumulator(op: AggregateOp): Record<string, unknown> {
     case 'avg':   return { $avg: `$${op.field}` }
     case 'min':   return { $min: `$${op.field}` }
     case 'max':   return { $max: `$${op.field}` }
+    default: throw new Error(`@db mongodb: unhandled accumulator function: ${op.func}`)
   }
 }
 

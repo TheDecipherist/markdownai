@@ -32,6 +32,7 @@ export interface QueryPlan {
   columns: ColumnMap[]
   group: string | null
   aggregations: AggregateOp[]
+  _hasOrFilters?: boolean
 }
 
 export type Row = Record<string, string | number | boolean | null>

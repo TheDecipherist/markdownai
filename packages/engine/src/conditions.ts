@@ -57,8 +57,11 @@ function preprocessExpr(expr: string): string {
       (_, lhs, pat) => `new RegExp(${JSON.stringify(pat)}).test(${lhs})`)
   // Convert MarkdownAI equality syntax: identifier="value" → identifier === "value"
   // Lookbehind ensures we don't transform !=, <=, >=, == — only bare =
-  result = result.replace(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*(?<![!<>=])=(?!=)\s*"([^"]*)"/g, '$1 === "$2"')
-                 .replace(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*(?<![!<>=])=(?!=)\s*'([^']*)'/g, "$1 === '$2'")
+  // Use a replacer function so captured values with $ are not misinterpreted as replacement patterns.
+  result = result.replace(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*(?<![!<>=])=(?!=)\s*"([^"]*)"/g,
+      (_, id: string, val: string) => `${id} === "${val}"`)
+                 .replace(/\b([A-Za-z_][A-Za-z0-9_.]*)\s*(?<![!<>=])=(?!=)\s*'([^']*)'/g,
+      (_, id: string, val: string) => `${id} === '${val}'`)
   // Convert Claude Code skill variable syntax to sandbox identifiers:
   //   $ARGUMENTS[N] → argsList[N]
   //   $ARGUMENTS    → ARGUMENTS
@@ -88,6 +91,17 @@ function runExpr(expr: string, ctx: EngineContext): unknown {
   const argsList = skill?.argsList ?? []
   const skillNamedArgs = skill?.namedArgs ?? {}
 
+  // Reserved sandbox identifiers that named args must not overwrite
+  const RESERVED_SANDBOX_KEYS = new Set([
+    'env', 'file', 'consumer', 'ARGUMENTS', 'args', 'argsList',
+    'arg0', 'arg1', 'arg2', 'arg3',
+    'CLAUDE_SESSION_ID', 'CLAUDE_EFFORT', 'CLAUDE_SKILL_DIR',
+  ])
+  const safeNamedArgs: Record<string, string> = {}
+  for (const [k, v] of Object.entries(skillNamedArgs)) {
+    if (!RESERVED_SANDBOX_KEYS.has(k)) safeNamedArgs[k] = v
+  }
+
   const sandbox: Record<string, unknown> = {
     ...rootEnv,
     env: envObj,
@@ -101,9 +115,9 @@ function runExpr(expr: string, ctx: EngineContext): unknown {
     arg1: argsList[1] ?? '',
     arg2: argsList[2] ?? '',
     arg3: argsList[3] ?? '',
-    // Named args spread into root scope (frontmatter arguments: [issue, branch] → $issue, $branch)
-    ...skillNamedArgs,
-    // Session and environment variables from Claude Code
+    // Named args spread into root scope — reserved keys are excluded to prevent shadowing
+    ...safeNamedArgs,
+    // Session and environment variables from Claude Code (defined after safeNamedArgs so they cannot be shadowed)
     CLAUDE_SESSION_ID: skill?.sessionId ?? '',
     CLAUDE_EFFORT: skill?.effort ?? '',
     CLAUDE_SKILL_DIR: skill?.skillDir ?? '',

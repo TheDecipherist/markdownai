@@ -155,8 +155,19 @@ function readEnvFile(fullPath: string, args: Record<string, string | undefined>)
   return Object.entries(pairs).map(([k, v]) => `${k}=${v}`)
 }
 
+function checkJailRoot(full: string, ctx: EngineContext): boolean {
+  const jailRoot = ctx.security.jailRoot
+  if (!jailRoot) return true
+  const rel = full.startsWith(jailRoot) ? full.slice(jailRoot.length) : null
+  return rel !== null && !rel.startsWith('..') && (rel === '' || rel.startsWith('/') || rel.startsWith('\\'))
+}
+
 export function executeList(node: ListNode, ctx: EngineContext): string[] {
   const full = resolve(ctx.docDir, node.path)
+  if (!checkJailRoot(full, ctx)) {
+    ctx.warnings.push(`SECURITY_ALERT: @list path confined — access denied: ${node.path}`)
+    return []
+  }
   const ext = node.path.toLowerCase()
 
   if (ext.endsWith('.json')) return listJson(full, node.args)
@@ -173,6 +184,10 @@ export function executeList(node: ListNode, ctx: EngineContext): string[] {
 
 export function executeRead(node: ReadNode, ctx: EngineContext): string[] {
   const full = resolve(ctx.docDir, node.path)
+  if (!checkJailRoot(full, ctx)) {
+    ctx.warnings.push(`SECURITY_ALERT: @read path confined — access denied: ${node.path}`)
+    return []
+  }
   const ext = node.path.toLowerCase()
   if (ext.endsWith('.json')) return listJson(full, node.args)
   if (ext.endsWith('.csv')) return listCsv(full, node.args)
@@ -212,6 +227,9 @@ export function executeDate(node: DateNode): string[] {
   const fmt = node.args['format'] ?? 'ISO'
   const filePath = node.args['file']
   const type = node.args['type'] ?? 'current'
+  if (type === 'created') {
+    throw new Error('@date: type="created" is not supported — file creation time is not reliably available across platforms')
+  }
   let date = new Date()
   if (type === 'modified' && filePath) {
     try { date = new Date(statSync(filePath).mtime) } catch { /* fallback to now */ }
@@ -286,7 +304,7 @@ export function executeDb(node: DbNode, ctx: EngineContext): string[] {
 }
 
 // Cloud metadata endpoints — always blocked, immutable security rule
-const BLOCKED_HOSTS = ['169.254.169.254', 'metadata.google.internal', 'fd00:ec2::254', '100.100.100.200']
+const BLOCKED_HOSTS: readonly string[] = Object.freeze(['169.254.169.254', 'metadata.google.internal', 'fd00:ec2::254', '100.100.100.200'])
 
 function isBlockedHost(url: string): boolean {
   try { return BLOCKED_HOSTS.some(h => new URL(url).hostname.includes(h)) } catch { return false }

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { shouldSwitchToMarkdownAI } from './language-detection';
+import { shouldSwitchToMarkdownAI } from './language-detection.js';
 import { MacroRegistry, registerCompletionProvider } from './providers/completion-provider.js';
 import { registerHoverProvider } from './providers/hover-provider.js';
 import { registerDefinitionProvider } from './providers/definition-provider.js';

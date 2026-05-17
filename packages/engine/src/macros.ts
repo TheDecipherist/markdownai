@@ -2,6 +2,7 @@ import type {
   ASTNode, ConditionalBranch, PipeStage,
   IncludeNode, ImportNode, ListNode, ReadNode, TreeNode, CountNode,
   QueryNode, DbNode, HttpNode, DateNode, RenderNode, ConnectNode, CallNode,
+  SectionNode, PromptNode, NoteNode, ConceptNode, ConstraintNode,
 } from '@markdownai/parser'
 import { scanInterpolations } from '@markdownai/parser'
 
@@ -12,8 +13,11 @@ export function substituteParams(body: ASTNode[], args: Record<string, string>):
 function subStr(s: string, args: Record<string, string>): string {
   let r = s
   for (const [k, v] of Object.entries(args)) {
-    // Match {{ name }} with optional surrounding whitespace (spec uses spaces)
-    r = r.replace(new RegExp(`\\{\\{\\s*${k}\\s*\\}\\}`, 'g'), v)
+    // Escape regex metacharacters in the key before building the pattern
+    const escapedKey = k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // Escape $ in the value so String.replace doesn't interpret $1, $&, etc.
+    const safeValue = v.replace(/\$/g, '$$$$')
+    r = r.replace(new RegExp(`\\{\\{\\s*${escapedKey}\\s*\\}\\}`, 'g'), safeValue)
   }
   return r
 }
@@ -81,6 +85,16 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
       })
       return { ...node, stages }
     }
+    case 'section':
+      return { ...node as SectionNode, body: substituteParams(node.body, args) }
+    case 'prompt':
+      return { ...node as PromptNode, body: subStr(node.body, args) }
+    case 'note':
+      return { ...node as NoteNode, body: subStr(node.body, args) }
+    case 'define-concept':
+      return { ...node as ConceptNode, definition: subStr(node.definition, args) }
+    case 'constraint':
+      return { ...node as ConstraintNode, body: subStr(node.body, args) }
     // header, transition, env, graph, passthrough — no user-visible string params to substitute
     default:
       return node

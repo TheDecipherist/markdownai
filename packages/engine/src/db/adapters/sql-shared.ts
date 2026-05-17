@@ -18,7 +18,7 @@ export function buildSql(plan: QueryPlan, dialect: SqlDialect): SqlBuild {
     return ph
   }
 
-  const hasOr = (plan as unknown as Record<string, unknown>)._hasOrFilters === true
+  const hasOr = plan._hasOrFilters === true
 
   // WHERE
   let where = ''
@@ -107,6 +107,7 @@ function buildWhereExpr(f: Filter, ph: string, _dialect: SqlDialect): string {
     case '<':  return `${f.field} < ${ph}`
     case '>=': return `${f.field} >= ${ph}`
     case '<=': return `${f.field} <= ${ph}`
+    default: throw new Error(`unhandled where operator: ${f.operator}`)
   }
 }
 
@@ -118,6 +119,7 @@ function buildAggExpr(op: AggregateOp, dialect: SqlDialect): string {
     case 'avg':   return `AVG(${qi(op.field!, dialect)}) AS ${label}`
     case 'min':   return `MIN(${qi(op.field!, dialect)}) AS ${label}`
     case 'max':   return `MAX(${qi(op.field!, dialect)}) AS ${label}`
+    default: throw new Error(`unhandled aggregate function: ${op.func}`)
   }
 }
 

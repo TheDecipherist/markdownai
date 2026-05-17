@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { resolve, dirname } from 'node:path'
 import { parse } from '@markdownai/parser'
 import { execute, loadSecurityConfig } from '@markdownai/engine'
 import type { SecurityConfig } from '@markdownai/engine'
@@ -100,7 +100,7 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
       allowShell: json.shell.enabled,
       allowHttp: json.http.enabled,
       allowDb: Object.keys(json.db).length > 0,
-      jailRoot: null,
+      jailRoot: dirname(resolved),
       filesystemConfig: json.filesystem,
       shellConfig: json.shell,
     }

@@ -12,7 +12,9 @@ export interface HttpCheckResult {
 export function checkHttpUrl(url: string, config: HttpSecurityConfig): HttpCheckResult {
   let hostname: string
   try {
-    hostname = new URL(url).hostname
+    const raw = new URL(url).hostname
+    // Node.js returns IPv6 addresses with brackets: [fd00:ec2::254] — strip them for comparison
+    hostname = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw
   } catch {
     return { allowed: false, tier: 'not_allowed', reason: 'Invalid URL' }
   }

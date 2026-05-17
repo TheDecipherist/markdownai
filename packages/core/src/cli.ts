@@ -83,15 +83,15 @@ universalOptions(
   process.stdout.write(result.output + '\n')
 })
 
-program
-  .command('eval <expression>')
-  .description('evaluate a single expression against current environment')
-  .option('--env <file>', 'load .env file for evaluation')
-  .action((expression: string, opts: Record<string, string | undefined>) => {
+universalOptions(
+  program
+    .command('eval <expression>')
+    .description('evaluate a single expression against current environment')
+).action((expression: string, opts: Record<string, string | undefined>) => {
     const evalOpts: import('./commands/eval.js').EvalOptions = {}
     if (opts['env']) evalOpts.env = opts['env']
     const result = runEval(expression, evalOpts)
-    process.stdout.write(result.output + '\n')
+    if (!opts['silent']) process.stdout.write(result.output + '\n')
   })
 
 universalOptions(
@@ -145,22 +145,23 @@ universalOptions(
   runWatch(file, watchOpts)
 })
 
-program
-  .command('serve')
-  .description('start the MarkdownAI MCP server')
-  .option('--cwd <path>', 'set working directory for document resolution')
-  .option('--port <n>', 'port number (informational only — server uses stdio)')
-  .action(async (opts: Record<string, string | undefined>) => {
+universalOptions(
+  program
+    .command('serve')
+    .description('start the MarkdownAI MCP server')
+    .option('--port <n>', 'port number (informational only — server uses stdio)')
+).action(async (opts: Record<string, string | undefined>) => {
     const { startServer } = await import('@markdownai/mcp')
     startServer(opts['cwd'] ? { cwd: opts['cwd'] } : {})
   })
 
-program
-  .command('init')
-  .description('install the MarkdownAI hook in your AI client config')
-  .option('--client <type>', 'client type: claude-code, cursor (auto-detects if omitted)')
-  .option('--global-claude-md', 'add MarkdownAI instructions to ~/.claude/CLAUDE.md')
-  .action((opts: Record<string, string | undefined>) => {
+universalOptions(
+  program
+    .command('init')
+    .description('install the MarkdownAI hook in your AI client config')
+    .option('--client <type>', 'client type: claude-code, cursor (auto-detects if omitted)')
+    .option('--global-claude-md', 'add MarkdownAI instructions to ~/.claude/CLAUDE.md')
+).action((opts: Record<string, string | undefined>) => {
     const clientOpt = opts['client'] as import('./commands/init.js').ClientType | undefined
     const result = runInit(clientOpt ? { client: clientOpt } : {})
     if (result.alreadyInstalled) {
@@ -254,47 +255,53 @@ http.command('disable').action(() => { process.stdout.write(`✓ ${securityHttpE
 http.command('add-domain <domain>').action((domain: string) => { process.stdout.write(`✓ ${securityHttpAddDomain(domain).message}\n`) })
 http.command('remove-domain <domain>').action((domain: string) => { process.stdout.write(`✓ ${securityHttpRemoveDomain(domain).message}\n`) })
 
-program
-  .command('list-phases <file>')
-  .description('list all phases and their transitions')
-  .option('--cwd <path>', 'working directory')
-  .action((file: string, opts: Record<string, string | undefined>) => {
+universalOptions(
+  program
+    .command('list-phases <file>')
+    .description('list all phases and their transitions')
+).action((file: string, opts: Record<string, string | undefined>) => {
     const result = runListPhases(file, opts['cwd'] ? { cwd: opts['cwd'] } : {})
     for (const err of result.errors) process.stderr.write(`ERROR: ${err}\n`)
     if (result.exitCode !== 0) process.exit(1)
-    if (result.phases.length === 0) process.stdout.write('No phases found\n')
-    for (const p of result.phases) {
-      process.stdout.write(`@phase ${p.name} (line ${p.line})\n`)
-      for (const t of p.transitions) {
-        process.stdout.write(`  @on ${t.event} -> @${t.type} ${t.target}\n`)
+    if (result.phases.length === 0 && !opts['silent']) process.stdout.write('No phases found\n')
+    if (!opts['silent']) {
+      for (const p of result.phases) {
+        process.stdout.write(`@phase ${p.name} (line ${p.line})\n`)
+        for (const t of p.transitions) {
+          process.stdout.write(`  @on ${t.event} -> @${t.type} ${t.target}\n`)
+        }
       }
     }
   })
 
-program
-  .command('list-macros <file>')
-  .description('list all macros defined in the document')
-  .option('--cwd <path>', 'working directory')
-  .action((file: string, opts: Record<string, string | undefined>) => {
+universalOptions(
+  program
+    .command('list-macros <file>')
+    .description('list all macros defined in the document')
+).action((file: string, opts: Record<string, string | undefined>) => {
     const result = runListMacros(file, opts['cwd'] ? { cwd: opts['cwd'] } : {})
     for (const err of result.errors) process.stderr.write(`ERROR: ${err}\n`)
     if (result.exitCode !== 0) process.exit(1)
-    for (const m of result.macros) {
-      const params = m.params.length > 0 ? `(${m.params.join(', ')})` : ''
-      const local = m.local ? ' [local]' : ''
-      process.stdout.write(`@define ${m.name}${params}${local} (line ${m.line})\n`)
+    if (!opts['silent']) {
+      for (const m of result.macros) {
+        const params = m.params.length > 0 ? `(${m.params.join(', ')})` : ''
+        const local = m.local ? ' [local]' : ''
+        process.stdout.write(`@define ${m.name}${params}${local} (line ${m.line})\n`)
+      }
     }
   })
 
-program
-  .command('list-imports <file>')
-  .description('list all @include and @import dependencies')
-  .option('--cwd <path>', 'working directory')
-  .action((file: string, opts: Record<string, string | undefined>) => {
+universalOptions(
+  program
+    .command('list-imports <file>')
+    .description('list all @include and @import dependencies')
+).action((file: string, opts: Record<string, string | undefined>) => {
     const result = runListImports(file, opts['cwd'] ? { cwd: opts['cwd'] } : {})
     for (const err of result.errors) process.stderr.write(`ERROR: ${err}\n`)
-    for (const i of result.imports) {
-      process.stdout.write(`@${i.type} ${i.path} (line ${i.line})\n`)
+    if (!opts['silent']) {
+      for (const i of result.imports) {
+        process.stdout.write(`@${i.type} ${i.path} (line ${i.line})\n`)
+      }
     }
     if (result.exitCode !== 0) process.exit(1)
   })

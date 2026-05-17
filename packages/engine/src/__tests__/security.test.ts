@@ -338,6 +338,18 @@ describe('HTTP jail', () => {
     expect(result.tier).toBe('always_block')
   })
 
+  it('always blocks AWS ECS task metadata endpoint 169.254.170.2', () => {
+    const result = checkHttpUrl('http://169.254.170.2/v2/metadata', { ...disabledConfig, enabled: true })
+    expect(result.allowed).toBe(false)
+    expect(result.tier).toBe('always_block')
+  })
+
+  it('always blocks IPv6 EC2 metadata endpoint fd00:ec2::254', () => {
+    const result = checkHttpUrl('http://[fd00:ec2::254]/latest/meta-data', { ...disabledConfig, enabled: true })
+    expect(result.allowed).toBe(false)
+    expect(result.tier).toBe('always_block')
+  })
+
   it('always blocks cloud metadata even when enabled with full allowlist', () => {
     const cfg = { ...disabledConfig, enabled: true, allowed_domains: ['169.254.169.254'] }
     const result = checkHttpUrl('http://169.254.169.254/', cfg)
