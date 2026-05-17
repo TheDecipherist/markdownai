@@ -110,7 +110,8 @@ function runExpr(expr: string, ctx: EngineContext): unknown {
   }
   try {
     return runInNewContext(preprocessExpr(expr), sandbox, { timeout: 500 })
-  } catch {
+  } catch (err) {
+    if ((err as Error)?.name === 'ReferenceError') return undefined
     ctx.warnings.push(`Unresolvable expression: ${expr.trim()}`)
     return undefined
   }

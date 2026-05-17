@@ -295,42 +295,42 @@ describe('@connect registry', () => {
   })
 })
 
+const allJailed = { securityConfig: { allowShell: false, allowHttp: false, allowDb: false, jailRoot: null as null } }
+
 describe('@db jailed directive', () => {
-  it('@db stripped silently when security.allowDb is false (default)', () => {
+  it('@db stripped silently when security.allowDb is false', () => {
     const file = write('db-stripped.md', '@markdownai\n\n@connect primary type="mongodb" uri=env.MONGO_URI\n\n@db using="primary" query="db.users.find()"\n\n# Doc\n')
-    const result = runRender(file)
+    const result = runRender(file, allJailed)
     expect(result.exitCode).toBe(0)
     expect(result.output.trim()).toBe('# Doc')
   })
 
   it('@db in pipe also stripped when security off', () => {
     const file = write('db-pipe-stripped.md', '@markdownai\n\n@db query="SELECT * FROM users" | @render type="table"\n\n# Done\n')
-    const result = runRender(file)
+    const result = runRender(file, allJailed)
     expect(result.exitCode).toBe(0)
   })
 })
 
 describe('@http jailed directive', () => {
-  it('@http stripped silently when security.allowHttp is false (default)', () => {
+  it('@http stripped silently when security.allowHttp is false', () => {
     const file = write('http-stripped.md', '@markdownai\n\n@http url="https://api.example.com/data"\n\n# Doc\n')
-    const result = runRender(file)
+    const result = runRender(file, allJailed)
     expect(result.exitCode).toBe(0)
     expect(result.output.trim()).toBe('# Doc')
   })
 
   it('@http cloud metadata endpoint blocked even when allowHttp enabled', () => {
-    // We test the warning message via the engine directly in engine tests
-    // Here just verify the directive is stripped safely
     const file = write('http-meta.md', '@markdownai\n\n@http url="http://169.254.169.254/latest/meta-data"\n\n# Doc\n')
-    const result = runRender(file)
+    const result = runRender(file, allJailed)
     expect(result.exitCode).toBe(0)
   })
 })
 
 describe('@query shell directive', () => {
-  it('@query stripped silently when security.allowShell is false (default)', () => {
+  it('@query stripped silently when security.allowShell is false', () => {
     const file = write('query-stripped.md', '@markdownai\n\n@query "echo hello"\n\n# Doc\n')
-    const result = runRender(file)
+    const result = runRender(file, allJailed)
     expect(result.exitCode).toBe(0)
     expect(result.output.trim()).toBe('# Doc')
     expect(result.warnings).toHaveLength(0)
@@ -505,5 +505,31 @@ describe('loadEnvFile', () => {
   it('returns empty object for missing file', () => {
     const env = loadEnvFile('/no/such/file.env')
     expect(env).toEqual({})
+  })
+})
+
+// ISSUE-002 — runRender must load and apply security config from file
+describe('ISSUE-002 — runRender loads security config and passes it to engine', () => {
+  it('runRender accepts a securityConfig option that enables @query execution', () => {
+    const file = write('query-shell.md', '@markdownai\n@query "echo shellworks" label="out"\n{{ out }}\n')
+    const result = runRender(file, { securityConfig: { allowShell: true, allowHttp: false, allowDb: false, jailRoot: null } })
+    expect(result.exitCode).toBe(0)
+    expect(result.output).toContain('shellworks')
+  })
+
+  it('@query in rendered doc returns empty string when securityConfig has allowShell: false', () => {
+    const file = write('query-blocked.md', '@markdownai\n@query "echo blocked" label="out"\n{{ out }}\n')
+    const result = runRender(file, { securityConfig: { allowShell: false, allowHttp: false, allowDb: false, jailRoot: null } })
+    expect(result.exitCode).toBe(0)
+    expect(result.output.trim()).toBe('')
+    expect(result.errors).toHaveLength(0)
+  })
+
+  it('@query in @define/@call is accessible to caller when securityConfig enables shell', () => {
+    const src = '@markdownai\n@define q_macro\n@query "echo macroworks" label="result"\n@end\n@call q_macro\n{{ result }}\n'
+    const file = write('macro-query.md', src)
+    const result = runRender(file, { securityConfig: { allowShell: true, allowHttp: false, allowDb: false, jailRoot: null } })
+    expect(result.exitCode).toBe(0)
+    expect(result.output).toContain('macroworks')
   })
 })
