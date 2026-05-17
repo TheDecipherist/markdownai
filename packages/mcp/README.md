@@ -16,7 +16,7 @@ MCP (Model Context Protocol) server for MarkdownAI. Bridges AI assistants and li
 
 ## What it does
 
-`@markdownai/mcp` solves the core problem of AI tools reading live documents: without it, an AI opens a `.md` file and sees raw source - directives, macro definitions, unexpanded expressions. With the MCP server running, the AI receives fully rendered, up-to-date content every time it reads a MarkdownAI document.
+`@markdownai/mcp` solves the core problem of AI tools reading live documents: without it, an AI opens a `.md` file and sees raw source - directives, macro definitions, unexpanded expressions. With the MCP server configured, the AI receives fully rendered, up-to-date content every time it reads a MarkdownAI document.
 
 The server implements the [Model Context Protocol](https://modelcontextprotocol.io) over stdio. It exposes 8 tools AI assistants can call to interact with documents, navigate phases, invoke macros, and manage cache state.
 
@@ -25,25 +25,22 @@ The server implements the [Model Context Protocol](https://modelcontextprotocol.
 ## Installation
 
 ```bash
-# As a CLI (runs the MCP server)
 npm install -g @markdownai/core
-mai serve
-
-# As a library
-npm install @markdownai/mcp
 ```
 
-## Using with Claude Code
+This installs the `mai` CLI and the `mai-serve` binary, which is what your AI client will use as the MCP server process.
 
-The recommended setup is via `mai init`, which installs the PreToolUse hook automatically:
+## Setup with Claude Code
+
+You don't start the server manually. Claude Code starts it automatically when you open a session, based on the configuration you add once.
+
+The easiest way is `mai init`, which writes the config for you:
 
 ```bash
 mai init
 ```
 
-This configures Claude Code to route all MarkdownAI document reads through the MCP server. After setup, every `.md` file with a `@markdownai` header that Claude reads is automatically rendered before Claude sees it.
-
-For manual setup, configure the MCP server in your `.claude/settings.json`:
+Or add it manually to your project's `.claude/settings.json` (or your global Claude Code settings):
 
 ```json
 {
@@ -56,22 +53,24 @@ For manual setup, configure the MCP server in your `.claude/settings.json`:
 }
 ```
 
-## Starting the server
+That's it. Claude Code reads this config on startup, launches `mai-serve` as a subprocess, and connects to it over stdio. From that point on, every `.md` file with a `@markdownai` header that Claude reads is automatically rendered before Claude sees it - no manual steps needed per session.
 
-```bash
-# Start in the current directory
-mai-serve
+To scope the server to a specific project directory, add `--cwd`:
 
-# Or via the mai CLI
-mai serve
-
-# With a specific project root
-mai serve --cwd /path/to/project
+```json
+{
+  "mcpServers": {
+    "markdownai": {
+      "command": "mai-serve",
+      "args": ["--cwd", "/path/to/your/project"]
+    }
+  }
+}
 ```
 
-The server communicates over stdio (stdin/stdout) using JSON-RPC, which is the standard MCP transport.
-
 ## The 8 MCP tools
+
+Once the server is configured, Claude can call these tools directly during a session.
 
 ### `read_file`
 
@@ -231,7 +230,7 @@ Clears cached rendered output for a specific file, or for all files if no path i
 
 ## Security at the MCP boundary
 
-The MCP server enforces the same security rules as the CLI:
+The server enforces the same security rules as the CLI:
 
 - **File access** - only files within the project's document root can be read. Path traversal attempts (`../../../etc/passwd`) are rejected.
 - **Environment variables** - keys matching credential patterns are blocked in `get_env` responses.
@@ -239,6 +238,8 @@ The MCP server enforces the same security rules as the CLI:
 - **Server resilience** - a bad request never crashes the server. The server recovers and keeps running.
 
 ## API Reference (library usage)
+
+If you're building your own MCP server or tooling on top of this package:
 
 ### `startServer(options?): Promise<void>`
 
@@ -249,13 +250,12 @@ import { startServer } from '@markdownai/mcp'
 
 await startServer({
   cwd: process.cwd(),
-  port: undefined,  // stdio mode (default)
 })
 ```
 
 ### Individual tools
 
-Each tool is also exported as a standalone function for use outside the MCP protocol:
+Each tool is exported as a standalone function:
 
 ```ts
 import {
@@ -269,14 +269,13 @@ import {
   invalidateCache,
 } from '@markdownai/mcp'
 
-// Use directly in your own MCP server or tool
 const rendered = await readFile({ path: './docs/status.md' })
 const phases = await listPhases({ file: './runbook.md' })
 ```
 
 ### Connection registry
 
-The MCP server maintains a session-level connection registry so database connections are established once and reused across all tool calls.
+The server maintains a session-level connection registry so database connections are established once and reused across all tool calls.
 
 ```ts
 import { registerConnection, getConnection, listConnections, clearConnections } from '@markdownai/mcp'
@@ -284,19 +283,13 @@ import { registerConnection, getConnection, listConnections, clearConnections } 
 registerConnection('reports', { type: 'mongodb', uri: process.env.MONGODB_URI })
 
 const conn = getConnection('reports')
-const all = listConnections()
-
-clearConnections()  // closes all connections and clears the registry
+clearConnections()  // closes all connections
 ```
 
 ## TypeScript
 
 ```ts
 import type { ServerOptions } from '@markdownai/mcp'
-
-const opts: ServerOptions = {
-  cwd: '/path/to/project',
-}
 ```
 
 ## Part of the MarkdownAI toolchain
