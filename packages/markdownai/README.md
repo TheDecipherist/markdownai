@@ -2,6 +2,15 @@
 
 **documentation that cannot lie.**
 
+**Packages:**
+[@markdownai/core](https://www.npmjs.com/package/@markdownai/core) &nbsp;·&nbsp;
+[@markdownai/engine](https://www.npmjs.com/package/@markdownai/engine) &nbsp;·&nbsp;
+[@markdownai/parser](https://www.npmjs.com/package/@markdownai/parser) &nbsp;·&nbsp;
+[@markdownai/renderer](https://www.npmjs.com/package/@markdownai/renderer) &nbsp;·&nbsp;
+[@markdownai/mcp](https://www.npmjs.com/package/@markdownai/mcp)
+
+---
+
 MarkdownAI is a superset of Markdown that makes documents live. Add `@markdownai` to the first line of any `.md` file and it becomes executable - fetching real values from your environment, databases, APIs, and shell every time it renders.
 
 This org contains the full MarkdownAI toolchain as a set of focused, composable packages.
