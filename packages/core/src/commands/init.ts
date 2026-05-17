@@ -18,19 +18,29 @@ export interface InitResult {
   message: string
 }
 
-const HOOK_SCRIPT = `// MarkdownAI PreToolUse hook — installed by mai init
-// Routes .md file reads through mai MCP server when @markdownai header detected
-export default async function(tool, input) {
-  if (tool !== 'Read' && tool !== 'read_file') return input
-  const path = input.file_path ?? input.path ?? ''
-  if (!path.endsWith('.md')) return input
-  const { shouldRoute } = await import('@markdownai/core/hook')
-  const decision = shouldRoute(path)
-  if (decision.route === 'mcp') {
-    return { ...input, _routed_by_mai: true }
-  }
-  return input
-}`
+const HOOK_SCRIPT = `#!/usr/bin/env node
+// MarkdownAI PreToolUse hook — installed by mai init
+// Checks if .md file reads should be routed through the mai MCP server
+import { createInterface } from 'node:readline'
+import { readFileSync } from 'node:fs'
+
+let raw = ''
+if (process.stdin.isTTY) process.exit(0)
+for await (const line of createInterface({ input: process.stdin })) raw += line
+try {
+  const data = JSON.parse(raw)
+  const toolName = data.tool_name ?? ''
+  if (toolName !== 'Read' && toolName !== 'read_file') process.exit(0)
+  const filePath = data.tool_input?.file_path ?? data.tool_input?.path ?? ''
+  if (!filePath.endsWith('.md')) process.exit(0)
+  let content = ''
+  try { content = readFileSync(filePath, 'utf8') } catch { process.exit(0) }
+  if (!content.trimStart().startsWith('@markdownai')) process.exit(0)
+  // File has @markdownai header — MCP server handles the read, block direct access
+  process.stderr.write('Use the markdownai MCP tool to read this file.\\n')
+  process.exit(2)
+} catch { process.exit(0) }
+`
 
 function detectClient(): { type: ClientType; configPath: string } {
   // Claude Code
@@ -121,14 +131,19 @@ export function runInit(options: InitOptions = {}): InitResult {
   }
 
   const hooks = (config['hooks'] as Record<string, unknown> | undefined) ?? {}
-  const existingHook = hooks['preToolUse']
-  const alreadyInstalled = Array.isArray(existingHook)
-    ? existingHook.some((h: unknown) => typeof h === 'string' && h.includes('markdownai'))
-    : existingHook === hookPath
+  const existingEntries = Array.isArray(hooks['PreToolUse']) ? hooks['PreToolUse'] as unknown[] : []
+  const alreadyInstalled = existingEntries.some((entry: unknown) => {
+    const e = entry as Record<string, unknown>
+    const subhooks = Array.isArray(e['hooks']) ? e['hooks'] as Array<Record<string, unknown>> : []
+    return subhooks.some(h => typeof h['command'] === 'string' && h['command'].includes('markdownai'))
+  })
 
   if (!alreadyInstalled) {
-    const existing = Array.isArray(existingHook) ? existingHook as string[] : []
-    hooks['preToolUse'] = [...existing, hookPath]
+    const newEntry = {
+      matcher: 'Read',
+      hooks: [{ type: 'command', command: `node ${hookPath}` }],
+    }
+    hooks['PreToolUse'] = [...existingEntries, newEntry]
     config['hooks'] = hooks
     mkdirSync(dirname(configPath), { recursive: true })
     writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8')
