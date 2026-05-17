@@ -1,7 +1,7 @@
 ---
 generated: 2026-05-17
 doc_count: 74
-connection_count: 129
+connection_count: 132
 overlap_count: 17
 ---
 
@@ -135,9 +135,9 @@ DB
   │     ├── Internals  67-db-queryplan-types  complete
   │     └── Internals  68-db-executor  complete
   ├── Adapters
-  │     ├── Adapters  69-db-adapter-interface  draft
-  │     ├── Adapters  70-db-mongodb-adapter  draft
-  │     └── Adapters  71-db-sql-adapters  draft
+  │     ├── Adapters  69-db-adapter-interface  complete
+  │     ├── Adapters  70-db-mongodb-adapter  complete
+  │     └── Adapters  71-db-sql-adapters  complete
   ├── Security
   │     └── Security  72-db-security  draft
   ├── Caching
@@ -218,9 +218,9 @@ graph TD
   d66[66-db-raw-escape-hatch]:::complete
   d67[67-db-queryplan-types]:::complete
   d68[68-db-executor]:::complete
-  d69[69-db-adapter-interface]:::draft
-  d70[70-db-mongodb-adapter]:::draft
-  d71[71-db-sql-adapters]:::draft
+  d69[69-db-adapter-interface]:::complete
+  d70[70-db-mongodb-adapter]:::complete
+  d71[71-db-sql-adapters]:::complete
   d72[72-db-security]:::draft
   d73[73-db-caching]:::draft
   d74[74-db-error-handling]:::draft

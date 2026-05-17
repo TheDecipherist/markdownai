@@ -15,3 +15,6 @@ e2e/benchmarks/
 
 # VS Code extension build artifacts
 *.vsix
+
+# Temporary AI research files
+_ai_temp/

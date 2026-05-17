@@ -4,18 +4,19 @@ title: DB — MongoDB Adapter
 type: COMPONENT
 initiative: markdownai-db
 wave: markdownai-db-wave-2
-wave_status: planned
+wave_status: complete
 edition: Both
 depends_on: [69-db-adapter-interface]
 source_files:
   - packages/engine/src/db/adapters/mongodb.ts
 routes: []
 models: []
-test_files: []
+test_files:
+  - packages/engine/src/db/__tests__/mongodb-adapter.test.ts
 data_flow: greenfield
 last_synced: 2026-05-17
-status: draft
-phase: documentation
+status: complete
+phase: all
 mdd_version: 1
 tags: [db, mongodb, adapter, native-driver, find, findOne, countDocuments, aggregate]
 path: DB/Adapters

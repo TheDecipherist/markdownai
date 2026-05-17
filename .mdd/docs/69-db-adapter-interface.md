@@ -4,7 +4,7 @@ title: DB — DbAdapter Interface
 type: SPEC
 initiative: markdownai-db
 wave: markdownai-db-wave-2
-wave_status: planned
+wave_status: complete
 edition: Both
 depends_on: [67-db-queryplan-types]
 source_files:
@@ -15,11 +15,12 @@ source_files:
   - packages/engine/src/db/adapters/sqlite.ts
 routes: []
 models: []
-test_files: []
+test_files:
+  - packages/engine/src/db/__tests__/adapters.test.ts
 data_flow: greenfield
 last_synced: 2026-05-17
-status: draft
-phase: documentation
+status: complete
+phase: all
 mdd_version: 1
 tags: [db, adapter, interface, dbadapter, connect, disconnect, execute, ping]
 path: DB/Adapters
