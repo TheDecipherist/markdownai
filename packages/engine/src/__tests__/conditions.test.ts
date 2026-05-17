@@ -291,3 +291,33 @@ describe('match operator', () => {
     expect(evalCondition('{{ UNSET }} match "^feat"', ctx)).toBe(false)
   })
 })
+
+// ISSUE-004 — undefined label in @if treated as empty string, no warning
+describe('ISSUE-004 — @if with undefined label emits no warning', () => {
+  it('{{ undefined_label }} in @if equality check evaluates to false without adding a warning', () => {
+    const ctx = makeCtx()
+    const result = evalCondition('{{ doc_count }} == "0"', ctx)
+    expect(result).toBe(false)
+    expect(ctx.warnings).toHaveLength(0)
+  })
+
+  it('{{ undefined_label }} in @if does not add to ctx.warnings', () => {
+    const ctx = makeCtx()
+    evalCondition('{{ completely_undefined }} == "hello"', ctx)
+    expect(ctx.warnings).toHaveLength(0)
+  })
+
+  it('syntax error in @if expression still emits a warning (ReferenceError is silent, others are not)', () => {
+    const ctx = makeCtx()
+    evalCondition('!!!@@@###', ctx)
+    expect(ctx.warnings.length).toBeGreaterThan(0)
+  })
+
+  it('label set to empty string in envFiles produces no warning in @if', () => {
+    const ctx = makeCtx()
+    ctx.envFiles['doc_count'] = ''
+    const result = evalCondition('{{ doc_count }} == "0"', ctx)
+    expect(result).toBe(false)
+    expect(ctx.warnings).toHaveLength(0)
+  })
+})

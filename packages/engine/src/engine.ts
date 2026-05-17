@@ -346,7 +346,10 @@ function executeInclude(node: IncludeNode, ctx: EngineContext): string {
 function executeImport(node: ImportNode, ctx: EngineContext): void {
   const jailRoot = ctx.security.jailRoot ?? ctx.docDir
   const check = checkFilePath(node.path, jailRoot, ctx.security.filesystemConfig)
-  if (check.level === 'blocked') throw new FatalError(`@import blocked: ${check.reason}`)
+  if (check.level === 'blocked') {
+    ctx.warnings.push(`@import: ${check.reason} (${node.path}) — skipped`)
+    return
+  }
   if (check.level === 'alert') ctx.warnings.push(`@import SECURITY_ALERT: ${check.reason} (${node.path})`)
 
   const full = resolve(ctx.docDir, node.path)

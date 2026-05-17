@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
-import { execute } from '@markdownai/engine'
+import { execute, loadSecurityConfig } from '@markdownai/engine'
+import type { SecurityConfig } from '@markdownai/engine'
 import { aiFilter } from '@markdownai/renderer'
 import { loadEnvFile } from '../env-loader.js'
 
@@ -14,6 +15,7 @@ export interface RenderOptions {
   consumer?: string
   format?: 'standard' | 'ai'
   budget?: number
+  securityConfig?: SecurityConfig
 }
 
 export interface RenderResult {
@@ -89,12 +91,27 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
   }
 
   const envFiles = options.env ? loadEnvFile(options.env) : {}
+  let security: SecurityConfig
+  if (options.securityConfig) {
+    security = options.securityConfig
+  } else {
+    const json = loadSecurityConfig()
+    security = {
+      allowShell: json.shell.enabled,
+      allowHttp: json.http.enabled,
+      allowDb: Object.keys(json.db).length > 0,
+      jailRoot: null,
+      filesystemConfig: json.filesystem,
+      shellConfig: json.shell,
+    }
+  }
   const result = execute(ast, {
     filePath: resolved,
     ctx: {
       envFiles,
       cwd: options.cwd ? resolve(options.cwd) : process.cwd(),
       consumer: options.consumer,
+      security,
     },
   })
 
