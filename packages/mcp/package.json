@@ -5,6 +5,7 @@
   "exports": { ".": "./dist/index.js" },
   "types": "./dist/index.d.ts",
   "bin": { "mai-serve": "./dist/server.js" },
+  "files": ["dist"],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
