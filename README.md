@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/markdownai_hero.webp" alt="MarkdownAI - Documentation That Cannot Lie" width="100%" />
+  <img src="docs/markdownAI_hero.webp" alt="MarkdownAI - Documentation That Cannot Lie" width="100%" />
 </p>
 
 # MarkdownAI

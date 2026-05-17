@@ -1,8 +1,8 @@
 ---
 generated: 2026-05-17
-doc_count: 62
-connection_count: 112
-overlap_count: 13
+doc_count: 74
+connection_count: 129
+overlap_count: 17
 ---
 
 # MDD Connections Map
@@ -124,6 +124,26 @@ VS Code Extension
 engine (path case inconsistency - see Warnings)
   ├── conditions  50-match-operator  complete
   └── stdlib  49-stdlib  complete
+
+DB
+  ├── Query Language
+  │     ├── Query Language  63-db-query-language  complete
+  │     ├── Query Language  64-db-where-clause  complete
+  │     ├── Query Language  65-db-aggregate-operation  complete
+  │     └── Query Language  66-db-raw-escape-hatch  complete
+  ├── Internals
+  │     ├── Internals  67-db-queryplan-types  complete
+  │     └── Internals  68-db-executor  complete
+  ├── Adapters
+  │     ├── Adapters  69-db-adapter-interface  draft
+  │     ├── Adapters  70-db-mongodb-adapter  draft
+  │     └── Adapters  71-db-sql-adapters  draft
+  ├── Security
+  │     └── Security  72-db-security  draft
+  ├── Caching
+  │     └── Caching  73-db-caching  draft
+  └── Errors
+        └── Errors  74-db-error-handling  draft
 ```
 
 ## Dependency Graph
@@ -192,6 +212,18 @@ graph TD
   d60[60-extension-settings]:::complete
   d61[61-test-suite]:::complete
   d62[62-readme-and-marketplace]:::complete
+  d63[63-db-query-language]:::complete
+  d64[64-db-where-clause]:::complete
+  d65[65-db-aggregate-operation]:::complete
+  d66[66-db-raw-escape-hatch]:::complete
+  d67[67-db-queryplan-types]:::complete
+  d68[68-db-executor]:::complete
+  d69[69-db-adapter-interface]:::draft
+  d70[70-db-mongodb-adapter]:::draft
+  d71[71-db-sql-adapters]:::draft
+  d72[72-db-security]:::draft
+  d73[73-db-caching]:::draft
+  d74[74-db-error-handling]:::draft
 
   d02 --> d01
   d03 --> d01
@@ -305,6 +337,23 @@ graph TD
   d61 --> d59
   d61 --> d60
   d62 --> d61
+  d63 --> d17
+  d63 --> d13
+  d64 --> d63
+  d65 --> d63
+  d65 --> d64
+  d66 --> d63
+  d67 --> d64
+  d67 --> d65
+  d68 --> d67
+  d69 --> d67
+  d70 --> d69
+  d71 --> d69
+  d72 --> d68
+  d72 --> d66
+  d73 --> d68
+  d73 --> d28
+  d74 --> d68
 
   classDef complete fill:#00e5cc,color:#000
   classDef in_progress fill:#ffaa00,color:#000
@@ -331,6 +380,10 @@ Files referenced by 2 or more feature docs:
 | packages/renderer/src/renderer.ts | 02, 13 |
 | packages/core/src/commands/strip.ts | 29, 32 |
 | packages/parser/src/parser.ts | 01, 48 |
+| packages/engine/src/db/query.ts | 63, 64, 65, 66, 67, 68 |
+| packages/engine/src/db/executor.ts | 66, 68, 72, 73, 74 |
+| packages/engine/src/db/adapters/mongodb.ts | 65, 70 |
+| packages/engine/src/db/adapters/postgres.ts | 65, 71 |
 
 ## Warnings
 
