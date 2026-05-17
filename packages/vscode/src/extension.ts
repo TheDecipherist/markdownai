@@ -28,8 +28,7 @@ export function deactivate(): void {
 
 function handleDocument(doc: vscode.TextDocument): void {
   if (doc.lineCount === 0) return;
-  const firstLine = doc.lineAt(0).text;
-  if (shouldSwitchToMarkdownAI(doc.languageId, firstLine)) {
+  if (shouldSwitchToMarkdownAI(doc.languageId, doc.getText())) {
     void vscode.languages.setTextDocumentLanguage(doc, 'markdownai');
   }
 }
