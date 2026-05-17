@@ -36,6 +36,14 @@ export interface QueryPlan {
 
 export type Row = Record<string, string | number | boolean | null>
 
+export interface DbAdapter {
+  connect(uri: string): Promise<void>
+  disconnect(): Promise<void>
+  ping(): Promise<boolean>
+  execute(plan: QueryPlan): Promise<Row[]>
+  executeRaw(query: string): Promise<Row[]>
+}
+
 // Parsed result — discriminated union: structured plan or raw pass-through
 export type ParsedQuery =
   | { kind: 'plan'; plan: QueryPlan }

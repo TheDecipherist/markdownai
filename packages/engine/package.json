@@ -2,7 +2,9 @@
   "name": "@markdownai/engine",
   "version": "0.0.1",
   "type": "module",
-  "exports": { ".": "./dist/index.js" },
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc && cp src/stdlib.md dist/stdlib.md",
@@ -12,10 +14,18 @@
   },
   "dependencies": {
     "@markdownai/parser": "*",
-    "@markdownai/renderer": "*"
+    "@markdownai/renderer": "*",
+    "better-sqlite3": "^12.10.0",
+    "mongodb": "^7.2.0",
+    "mssql": "^12.5.4",
+    "mysql2": "^3.22.3",
+    "pg": "^8.20.0"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/mssql": "^12.3.0",
     "@types/node": "^20.0.0",
+    "@types/pg": "^8.20.0",
     "typescript": "^5.4.5",
     "vitest": "^1.6.0"
   }

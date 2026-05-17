@@ -3,7 +3,7 @@ id: markdownai-db
 title: MarkdownAI Database Query Engine
 status: active
 version: 1
-hash: 57665fdb238c3929
+hash: c100df38feeeb9ab
 created: 2026-05-17
 ---
 
@@ -32,5 +32,5 @@ Five database types are supported: MongoDB, PostgreSQL, MySQL/MariaDB, Microsoft
 | Wave | File | Demo-state | Status |
 |------|------|------------|--------|
 | Wave 1 | waves/markdownai-db-wave-1.md | A @db directive is parsed into a valid QueryPlan. The executor routes it to the correct adapter. All five operations (find, one, count, aggregate, raw) parse without error. | complete |
-| Wave 2 | waves/markdownai-db-wave-2.md | A find with where, sort, limit, and columns executes correctly against all five database types and returns typed rows. | planned |
+| Wave 2 | waves/markdownai-db-wave-2.md | A find with where, sort, limit, and columns executes correctly against all five database types and returns typed rows. | complete |
 | Wave 3 | waves/markdownai-db-wave-3.md | Security config blocks forbidden operations. raw= requires allow_raw. max_results cap truncates silently. @cache session seeds and replays. Parse errors halt the document with a clear message. | planned |

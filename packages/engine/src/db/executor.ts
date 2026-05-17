@@ -1,4 +1,4 @@
-import type { QueryPlan, Row, ParsedQuery } from './query.js'
+import type { QueryPlan, Row, ParsedQuery, DbAdapter } from './query.js'
 import { DB_ALWAYS_BLOCK_KEYWORDS, DB_ALWAYS_BLOCK_MONGO } from '../security/rules.js'
 import { writeAuditEntry } from '../security/audit.js'
 import type { DbSecurityConfig } from '../security/config.js'
@@ -12,14 +12,7 @@ export interface ResolvedConnection {
   name: string
 }
 
-// DbAdapter interface — implemented by each database adapter in Wave 2
-export interface DbAdapter {
-  connect(uri: string): Promise<void>
-  disconnect(): Promise<void>
-  ping(): Promise<boolean>
-  execute(plan: QueryPlan): Promise<Row[]>
-  executeRaw(query: string): Promise<Row[]>
-}
+export type { DbAdapter }
 
 // Adapter registry — populated as adapters are registered
 const adapterRegistry = new Map<string, DbAdapter>()
