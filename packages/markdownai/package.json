@@ -1,0 +1,15 @@
+{
+  "name": "@markdownai/markdownai",
+  "version": "0.0.1",
+  "description": "MarkdownAI - documentation that cannot lie. Meta-package and org index.",
+  "type": "module",
+  "exports": {},
+  "files": ["README.md"],
+  "keywords": ["markdown", "documentation", "live-docs", "directives", "ai", "mcp"],
+  "license": "MIT",
+  "homepage": "https://github.com/TheDecipherist/markdownai#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/TheDecipherist/markdownai.git"
+  }
+}

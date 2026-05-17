@@ -8,15 +8,15 @@
 
 <p align="center">
   <a href="#quick-start">
-    <img src="https://img.shields.io/badge/Quick_Start-Get_running_in_60s-00e5cc?style=for-the-badge&labelColor=08090f" alt="Quick Start" />
+    <img src="https://img.shields.io/badge/Quick_Start-Get_running_in_60s-00e5cc?style=for-the-badge&labelColor=1e293b" alt="Quick Start" />
   </a>
   &nbsp;
   <a href="#directive-reference">
-    <img src="https://img.shields.io/badge/Directives-Full_Reference-00ff88?style=for-the-badge&labelColor=08090f" alt="Directive Reference" />
+    <img src="https://img.shields.io/badge/Directives-Full_Reference-00ff88?style=for-the-badge&labelColor=1e293b" alt="Directive Reference" />
   </a>
 </p>
 
-[![npm version](https://img.shields.io/npm/v/@markdownai/core)](https://www.npmjs.com/package/@markdownai/core)
+[![npm](https://img.shields.io/badge/npm-%40markdownai-red)](https://www.npmjs.com/org/markdownai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js >=18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 [![Tests: 689](https://img.shields.io/badge/tests-689_passing-brightgreen)](./packages)
