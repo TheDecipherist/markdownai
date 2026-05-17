@@ -1,0 +1,127 @@
+{
+  "MarkdownAI Header": {
+    "prefix": "mai",
+    "body": ["@markdownai"],
+    "description": "MarkdownAI document header — place this on line 1"
+  },
+  "Import": {
+    "prefix": "@import",
+    "body": ["@import ${1:./path/to/file.md}"],
+    "description": "@import — Import macro definitions from another MarkdownAI file"
+  },
+  "Include": {
+    "prefix": "@include",
+    "body": ["@include ${1:./path/to/file.md}"],
+    "description": "@include — Include the rendered content of another file"
+  },
+  "Define macro": {
+    "prefix": "@define",
+    "body": [
+      "@define ${1:macro-name} ${2:param}",
+      "${3:# macro body — use {{ $2 }} to reference params}",
+      "@enddefine"
+    ],
+    "description": "@define — Define a reusable macro block"
+  },
+  "Call macro": {
+    "prefix": "@call",
+    "body": ["@call ${1:macro-name}"],
+    "description": "@call — Invoke a defined macro"
+  },
+  "Environment variable": {
+    "prefix": "@env",
+    "body": ["@env ${1:VAR_NAME}"],
+    "description": "@env — Inject an environment variable value"
+  },
+  "If conditional": {
+    "prefix": "@if",
+    "body": [
+      "@if {{ ${1:condition} }}",
+      "${2:# conditional content}",
+      "@endif"
+    ],
+    "description": "@if — Conditional block evaluated at render time"
+  },
+  "If/else block": {
+    "prefix": "@ifelse",
+    "body": [
+      "@if {{ ${1:condition} }}",
+      "${2:# true branch}",
+      "@else",
+      "${3:# false branch}",
+      "@endif"
+    ],
+    "description": "@if/@else — Conditional block with fallback branch"
+  },
+  "Query (shell command)": {
+    "prefix": "@query",
+    "body": ["@query label=${1:result} ${2:command}"],
+    "description": "@query — Run a shell command and capture output into a variable"
+  },
+  "HTTP request": {
+    "prefix": "@http",
+    "body": ["@http ${1:https://api.example.com/endpoint}"],
+    "description": "@http — Make an HTTP GET request and inline the response"
+  },
+  "List items": {
+    "prefix": "@list",
+    "body": ["@list from=${1:./data.json}"],
+    "description": "@list — Iterate over items from a data source"
+  },
+  "Read file": {
+    "prefix": "@read",
+    "body": ["@read ${1:./path/to/file.txt}"],
+    "description": "@read — Read and inline raw file content"
+  },
+  "Interpolation": {
+    "prefix": "{{",
+    "body": ["{{ ${1:variable} }}"],
+    "description": "Inline expression — renders a variable or evaluates an expression"
+  },
+  "Prompt": {
+    "prefix": "@prompt",
+    "body": [
+      "@prompt",
+      "${1:# AI instructions for consumers of this document}",
+      ""
+    ],
+    "description": "@prompt — Embedded AI instructions (stripped from non-AI renders)"
+  },
+  "Section": {
+    "prefix": "@section",
+    "body": [
+      "@section ${1:section-name} priority=${2:1}",
+      "${3:# section content}",
+      ""
+    ],
+    "description": "@section — Mark a named section with a priority for AI context budgets"
+  },
+  "Constraint": {
+    "prefix": "@constraint",
+    "body": ["@constraint ${1:Must always include a summary.}"],
+    "description": "@constraint — Machine-readable constraint rule embedded in the document"
+  },
+  "Define concept": {
+    "prefix": "@define-concept",
+    "body": [
+      "@define-concept ${1:ConceptName}",
+      "${2:Definition of the concept in one or two sentences.}",
+      ""
+    ],
+    "description": "@define-concept — Inline glossary entry injected into AI context"
+  },
+  "Phase": {
+    "prefix": "@phase",
+    "body": [
+      "@phase ${1:phase-name}",
+      "${2:# phase content}",
+      ""
+    ],
+    "description": "@phase — Define a named document phase for multi-phase rendering"
+  },
+  "Cache": {
+    "prefix": "@cache",
+    "body": ["@cache ttl=${1:3600} ${2:@query label=result command}"],
+    "description": "@cache — Cache the output of a directive for a given TTL in seconds"
+  }
+}

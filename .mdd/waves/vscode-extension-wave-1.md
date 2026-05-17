@@ -3,7 +3,7 @@ id: vscode-extension-wave-1
 title: "Wave 1: Foundation"
 initiative: vscode-extension
 initiative_version: 1
-status: planned
+status: complete
 depends_on: none
 demo_state: "Open a .md file with @markdownai - directives, {{ }} interpolations, and macro names light up in distinct colors. Snippets available via tab."
 created: 2026-05-17
@@ -22,10 +22,10 @@ Open a `.md` file whose first line is `@markdownai`. Every directive keyword (`@
 
 | # | Feature | Doc | Status | Depends on |
 |---|---------|-----|--------|------------|
-| 1 | package-scaffold | - | planned | - |
-| 2 | language-definition | - | planned | package-scaffold |
-| 3 | syntax-highlighting | - | planned | language-definition |
-| 4 | snippets | - | planned | language-definition |
+| 1 | package-scaffold | .mdd/docs/51-package-scaffold.md | complete | - |
+| 2 | language-definition | .mdd/docs/52-language-definition.md | complete | package-scaffold |
+| 3 | syntax-highlighting | .mdd/docs/53-syntax-highlighting.md | complete | language-definition |
+| 4 | snippets | .mdd/docs/54-snippets.md | complete | language-definition |
 
 ## Open Research
 
