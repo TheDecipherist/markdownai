@@ -4,6 +4,7 @@ import { MacroRegistry, registerCompletionProvider } from './providers/completio
 import { registerHoverProvider } from './providers/hover-provider.js';
 import { registerDefinitionProvider } from './providers/definition-provider.js';
 import { registerReferenceProvider } from './providers/reference-provider.js';
+import { DiagnosticsProvider } from './providers/diagnostics-provider.js';
 
 const registry = new MacroRegistry();
 
@@ -18,6 +19,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerHoverProvider(context, registry);
   registerDefinitionProvider(context, registry);
   registerReferenceProvider(context, registry);
+  new DiagnosticsProvider(registry).register(context);
 }
 
 export function deactivate(): void {

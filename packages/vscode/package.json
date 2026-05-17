@@ -8,8 +8,26 @@
     "vscode": "^1.85.0"
   },
   "categories": [
-    "Programming Languages"
+    "Programming Languages",
+    "Linters",
+    "Snippets"
   ],
+  "keywords": [
+    "markdownai",
+    "markdown",
+    "directives",
+    "live-documents",
+    "syntax-highlighting",
+    "autocomplete"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheDecipherist/markdownai.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TheDecipherist/markdownai/issues"
+  },
+  "homepage": "https://github.com/TheDecipherist/markdownai/tree/main/packages/vscode#readme",
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -38,7 +56,27 @@
         "language": "markdownai",
         "path": "./snippets/markdownai.code-snippets"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "MarkdownAI",
+      "properties": {
+        "markdownai.diagnostics.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable MarkdownAI diagnostics (error squiggles and warnings)."
+        },
+        "markdownai.diagnostics.warnUndefinedMacros": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show warnings when @call references a macro that is not defined in the document or stdlib."
+        },
+        "markdownai.stdlibPath": {
+          "type": "string",
+          "default": "packages/engine/src/stdlib.md",
+          "description": "Relative path from workspace root to the MarkdownAI stdlib macro definitions file."
+        }
+      }
+    }
   },
   "scripts": {
     "build": "tsc",
