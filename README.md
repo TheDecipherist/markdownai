@@ -8,11 +8,11 @@
 
 <p align="center">
   <a href="#quick-start">
-    <img src="https://img.shields.io/badge/Quick_Start-Get_running_in_60s-00e5cc?style=for-the-badge&labelColor=1e293b" alt="Quick Start" />
+    <img src="https://img.shields.io/badge/Quick_Start-Get_running_in_60s-0891b2?style=for-the-badge&labelColor=1e293b" alt="Quick Start" />
   </a>
   &nbsp;
   <a href="#directive-reference">
-    <img src="https://img.shields.io/badge/Directives-Full_Reference-00ff88?style=for-the-badge&labelColor=1e293b" alt="Directive Reference" />
+    <img src="https://img.shields.io/badge/Directives-Full_Reference-059669?style=for-the-badge&labelColor=1e293b" alt="Directive Reference" />
   </a>
 </p>
 
