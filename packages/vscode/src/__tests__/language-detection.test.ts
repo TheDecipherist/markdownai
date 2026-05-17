@@ -30,5 +30,30 @@ describe('Language Detection', () => {
     it('should be case-sensitive — @Markdownai does not match', () => {
       expect(shouldSwitchToMarkdownAI('markdown', '@Markdownai')).toBe(false);
     });
+
+    it('should return true when @markdownai follows YAML frontmatter', () => {
+      const text = '---\ntitle: My Doc\nauthor: Tim\n---\n@markdownai\n';
+      expect(shouldSwitchToMarkdownAI('markdown', text)).toBe(true);
+    });
+
+    it('should return true when @markdownai follows frontmatter closed with ...', () => {
+      const text = '---\ntitle: My Doc\n...\n@markdownai\n';
+      expect(shouldSwitchToMarkdownAI('markdown', text)).toBe(true);
+    });
+
+    it('should return true when a blank line separates frontmatter and @markdownai', () => {
+      const text = '---\ntitle: My Doc\n---\n\n@markdownai\n';
+      expect(shouldSwitchToMarkdownAI('markdown', text)).toBe(true);
+    });
+
+    it('should return false when @markdownai is absent after frontmatter', () => {
+      const text = '---\ntitle: My Doc\n---\n# Just a normal doc\n';
+      expect(shouldSwitchToMarkdownAI('markdown', text)).toBe(false);
+    });
+
+    it('should return false for plain markdown with frontmatter and no @markdownai', () => {
+      const text = '---\ntitle: Blog Post\n---\n\nSome prose.\n';
+      expect(shouldSwitchToMarkdownAI('markdown', text)).toBe(false);
+    });
   });
 });

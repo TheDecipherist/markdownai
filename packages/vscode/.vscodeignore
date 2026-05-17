@@ -2,6 +2,8 @@ src/**
 node_modules/**
 .vscode-test/**
 tsconfig.json
+vitest.config.ts
 **/*.map
 **/*.ts
 !dist/**
+dist/__tests__/**
