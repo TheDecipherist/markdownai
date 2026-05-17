@@ -27,6 +27,6 @@ New package at: `packages/vscode/`
 
 | Wave | File | Demo-state | Status |
 |------|------|------------|--------|
-| Wave 1 | waves/vscode-extension-wave-1.md | Open a `.md` file with `@markdownai` - directives, `{{ }}` interpolations, and macro names light up in distinct colors. Snippets available via tab. | planned |
+| Wave 1 | waves/vscode-extension-wave-1.md | Open a `.md` file with `@markdownai` - directives, `{{ }}` interpolations, and macro names light up in distinct colors. Snippets available via tab. | complete |
 | Wave 2 | waves/vscode-extension-wave-2.md | Type `@call ` and see every stdlib macro with its description and the label it sets. Hover over `@call git-status` to see "Sets {{ git_status }}". Cmd+click any `@call` to jump to its `@define`. | planned |
 | Wave 3 | waves/vscode-extension-wave-3.md | `npm test` runs green in `packages/vscode`. An unclosed `@if` shows a red squiggly. README documents every feature. | planned |

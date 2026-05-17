@@ -1,0 +1,57 @@
+{
+  "name": "@markdownai/vscode",
+  "displayName": "MarkdownAI",
+  "description": "Syntax highlighting, snippets, and autocomplete for MarkdownAI documents",
+  "version": "0.0.1",
+  "publisher": "markdownai",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "markdownai",
+        "aliases": ["MarkdownAI", "markdownai"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "markdownai",
+        "scopeName": "text.markdownai",
+        "path": "./syntaxes/markdownai.tmLanguage.json",
+        "embeddedLanguages": {
+          "text.html.markdown": "markdown",
+          "meta.embedded.block.yaml": "yaml"
+        }
+      }
+    ],
+    "snippets": [
+      {
+        "language": "markdownai",
+        "path": "./snippets/markdownai.code-snippets"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-cli": "^0.0.9",
+    "@vscode/test-electron": "^2.3.9",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}

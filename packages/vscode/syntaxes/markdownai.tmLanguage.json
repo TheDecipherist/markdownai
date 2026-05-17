@@ -1,0 +1,91 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "MarkdownAI",
+  "scopeName": "text.markdownai",
+  "fileTypes": [],
+  "patterns": [
+    { "include": "#frontmatter" },
+    { "include": "#header" },
+    { "include": "#directive-line" },
+    { "include": "#interpolation" },
+    { "include": "text.html.markdown" }
+  ],
+  "repository": {
+    "frontmatter": {
+      "begin": "\\A(?=---\\s*$)",
+      "end": "^(?:---|\\.\\.\\.)\\s*$",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.tag.begin.yaml.markdownai" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.tag.end.yaml.markdownai" }
+      },
+      "contentName": "meta.embedded.block.yaml",
+      "patterns": [{ "include": "source.yaml" }]
+    },
+    "header": {
+      "match": "^@markdownai\\s*$",
+      "name": "keyword.control.markdownai"
+    },
+    "directive-line": {
+      "begin": "^(@(?:import|include|define|enddefine|call|env|if|elseif|else|endif|query|list|read|http|db|connect|tree|date|count|render|phase|on|graph|prompt|section|chunk-boundary|define-concept|constraint|cache))(?=\\s|$)",
+      "end": "$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.directive.markdownai" }
+      },
+      "patterns": [
+        { "include": "#interpolation" },
+        { "include": "#named-param" },
+        { "include": "#string-double" },
+        { "include": "#string-single" }
+      ]
+    },
+    "interpolation": {
+      "begin": "\\{\\{",
+      "end": "\\}\\}",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.interpolation.begin.markdownai" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.interpolation.end.markdownai" }
+      },
+      "contentName": "meta.interpolation.markdownai",
+      "patterns": [
+        {
+          "match": "\\bmatch\\b",
+          "name": "keyword.operator.match.markdownai"
+        },
+        {
+          "match": "/[^/\\n]*/[gimsuy]*",
+          "name": "string.regexp.markdownai"
+        },
+        {
+          "match": "[a-zA-Z_][a-zA-Z0-9_]*",
+          "name": "variable.other.markdownai"
+        }
+      ]
+    },
+    "named-param": {
+      "match": "([a-zA-Z_][a-zA-Z0-9_]*)(?==)",
+      "captures": {
+        "1": { "name": "variable.parameter.markdownai" }
+      }
+    },
+    "string-double": {
+      "begin": "\"",
+      "end": "\"",
+      "name": "string.quoted.double.markdownai",
+      "patterns": [
+        { "include": "#interpolation" }
+      ]
+    },
+    "string-single": {
+      "begin": "'",
+      "end": "'",
+      "name": "string.quoted.single.markdownai",
+      "patterns": [
+        { "include": "#interpolation" }
+      ]
+    }
+  }
+}

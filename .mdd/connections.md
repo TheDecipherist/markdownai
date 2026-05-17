@@ -1,183 +1,303 @@
 ---
-generated: 2026-05-16
-doc_count: 32
-connection_count: 38
-overlap_count: 30
+generated: 2026-05-17
+doc_count: 54
+connection_count: 96
+overlap_count: 9
 ---
 
-# Connections
+# MDD Connections
 
 ## Path Tree
 
 ```
-Language/Conditionals
-  └── 12-lang-conditionals  (complete)
-Language/Connect
-  └── 17-lang-connect  (complete)
-Language/Env
-  └── 07-lang-env  (complete)
-Language/FileResolution
-  └── 09-lang-file-resolution  (complete)
-Language/Header
-  └── 05-lang-header  (complete)
-Language/Import
-  └── 11-lang-import  (complete)
-Language/Include
-  └── 10-lang-include  (complete)
-Language/Interpolation
-  └── 06-lang-interpolation  (complete)
-Language/Macros
-  └── 08-lang-macros  (complete)
-Language/Phases
-  └── 21-lang-phases  (complete)
-Language/Pipeline
-  └── 13-lang-pipeline  (complete)
-Language/Sources
-  ├── 14-lang-sources-list  (complete)
-  ├── 15-lang-sources-read  (complete)
-  ├── 16-lang-sources-utilities  (complete)
-  ├── 18-lang-sources-db  (complete)
-  ├── 19-lang-sources-http  (complete)
-  └── 20-lang-sources-query  (complete)
-Security
-  ├── 22-security-config  (complete)
-  ├── 23-security-filesystem  (complete)
-  ├── 24-security-shell  (complete)
-  ├── 25-security-database  (complete)
-  ├── 26-security-http  (complete)
-  └── 27-security-immutable-rules  (complete)
-Toolchain/CLI
-  ├── 04-cli-core  (complete)
-  └── 32-cli-complete  (complete)
-Toolchain/Cache
-  └── 28-caching  (complete)
-Toolchain/Engine
-  └── 03-engine  (complete)
-Toolchain/Hook
-  └── 31-hook  (complete)
-Toolchain/MCP
-  └── 30-mcp-server  (complete)
-Toolchain/Parser
-  └── 01-parser  (complete)
-Toolchain/Renderer
-  └── 02-renderer  (complete)
-Toolchain/Stripper
-  └── 29-stripper  (complete)
+AI/
+├── ConsumerMode
+│   └── 34-ai-consumer-mode  draft
+├── Concepts
+│   └── 37-ai-concepts  draft
+├── Constraints
+│   └── 38-ai-constraints  draft
+├── ContextBudget
+│   └── 36-ai-context-budget  draft
+├── Format
+│   └── 39-ai-format  draft
+└── Prompt
+    └── 35-ai-prompt  draft
+Engine/
+├── Conditions
+│   └── 47-skill-context-variables  complete
+└── Security
+    └── 48-shell-inline  complete
+Integration/
+└── MDD
+    ├── 45-mdd-markdownai-integration  draft
+    └── 46-mdd-token-optimization-analysis  draft
+Language/
+├── Conditionals
+│   └── 12-lang-conditionals  complete
+├── Connect
+│   └── 17-lang-connect  complete
+├── Env
+│   └── 07-lang-env  complete
+├── FileResolution
+│   └── 09-lang-file-resolution  complete
+├── Header
+│   └── 05-lang-header  complete
+├── Import
+│   └── 11-lang-import  complete
+├── Include
+│   └── 10-lang-include  complete
+├── Interpolation
+│   └── 06-lang-interpolation  complete
+├── Macros
+│   └── 08-lang-macros  complete
+├── Phases
+│   └── 21-lang-phases  complete
+├── Pipeline
+│   └── 13-lang-pipeline  complete
+└── Sources
+    ├── 14-lang-sources-list  complete
+    ├── 15-lang-sources-read  complete
+    ├── 16-lang-sources-utilities  complete
+    ├── 18-lang-sources-db  complete
+    ├── 19-lang-sources-http  complete
+    └── 20-lang-sources-query  complete
+Security/
+├── 22-security-config  complete
+├── 23-security-filesystem  complete
+├── 24-security-shell  complete
+├── 25-security-database  complete
+├── 26-security-http  complete
+└── 27-security-immutable-rules  complete
+Testing/
+├── AI-E2E
+│   └── 40-ai-e2e-accuracy  draft
+├── E2E
+│   └── 33-e2e-test-suite  complete
+└── MCP-E2E
+    ├── 41-mcp-e2e-protocol  draft
+    ├── 42-mcp-e2e-tools  draft
+    ├── 43-mcp-e2e-security  draft
+    └── 44-mcp-e2e-ai-integration  draft
+Toolchain/
+├── Cache
+│   └── 28-caching  complete
+├── CLI
+│   ├── 04-cli-core  complete
+│   └── 32-cli-complete  complete
+├── Engine
+│   └── 03-engine  complete
+├── Hook
+│   └── 31-hook  complete
+├── MCP
+│   └── 30-mcp-server  complete
+├── Parser
+│   └── 01-parser  complete
+├── Renderer
+│   └── 02-renderer  complete
+└── Stripper
+    └── 29-stripper  complete
+VS Code Extension/
+└── Foundation
+    ├── 51-package-scaffold  complete
+    ├── 52-language-definition  complete
+    ├── 53-syntax-highlighting  complete
+    └── 54-snippets  complete
+engine/              [WARNING: inconsistent casing - see Warnings]
+├── conditions
+│   └── 50-match-operator  complete
+└── stdlib
+    └── 49-stdlib  complete
 ```
 
 ## Dependency Graph
 
 ```mermaid
-graph LR
-  classDef complete fill:#2a9d8f,color:#fff
-  classDef in_progress fill:#e9c46a,color:#000
-  classDef draft fill:#aaa,color:#fff
-  classDef deprecated fill:#999,color:#fff
-  12_lang_conditionals["12-lang-conditionals: Language — @if Conditionals an"]:::complete
-  17_lang_connect["17-lang-connect: Language — @connect Database R"]:::complete
-  07_lang_env["07-lang-env: Language — @env Environment Va"]:::complete
-  09_lang_file_resolution["09-lang-file-resolution: Language — File Resolution Mod"]:::complete
-  05_lang_header["05-lang-header: Language — Header Declaration "]:::complete
-  11_lang_import["11-lang-import: Language — @import Definition "]:::complete
-  10_lang_include["10-lang-include: Language — @include Content In"]:::complete
-  06_lang_interpolation["06-lang-interpolation: Language — Inline Interpolatio"]:::complete
-  08_lang_macros["08-lang-macros: Language — @define and @call M"]:::complete
-  21_lang_phases["21-lang-phases: Language — @phase, @on complet"]:::complete
-  13_lang_pipeline["13-lang-pipeline: Language — Pipe Operator and @"]:::complete
-  14_lang_sources_list["14-lang-sources-list: Language — @list Source Direct"]:::complete
-  15_lang_sources_read["15-lang-sources-read: Language — @read Source Direct"]:::complete
-  16_lang_sources_utilities["16-lang-sources-utilities: Language — @tree, @date, @coun"]:::complete
-  18_lang_sources_db["18-lang-sources-db: Language — @db Database Query "]:::complete
-  19_lang_sources_http["19-lang-sources-http: Language — @http HTTP Request "]:::complete
-  20_lang_sources_query["20-lang-sources-query: Language — @query Shell Comman"]:::complete
-  22_security_config["22-security-config: Security — Config File, Runtim"]:::complete
-  23_security_filesystem["23-security-filesystem: Security — Filesystem Confinem"]:::complete
-  24_security_shell["24-security-shell: Security — Shell Execution Jai"]:::complete
-  25_security_database["25-security-database: Security — Database Query Jail"]:::complete
-  26_security_http["26-security-http: Security — HTTP Request Jail ("]:::complete
-  27_security_immutable_rules["27-security-immutable-rules: Security — Built-in Immutable "]:::complete
-  04_cli_core["04-cli-core: CLI Core — mai render, validat"]:::complete
-  32_cli_complete["32-cli-complete: CLI Complete — All Remaining m"]:::complete
-  28_caching["28-caching: Caching — @cache Modifier Syst"]:::complete
-  03_engine["03-engine: Engine — AST Execution"]:::complete
-  31_hook["31-hook: Hook — PreToolUse AI Routing"]:::complete
-  30_mcp_server["30-mcp-server: MCP Server — AI Integration"]:::complete
-  01_parser["01-parser: Parser — AST Production"]:::complete
-  02_renderer["02-renderer: Renderer — Output Format Modul"]:::complete
-  29_stripper["29-stripper: Stripper — mai strip Command"]:::complete
-  12_lang_conditionals --> 07_lang_env
-  12_lang_conditionals --> 06_lang_interpolation
-  17_lang_connect --> 07_lang_env
-  07_lang_env --> 01_parser
-  05_lang_header --> 01_parser
-  11_lang_import --> 09_lang_file_resolution
-  11_lang_import --> 07_lang_env
-  10_lang_include --> 09_lang_file_resolution
-  10_lang_include --> 08_lang_macros
-  06_lang_interpolation --> 01_parser
-  08_lang_macros --> 07_lang_env
-  21_lang_phases --> 08_lang_macros
-  21_lang_phases --> 10_lang_include
-  14_lang_sources_list --> 13_lang_pipeline
-  15_lang_sources_read --> 13_lang_pipeline
-  18_lang_sources_db --> 17_lang_connect
-  18_lang_sources_db --> 13_lang_pipeline
-  19_lang_sources_http --> 13_lang_pipeline
-  20_lang_sources_query --> 13_lang_pipeline
-  23_security_filesystem --> 22_security_config
-  24_security_shell --> 22_security_config
-  25_security_database --> 22_security_config
-  26_security_http --> 22_security_config
-  27_security_immutable_rules --> 23_security_filesystem
-  27_security_immutable_rules --> 24_security_shell
-  27_security_immutable_rules --> 25_security_database
-  27_security_immutable_rules --> 26_security_http
-  04_cli_core --> 01_parser
-  04_cli_core --> 02_renderer
-  04_cli_core --> 03_engine
-  32_cli_complete --> 28_caching
-  32_cli_complete --> 29_stripper
-  32_cli_complete --> 30_mcp_server
-  03_engine --> 01_parser
-  03_engine --> 02_renderer
-  31_hook --> 30_mcp_server
-  30_mcp_server --> 28_caching
-  02_renderer --> 01_parser
+graph TD
+  d01[01-parser]:::complete
+  d02[02-renderer]:::complete
+  d03[03-engine]:::complete
+  d04[04-cli-core]:::complete
+  d05[05-lang-header]:::complete
+  d06[06-lang-interpolation]:::complete
+  d07[07-lang-env]:::complete
+  d08[08-lang-macros]:::complete
+  d09[09-lang-file-resolution]:::complete
+  d10[10-lang-include]:::complete
+  d11[11-lang-import]:::complete
+  d12[12-lang-conditionals]:::complete
+  d13[13-lang-pipeline]:::complete
+  d14[14-lang-sources-list]:::complete
+  d15[15-lang-sources-read]:::complete
+  d16[16-lang-sources-utilities]:::complete
+  d17[17-lang-connect]:::complete
+  d18[18-lang-sources-db]:::complete
+  d19[19-lang-sources-http]:::complete
+  d20[20-lang-sources-query]:::complete
+  d21[21-lang-phases]:::complete
+  d22[22-security-config]:::complete
+  d23[23-security-filesystem]:::complete
+  d24[24-security-shell]:::complete
+  d25[25-security-database]:::complete
+  d26[26-security-http]:::complete
+  d27[27-security-immutable-rules]:::complete
+  d28[28-caching]:::complete
+  d29[29-stripper]:::complete
+  d30[30-mcp-server]:::complete
+  d31[31-hook]:::complete
+  d32[32-cli-complete]:::complete
+  d33[33-e2e-test-suite]:::complete
+  d34[34-ai-consumer-mode]:::draft
+  d35[35-ai-prompt]:::draft
+  d36[36-ai-context-budget]:::draft
+  d37[37-ai-concepts]:::draft
+  d38[38-ai-constraints]:::draft
+  d39[39-ai-format]:::draft
+  d40[40-ai-e2e-accuracy]:::draft
+  d41[41-mcp-e2e-protocol]:::draft
+  d42[42-mcp-e2e-tools]:::draft
+  d43[43-mcp-e2e-security]:::draft
+  d44[44-mcp-e2e-ai-integration]:::draft
+  d45[45-mdd-integration]:::draft
+  d46[46-mdd-token-analysis]:::draft
+  d47[47-skill-context-vars]:::complete
+  d48[48-shell-inline]:::complete
+  d49[49-stdlib]:::complete
+  d50[50-match-operator]:::complete
+  d51[51-package-scaffold]:::complete
+  d52[52-language-definition]:::complete
+  d53[53-syntax-highlighting]:::complete
+  d54[54-snippets]:::complete
+
+  d02 --> d01
+  d03 --> d01
+  d03 --> d02
+  d04 --> d01
+  d04 --> d02
+  d04 --> d03
+  d05 --> d01
+  d06 --> d01
+  d07 --> d01
+  d08 --> d07
+  d10 --> d09
+  d10 --> d08
+  d11 --> d09
+  d11 --> d07
+  d12 --> d07
+  d12 --> d06
+  d14 --> d13
+  d15 --> d13
+  d17 --> d07
+  d18 --> d17
+  d18 --> d13
+  d19 --> d13
+  d20 --> d13
+  d21 --> d08
+  d21 --> d10
+  d23 --> d22
+  d24 --> d22
+  d25 --> d22
+  d26 --> d22
+  d27 --> d23
+  d27 --> d24
+  d27 --> d25
+  d27 --> d26
+  d30 --> d28
+  d31 --> d30
+  d32 --> d28
+  d32 --> d29
+  d32 --> d30
+  d33 --> d04
+  d33 --> d07
+  d33 --> d08
+  d33 --> d10
+  d33 --> d11
+  d33 --> d12
+  d33 --> d13
+  d33 --> d14
+  d33 --> d15
+  d33 --> d16
+  d33 --> d21
+  d33 --> d28
+  d33 --> d29
+  d33 --> d32
+  d34 --> d12
+  d34 --> d04
+  d35 --> d01
+  d35 --> d03
+  d35 --> d34
+  d36 --> d01
+  d36 --> d03
+  d36 --> d04
+  d37 --> d01
+  d37 --> d03
+  d37 --> d34
+  d38 --> d01
+  d38 --> d03
+  d38 --> d34
+  d39 --> d02
+  d39 --> d04
+  d39 --> d30
+  d40 --> d33
+  d40 --> d34
+  d40 --> d35
+  d40 --> d36
+  d40 --> d37
+  d40 --> d38
+  d40 --> d39
+  d41 --> d30
+  d41 --> d33
+  d42 --> d30
+  d42 --> d41
+  d43 --> d22
+  d43 --> d23
+  d43 --> d27
+  d43 --> d42
+  d44 --> d30
+  d44 --> d39
+  d44 --> d38
+  d44 --> d43
+  d46 --> d45
+  d47 --> d12
+  d47 --> d30
+  d48 --> d12
+  d48 --> d20
+  d48 --> d24
+  d48 --> d47
+  d49 --> d03
+  d49 --> d06
+  d49 --> d08
+  d50 --> d03
+  d52 --> d51
+  d53 --> d52
+  d54 --> d52
+
+  classDef complete fill:#00e5cc,color:#000
+  classDef in_progress fill:#ffaa00,color:#000
+  classDef draft fill:#888,color:#fff
+  classDef deprecated fill:#555,color:#aaa
 ```
 
 ## Source File Overlap
 
-- `packages/core/src/commands/init.ts`: 32-cli-complete, 31-hook
-- `packages/core/src/commands/strip.ts`: 32-cli-complete, 29-stripper
-- `packages/engine/src/cache.ts`: 28-caching, 03-engine
-- `packages/engine/src/conditions.ts`: 12-lang-conditionals, 06-lang-interpolation, 03-engine
-- `packages/engine/src/context.ts`: 17-lang-connect, 07-lang-env, 03-engine
-- `packages/engine/src/engine.ts`: 09-lang-file-resolution, 11-lang-import, 10-lang-include, 21-lang-phases, 14-lang-sources-list, 15-lang-sources-read, 16-lang-sources-utilities, 18-lang-sources-db, 19-lang-sources-http, 03-engine
-- `packages/engine/src/macros.ts`: 08-lang-macros, 03-engine
-- `packages/engine/src/pipe.ts`: 13-lang-pipeline, 03-engine
-- `packages/engine/src/shell.ts`: 20-lang-sources-query, 03-engine
-- `packages/parser/src/directives/call.ts`: 08-lang-macros, 01-parser
-- `packages/parser/src/directives/connect.ts`: 17-lang-connect, 01-parser
-- `packages/parser/src/directives/count.ts`: 16-lang-sources-utilities, 01-parser
-- `packages/parser/src/directives/date.ts`: 16-lang-sources-utilities, 01-parser
-- `packages/parser/src/directives/db.ts`: 18-lang-sources-db, 01-parser
-- `packages/parser/src/directives/define.ts`: 08-lang-macros, 01-parser
-- `packages/parser/src/directives/env.ts`: 07-lang-env, 01-parser
-- `packages/parser/src/directives/graph.ts`: 21-lang-phases, 01-parser
-- `packages/parser/src/directives/header.ts`: 05-lang-header, 01-parser
-- `packages/parser/src/directives/http.ts`: 19-lang-sources-http, 01-parser
-- `packages/parser/src/directives/if.ts`: 12-lang-conditionals, 01-parser
-- `packages/parser/src/directives/import.ts`: 11-lang-import, 01-parser
-- `packages/parser/src/directives/include.ts`: 10-lang-include, 01-parser
-- `packages/parser/src/directives/list.ts`: 14-lang-sources-list, 01-parser
-- `packages/parser/src/directives/phase.ts`: 21-lang-phases, 01-parser
-- `packages/parser/src/directives/pipe.ts`: 13-lang-pipeline, 01-parser
-- `packages/parser/src/directives/query.ts`: 20-lang-sources-query, 01-parser
-- `packages/parser/src/directives/read.ts`: 15-lang-sources-read, 01-parser
-- `packages/parser/src/directives/render.ts`: 13-lang-pipeline, 01-parser
-- `packages/parser/src/directives/tree.ts`: 16-lang-sources-utilities, 01-parser
-- `packages/renderer/src/renderer.ts`: 13-lang-pipeline, 02-renderer
+Files referenced by 2 or more feature docs:
+
+| Source File | Referenced by |
+|------------|--------------|
+| `packages/engine/src/engine.ts` | 03, 09, 10, 11, 14, 15, 16, 18, 19, 21, 48, 49 |
+| `packages/engine/src/conditions.ts` | 06, 12, 47, 48, 50 |
+| `packages/engine/src/context.ts` | 07, 17, 47 |
+| `packages/core/src/commands/render.ts` | 04, 34, 36, 39 |
+| `packages/core/src/commands/build.ts` | 34, 36, 39 |
+| `packages/mcp/src/server.ts` | 30, 39, 47 |
+| `packages/vscode/package.json` | 51, 52, 53, 54 |
+| `packages/vscode/src/extension.ts` | 51, 52 |
+| `packages/engine/src/__tests__/conditions.test.ts` | 47, 50 |
 
 ## Warnings
 
-(none)
+- **Path casing inconsistency:** Features 49 (`engine/stdlib`) and 50 (`engine/conditions`) use lowercase paths while similar features use Title Case (`Engine/Conditions`, `Engine/Security`). These should be normalized to `Engine/Stdlib` and `Engine/Conditions` respectively.
+- **Source file overlap on `packages/engine/src/engine.ts`:** 12 feature docs reference this file. At 300-line limit risk - monitor closely.
+- **Draft features blocked by incomplete deps:** Features 35-39 (AI/*) are draft and depend on 34-ai-consumer-mode which is also draft. Feature 40 depends on all of them. The entire AI wave needs to be executed before E2E testing can proceed.
+- **No circular dependencies detected.**
+- **No broken depends_on references detected.**
