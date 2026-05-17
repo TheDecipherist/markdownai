@@ -12,3 +12,6 @@ e2e/benchmarks/
 .mdd/audits/
 # MDD active jobs (ephemeral — deleted on completion)
 .mdd/jobs/
+
+# VS Code extension build artifacts
+*.vsix

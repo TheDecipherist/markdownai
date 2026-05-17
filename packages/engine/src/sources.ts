@@ -4,6 +4,7 @@ import { runInNewContext } from 'node:vm'
 import { execSync } from 'node:child_process'
 import type { ListNode, ReadNode, CountNode, DateNode, TreeNode, DbNode, HttpNode, QueryNode } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
+import { parseQuery, DbParseError } from './db/query.js'
 
 function globToRegex(pattern: string): RegExp {
   const re = pattern
@@ -246,6 +247,15 @@ export function executeTree(node: TreeNode, ctx: EngineContext): string[] {
 export function executeDb(node: DbNode, ctx: EngineContext): string[] {
   if (!ctx.security.allowDb) return []  // jailed: stripped silently
 
+  // Parse and validate the directive (throws DbParseError on malformed input)
+  let parsed
+  try {
+    parsed = parseQuery(node.args, ctx.env)
+  } catch (err) {
+    if (err instanceof DbParseError) throw new Error(`@db parse error: ${err.message}`)
+    throw err
+  }
+
   // Mock cache: serve from file, no real DB needed
   if (node.cache?.mode === 'mock' && node.cache.mockPath) {
     const mockFull = resolve(ctx.docDir, node.cache.mockPath)
@@ -264,7 +274,14 @@ export function executeDb(node: DbNode, ctx: EngineContext): string[] {
     return []
   }
 
-  ctx.warnings.push('@db: database query execution requires a configured driver')
+  // Raw query warning — will be executed by executor.executeRaw() once adapters are registered (Wave 2)
+  if (parsed.kind === 'raw') {
+    ctx.warnings.push('@db: raw query parsed — adapter execution requires a configured driver (Wave 2)')
+    return []
+  }
+
+  // Plan produced — adapter execution requires Wave 2 adapters
+  ctx.warnings.push('@db: query plan parsed — adapter execution requires a configured driver (Wave 2)')
   return []
 }
 
