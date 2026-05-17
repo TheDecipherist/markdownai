@@ -14,7 +14,11 @@ export interface FilesystemCheckResult {
 }
 
 function expandHome(p: string): string {
-  return p.startsWith('~') ? p.replace('~', homedir()) : p
+  if (!p.startsWith('~')) return p
+  // ~/ or ~ alone → current user's home
+  if (p === '~' || p.startsWith('~/') || p.startsWith('~\\')) return homedir() + p.slice(1)
+  // ~username/... → treat as blocked (can't resolve without getpwnam; fall through to block patterns)
+  return p
 }
 
 export function checkFilePath(

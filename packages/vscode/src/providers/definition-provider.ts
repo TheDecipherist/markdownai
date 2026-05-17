@@ -20,7 +20,7 @@ export function registerDefinitionProvider(
         const macro = registry.getMacros(document).find(m => m.name === macroName);
         if (!macro?.filePath) return undefined;
 
-        const targetUri = vscode.Uri.parse(macro.filePath);
+        const targetUri = vscode.Uri.file(macro.filePath);
         const targetLine = macro.definitionLine ?? 0;
         const targetPosition = new vscode.Position(targetLine, 0);
         return new vscode.Location(targetUri, targetPosition);

@@ -4,7 +4,7 @@ const CONNECTION_STRING_PATTERNS = [
   /mongodb(?:\+srv)?:\/\/[^/\s]+:[^@\s]+@/,
   /postgres(?:ql)?:\/\/[^/\s]+:[^@\s]+@/,
   /mysql:\/\/[^/\s]+:[^@\s]+@/,
-  /:[^@\s]{6,}@/,  // generic user:password@ pattern
+  /:[^@\s]{8,}@/,  // generic user:password@ pattern (8+ chars to avoid false-positives on port numbers)
 ]
 
 function maskArgValue(key: string, value: string): string {

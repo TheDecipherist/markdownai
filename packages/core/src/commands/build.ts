@@ -1,5 +1,5 @@
 import { writeFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { resolve, relative } from 'node:path'
 import { runRender } from './render.js'
 import type { RenderOptions } from './render.js'
 
@@ -20,8 +20,16 @@ export function runBuild(filePath: string, options: BuildOptions = {}): BuildRes
   let outputPath: string | undefined
 
   if (options.output && result.exitCode === 0) {
-    outputPath = resolve(options.cwd ?? process.cwd(), options.output)
-    writeFileSync(outputPath, result.output)
+    const baseCwd = resolve(options.cwd ?? process.cwd())
+    outputPath = resolve(baseCwd, options.output)
+    if (relative(baseCwd, outputPath).startsWith('..')) {
+      return { ...result, exitCode: 1, errors: [...result.errors, `@build: output path confined — access denied: ${options.output}`] }
+    }
+    try {
+      writeFileSync(outputPath, result.output)
+    } catch (err) {
+      return { ...result, exitCode: 1, errors: [...result.errors, `@build: write failed — ${String(err)}`] }
+    }
   }
 
   return { ...result, ...(outputPath !== undefined ? { outputPath } : {}) }

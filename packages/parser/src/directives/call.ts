@@ -18,11 +18,13 @@ const call: ParseModule = {
       const isNamed = items.some(s => s.includes('='))
       if (isNamed) {
         const namedArgs: Record<string, string> = {}
+        const positional: string[] = []
         for (const item of items) {
           const eqIdx = item.indexOf('=')
           if (eqIdx !== -1) namedArgs[item.slice(0, eqIdx).trim()] = item.slice(eqIdx + 1).trim()
+          else positional.push(item)
         }
-        return { type: 'call', line: ctx.line, name, args: namedArgs, positionalArgs: [] }
+        return { type: 'call', line: ctx.line, name, args: namedArgs, positionalArgs: positional }
       }
       return { type: 'call', line: ctx.line, name, args: {}, positionalArgs: items }
     }

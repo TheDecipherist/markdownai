@@ -37,7 +37,9 @@ export function executeDirective(
   if (cwdError) return { output: '', warnings: [], errors: [cwdError] }
 
   const resolvedCwd = resolve(cwd)
-  const directiveType = parsedDirectiveType(directive)
+  // Strip embedded newlines to prevent multi-directive injection via a single directive= string
+  const sanitized = directive.replace(/[\n\r]/g, ' ')
+  const directiveType = parsedDirectiveType(sanitized)
   if (!directiveType || !ALLOWED_DIRECTIVES.has(directiveType)) {
     return {
       output: '',
@@ -46,7 +48,7 @@ export function executeDirective(
     }
   }
 
-  const doc = `@markdownai\n${directive}`
+  const doc = `@markdownai\n${sanitized}`
   const ast = parse(doc)
   if (!ast.isMarkdownAI) {
     return { output: '', warnings: [], errors: ['Failed to parse directive'] }

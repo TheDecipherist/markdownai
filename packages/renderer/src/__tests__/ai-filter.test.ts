@@ -14,7 +14,7 @@ describe('aiFilter — horizontal rule stripping', () => {
     expect(aiFilter('before\n___\nafter')).toBe('before\nafter')
   })
 
-  it('preserves longer --- that is not a divider (e.g. dashes in text)', () => {
+  it('strips longer ---+ sequences (any run of 3+ dashes)', () => {
     expect(aiFilter('before\n------\nafter')).toBe('before\nafter')
   })
 

@@ -29,6 +29,11 @@ export interface ServerOptions {
   port?: number
 }
 
+const TOOL_ALLOWLIST = new Set([
+  'read_file', 'list_phases', 'resolve_phase', 'next_phase',
+  'call_macro', 'get_env', 'execute_directive', 'invalidate_cache', 'get_constraints',
+])
+
 function respond(id: string | number | null, result: unknown): void {
   const resp: JsonRpcResponse = { jsonrpc: '2.0', id, result }
   process.stdout.write(JSON.stringify(resp) + '\n')
@@ -37,6 +42,43 @@ function respond(id: string | number | null, result: unknown): void {
 function respondError(id: string | number | null, code: number, message: string): void {
   const resp: JsonRpcResponse = { jsonrpc: '2.0', id, error: { code, message } }
   process.stdout.write(JSON.stringify(resp) + '\n')
+}
+
+function dispatchTool(method: string, p: Record<string, unknown>, id: string | number | null, cwd: string): void {
+  switch (method) {
+    case 'read_file': {
+      const rfArgs: Parameters<typeof readFile>[0] = { path: String(p['path'] ?? '') }
+      if (p['phase'] != null) rfArgs.phase = String(p['phase'])
+      if (p['format'] === 'standard' || p['format'] === 'ai') rfArgs.format = p['format']
+      if (p['budget'] != null) rfArgs.budget = Number(p['budget'])
+      if (p['consumer'] != null) rfArgs.consumer = String(p['consumer'])
+      if (p['skill_args'] != null) rfArgs.skillArgs = String(p['skill_args'])
+      if (p['skill_session_id'] != null) rfArgs.skillSessionId = String(p['skill_session_id'])
+      if (p['skill_effort'] != null) rfArgs.skillEffort = String(p['skill_effort'])
+      if (p['skill_dir'] != null) rfArgs.skillDir = String(p['skill_dir'])
+      if (p['skill_named_args'] != null && typeof p['skill_named_args'] === 'object' && !Array.isArray(p['skill_named_args'])) {
+        rfArgs.skillNamedArgs = Object.fromEntries(Object.entries(p['skill_named_args']).map(([k, v]) => [k, String(v)]))
+      }
+      respond(id, readFile(rfArgs, cwd))
+      break
+    }
+    case 'list_phases': respond(id, listPhases(String(p['file'] ?? ''), cwd)); break
+    case 'resolve_phase': respond(id, resolvePhase(String(p['file'] ?? ''), String(p['phase'] ?? ''), cwd)); break
+    case 'next_phase': respond(id, nextPhase(String(p['file'] ?? ''), String(p['current_phase'] ?? ''), cwd)); break
+    case 'call_macro': {
+      const rawArgs = p['args']
+      const macroArgs: Record<string, string> = (typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs))
+        ? Object.fromEntries(Object.entries(rawArgs).map(([k, v]) => [k, String(v)]))
+        : {}
+      respond(id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), macroArgs, cwd))
+      break
+    }
+    case 'get_env': respond(id, getEnv(String(p['key'] ?? ''), p['fallback'] != null ? String(p['fallback']) : undefined)); break
+    case 'execute_directive': respond(id, executeDirective(String(p['directive'] ?? ''), cwd)); break
+    case 'invalidate_cache': respond(id, invalidateCache(p['directive'] != null ? String(p['directive']) : undefined)); break
+    case 'get_constraints': respond(id, getConstraints(String(p['file'] ?? ''), cwd)); break
+    default: respondError(id, -32601, `Unknown tool: "${method}"`)
+  }
 }
 
 function handleRequest(req: JsonRpcRequest, cwd: string): void {
@@ -51,7 +93,6 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
         })
         break
       case 'notifications/initialized':
-        // No response needed for notifications
         break
       case 'tools/list':
         respond(req.id, {
@@ -70,57 +111,10 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
         break
       case 'tools/call': {
         const toolName = String((p['name'] as string) ?? '')
-        const toolParams = (p['arguments'] as Record<string, unknown>) ?? {}
-        const syntheticReq: JsonRpcRequest = { jsonrpc: '2.0', id: req.id, method: toolName, params: toolParams }
-        handleRequest(syntheticReq, cwd)
+        if (!TOOL_ALLOWLIST.has(toolName)) { respondError(req.id, -32601, `Unknown tool: "${toolName}"`); break }
+        dispatchTool(toolName, (p['arguments'] as Record<string, unknown>) ?? {}, req.id, cwd)
         break
       }
-      case 'read_file': {
-        const rfArgs: Parameters<typeof readFile>[0] = { path: String(p['path'] ?? '') }
-        if (p['phase'] != null) rfArgs.phase = String(p['phase'])
-        if (p['format'] === 'standard' || p['format'] === 'ai') rfArgs.format = p['format']
-        if (p['budget'] != null) rfArgs.budget = Number(p['budget'])
-        if (p['consumer'] != null) rfArgs.consumer = String(p['consumer'])
-        // Skill context fields
-        if (p['skill_args'] != null) rfArgs.skillArgs = String(p['skill_args'])
-        if (p['skill_session_id'] != null) rfArgs.skillSessionId = String(p['skill_session_id'])
-        if (p['skill_effort'] != null) rfArgs.skillEffort = String(p['skill_effort'])
-        if (p['skill_dir'] != null) rfArgs.skillDir = String(p['skill_dir'])
-        if (p['skill_named_args'] != null && typeof p['skill_named_args'] === 'object' && !Array.isArray(p['skill_named_args'])) {
-          rfArgs.skillNamedArgs = Object.fromEntries(Object.entries(p['skill_named_args']).map(([k, v]) => [k, String(v)]))
-        }
-        respond(req.id, readFile(rfArgs, cwd))
-        break
-      }
-      case 'list_phases':
-        respond(req.id, listPhases(String(p['file'] ?? ''), cwd))
-        break
-      case 'resolve_phase':
-        respond(req.id, resolvePhase(String(p['file'] ?? ''), String(p['phase'] ?? ''), cwd))
-        break
-      case 'next_phase':
-        respond(req.id, nextPhase(String(p['file'] ?? ''), String(p['current_phase'] ?? ''), cwd))
-        break
-      case 'call_macro': {
-        const rawArgs = p['args']
-        const macroArgs: Record<string, string> = (typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs))
-          ? Object.fromEntries(Object.entries(rawArgs).map(([k, v]) => [k, String(v)]))
-          : {}
-        respond(req.id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), macroArgs, cwd))
-        break
-      }
-      case 'get_env':
-        respond(req.id, getEnv(String(p['key'] ?? ''), p['fallback'] != null ? String(p['fallback']) : undefined))
-        break
-      case 'execute_directive':
-        respond(req.id, executeDirective(String(p['directive'] ?? ''), cwd))
-        break
-      case 'invalidate_cache':
-        respond(req.id, invalidateCache(p['directive'] != null ? String(p['directive']) : undefined))
-        break
-      case 'get_constraints':
-        respond(req.id, getConstraints(String(p['file'] ?? ''), cwd))
-        break
       default:
         respondError(req.id, -32601, `Method not found: ${req.method}`)
     }

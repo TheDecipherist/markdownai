@@ -13,11 +13,7 @@ import { runListPhases } from './commands/list-phases.js'
 import { runListMacros } from './commands/list-macros.js'
 import { runListImports } from './commands/list-imports.js'
 import { runWatch } from './commands/watch.js'
-import {
-  securityShow, securityInit, securityDisable,
-  securityShellEnable, securityShellAdd, securityShellRemove, securityShellList,
-  securityHttpEnable, securityHttpAddDomain, securityHttpRemoveDomain,
-} from './commands/security.js'
+import { registerSecurity } from './cli-register-security.js'
 
 const universalOptions = (cmd: ReturnType<typeof program.command>) =>
   cmd
@@ -222,38 +218,7 @@ cache
     process.stdout.write(`✓ Cleared cache: ${parts.join(', ')}\n`)
   })
 
-const security = program.command('security').description('manage security configuration')
-
-security.command('show').description('show current security config').action(() => {
-  const result = securityShow()
-  process.stdout.write(JSON.stringify(result.data, null, 2) + '\n')
-})
-security.command('init').description('create default security config').action(() => {
-  const result = securityInit()
-  process.stdout.write(`✓ ${result.message}\n`)
-})
-security.command('disable').description('disable all dynamic directives').action(() => {
-  const result = securityDisable()
-  process.stdout.write(`✓ ${result.message}\n`)
-})
-
-const shell = security.command('shell').description('manage shell execution security')
-shell.command('enable').action(() => { process.stdout.write(`✓ ${securityShellEnable(true).message}\n`) })
-shell.command('disable').action(() => { process.stdout.write(`✓ ${securityShellEnable(false).message}\n`) })
-shell.command('add <pattern>').action((pattern: string) => { process.stdout.write(`✓ ${securityShellAdd(pattern).message}\n`) })
-shell.command('remove <pattern>').action((pattern: string) => { process.stdout.write(`✓ ${securityShellRemove(pattern).message}\n`) })
-shell.command('list').action(() => {
-  const result = securityShellList()
-  const patterns = result.data as string[]
-  if (patterns.length === 0) process.stdout.write('No allow patterns\n')
-  else patterns.forEach((p: string) => process.stdout.write(`  ${p}\n`))
-})
-
-const http = security.command('http').description('manage HTTP security')
-http.command('enable').action(() => { process.stdout.write(`✓ ${securityHttpEnable(true).message}\n`) })
-http.command('disable').action(() => { process.stdout.write(`✓ ${securityHttpEnable(false).message}\n`) })
-http.command('add-domain <domain>').action((domain: string) => { process.stdout.write(`✓ ${securityHttpAddDomain(domain).message}\n`) })
-http.command('remove-domain <domain>').action((domain: string) => { process.stdout.write(`✓ ${securityHttpRemoveDomain(domain).message}\n`) })
+registerSecurity(program)
 
 universalOptions(
   program

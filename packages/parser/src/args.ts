@@ -45,7 +45,7 @@ function parseCacheTokens(tokens: string[]): CacheConfig {
     if (!tok) continue
     if (tok === 'session') { mode = 'session' }
     else if (tok === 'persist') { mode = 'persist' }
-    else if (tok.startsWith('ttl=')) { ttl = parseInt(tok.slice(4), 10) }
+    else if (tok.startsWith('ttl=')) { const n = parseInt(tok.slice(4), 10); if (!isNaN(n)) ttl = n }
     else if (tok.startsWith('mock=')) { mode = 'mock'; mockPath = tok.slice(5) }
   }
 

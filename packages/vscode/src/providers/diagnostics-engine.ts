@@ -20,7 +20,8 @@ const PHASE_RE = /^@phase\b/;
 const END_RE = /^@end\b/;
 const CALL_RE = /^@call\s+([\w-]+)/;
 
-export function analyzeDiagnostics(text: string, knownMacroNames: string[]): DiagnosticInfo[] {
+export function analyzeDiagnostics(text: string, knownMacroNames: string[] | Set<string>): DiagnosticInfo[] {
+  const macroSet = knownMacroNames instanceof Set ? knownMacroNames : new Set(knownMacroNames)
   const diagnostics: DiagnosticInfo[] = [];
   const lines = text.split('\n');
 
@@ -46,7 +47,7 @@ export function analyzeDiagnostics(text: string, knownMacroNames: string[]): Dia
       const callMatch = trimmed.match(CALL_RE);
       if (callMatch) {
         const macroName = callMatch[1] ?? '';
-        if (!knownMacroNames.includes(macroName)) {
+        if (!macroSet.has(macroName)) {
           const startChar = '@call '.length;
           diagnostics.push({
             line: i,

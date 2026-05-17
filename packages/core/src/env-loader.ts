@@ -3,7 +3,11 @@ import { readFileSync } from 'node:fs'
 export function loadEnvFile(filePath: string): Record<string, string> {
   const result: Record<string, string> = {}
   let content: string
-  try { content = readFileSync(filePath, 'utf8') } catch { return result }
+  try { content = readFileSync(filePath, 'utf8') } catch (err) {
+    const code = (err as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT') throw new Error(`Failed to load env file "${filePath}": ${String(err)}`)
+    return result
+  }
   for (const line of content.split('\n')) {
     const trimmed = line.trim()
     if (!trimmed || trimmed.startsWith('#')) continue

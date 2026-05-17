@@ -74,56 +74,40 @@ function preprocessExpr(expr: string): string {
 
 const SAFE_ENV_KEY = /^[A-Z_][A-Z0-9_]*$/i
 
-function runExpr(expr: string, ctx: EngineContext): unknown {
+const RESERVED_SANDBOX_KEYS = new Set([
+  'env', 'file', 'consumer', 'ARGUMENTS', 'args', 'argsList',
+  'arg0', 'arg1', 'arg2', 'arg3',
+  'CLAUDE_SESSION_ID', 'CLAUDE_EFFORT', 'CLAUDE_SKILL_DIR',
+])
+
+function buildSandbox(ctx: EngineContext): Record<string, unknown> {
   const envObj: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
-  // Only spread env vars with safe identifier names into root scope to prevent prototype collision.
-  // All vars are always available under env.VAR_NAME regardless.
+  // Only spread env vars with safe identifier names to prevent prototype collision.
+  // All vars remain accessible under env.VAR_NAME regardless.
   const rootEnv: Record<string, string> = {}
   for (const [k, v] of Object.entries(envObj)) {
     if (SAFE_ENV_KEY.test(k)) rootEnv[k] = v
   }
-  const jailRoot = ctx.security.jailRoot ?? ctx.docDir ?? null
-  const file = makeFileHelpers(jailRoot)
-
-  // Skill context — all Claude Code slash command variables available in @if conditions
+  const file = makeFileHelpers(ctx.security.jailRoot ?? ctx.docDir ?? null)
   const skill = ctx.skillContext
   const ARGUMENTS = skill?.args ?? ''
   const argsList = skill?.argsList ?? []
-  const skillNamedArgs = skill?.namedArgs ?? {}
-
-  // Reserved sandbox identifiers that named args must not overwrite
-  const RESERVED_SANDBOX_KEYS = new Set([
-    'env', 'file', 'consumer', 'ARGUMENTS', 'args', 'argsList',
-    'arg0', 'arg1', 'arg2', 'arg3',
-    'CLAUDE_SESSION_ID', 'CLAUDE_EFFORT', 'CLAUDE_SKILL_DIR',
-  ])
   const safeNamedArgs: Record<string, string> = {}
-  for (const [k, v] of Object.entries(skillNamedArgs)) {
+  for (const [k, v] of Object.entries(skill?.namedArgs ?? {})) {
     if (!RESERVED_SANDBOX_KEYS.has(k)) safeNamedArgs[k] = v
   }
-
-  const sandbox: Record<string, unknown> = {
-    ...rootEnv,
-    env: envObj,
-    file,
-    consumer: ctx.consumer ?? '',
-    // $ARGUMENTS and shorthand
-    ARGUMENTS,
-    args: ARGUMENTS,
-    argsList,
-    arg0: argsList[0] ?? '',
-    arg1: argsList[1] ?? '',
-    arg2: argsList[2] ?? '',
-    arg3: argsList[3] ?? '',
-    // Named args spread into root scope — reserved keys are excluded to prevent shadowing
+  return {
+    ...rootEnv, env: envObj, file, consumer: ctx.consumer ?? '',
+    ARGUMENTS, args: ARGUMENTS, argsList,
+    arg0: argsList[0] ?? '', arg1: argsList[1] ?? '', arg2: argsList[2] ?? '', arg3: argsList[3] ?? '',
     ...safeNamedArgs,
-    // Session and environment variables from Claude Code (defined after safeNamedArgs so they cannot be shadowed)
-    CLAUDE_SESSION_ID: skill?.sessionId ?? '',
-    CLAUDE_EFFORT: skill?.effort ?? '',
-    CLAUDE_SKILL_DIR: skill?.skillDir ?? '',
+    CLAUDE_SESSION_ID: skill?.sessionId ?? '', CLAUDE_EFFORT: skill?.effort ?? '', CLAUDE_SKILL_DIR: skill?.skillDir ?? '',
   }
+}
+
+function runExpr(expr: string, ctx: EngineContext): unknown {
   try {
-    return runInNewContext(preprocessExpr(expr), sandbox, { timeout: 500 })
+    return runInNewContext(preprocessExpr(expr), buildSandbox(ctx), { timeout: 500 })
   } catch (err) {
     if ((err as Error)?.name === 'ReferenceError') return undefined
     ctx.warnings.push(`Unresolvable expression: ${expr.trim()}`)

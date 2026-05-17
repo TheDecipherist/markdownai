@@ -1,0 +1,83 @@
+import type {
+  ASTNode, MarkdownNode, TransitionNode, TransitionAction,
+  PromptNode, ConstraintNode, NoteNode, GraphNode, ShellInlineSpan,
+} from './types.js'
+import { ParseError } from './types.js'
+
+import { getModule } from './registry.js'
+import { scanInterpolations } from './interpolation.js'
+import { type State, lineNum, peek, consume } from './parser-state.js'
+
+export function makeMarkdown(text: string, line: number, shellInlines: ShellInlineSpan[] = []): MarkdownNode {
+  return { type: 'markdown', line, text, interpolations: scanInterpolations(text), shellInlines }
+}
+
+export function parseTransition(raw: string, line: number, filePath: string): TransitionNode {
+  const m = raw.match(/^@on\s+complete\s+->\s+@(\w+)\s+(.+)$/)
+  if (!m) throw new ParseError('Invalid @on syntax; expected: @on complete -> @phase|@call name', line, filePath)
+  const directive = m[1]!
+  const target = m[2]!.trim()
+  let action: TransitionAction
+  if (directive === 'phase') {
+    action = { type: 'phase', name: target }
+  } else if (directive === 'call') {
+    const parts = target.split(/\s+/)
+    action = { type: 'macro', name: parts[0] ?? '', args: {} }
+  } else {
+    throw new ParseError(`Unknown transition action: @${directive}`, line, filePath)
+  }
+  return { type: 'transition', line, event: 'complete', action }
+}
+
+export function parseTextBlock(
+  state: State,
+  openLine: string,
+  args: string,
+  line: number,
+  name: 'prompt' | 'constraint',
+): PromptNode | ConstraintNode {
+  const mod = getModule(name)!
+  const ctx = { line, filePath: state.filePath, inImport: state.inImport }
+  const node = mod.parse(openLine, args, ctx) as PromptNode | ConstraintNode
+  const bodyLines: string[] = []
+  let textClosed = false
+  while (state.pos < state.lines.length) {
+    const raw = peek(state)!
+    if (raw.trim() === '@end') { consume(state); textClosed = true; break }
+    bodyLines.push(consume(state))
+  }
+  if (!textClosed) throw new ParseError(`Unclosed @${name} block — expected @end`, line, state.filePath)
+  node.body = bodyLines.join('\n').trim()
+  return node
+}
+
+export function parseNoteBlock(state: State, openLine: string, args: string, line: number): NoteNode {
+  const mod = getModule('note')!
+  const ctx = { line, filePath: state.filePath, inImport: state.inImport }
+  const node = mod.parse(openLine, args, ctx) as NoteNode
+  const bodyLines: string[] = []
+  let noteClosed = false
+  while (state.pos < state.lines.length) {
+    const raw = peek(state)!
+    if (raw.trim() === '@end') { consume(state); noteClosed = true; break }
+    if (raw.trim().startsWith('@note')) throw new ParseError('nested @note is not supported', lineNum(state), state.filePath)
+    bodyLines.push(consume(state))
+  }
+  if (!noteClosed) throw new ParseError(`Unclosed @note block — expected @end`, line, state.filePath)
+  node.body = bodyLines.join('\n').trim()
+  return node
+}
+
+export function parseGraphBlock(state: State, line: number): GraphNode {
+  const bodyLines: string[] = []
+  let closed = false
+  while (state.pos < state.lines.length) {
+    const raw = consume(state)
+    if (raw.trim() === '```') { closed = true; break }
+    bodyLines.push(raw)
+  }
+  if (!closed) throw new ParseError('Unclosed mai-graph block — expected closing ```', line, state.filePath)
+  const mod = getModule('graph')!
+  const ctx = { line, filePath: state.filePath, inImport: state.inImport }
+  return mod.parse('', bodyLines.join('\n'), ctx) as GraphNode
+}

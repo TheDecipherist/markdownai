@@ -9,20 +9,20 @@ export interface NextPhaseResult {
   error?: string
 }
 
-function isConfined(filePath: string, cwd: string): boolean {
+function isRelativeAndWithinCwd(filePath: string, cwd: string): boolean {
   if (isAbsolute(filePath)) return false
   const rel = relative(cwd, resolve(cwd, filePath))
   return !rel.startsWith('..')
 }
 
 export function nextPhase(filePath: string, currentPhase: string, cwd: string): NextPhaseResult {
-  if (!isConfined(filePath, cwd)) {
+  if (!isRelativeAndWithinCwd(filePath, cwd)) {
     return { phase: null, found: false, error: `Path traversal blocked: "${filePath}"` }
   }
 
   const full = resolve(cwd, filePath)
   let source: string
-  try { source = readFileSync(full, 'utf8') } catch { return { phase: null, found: false } }
+  try { source = readFileSync(full, 'utf8') } catch (err) { return { phase: null, found: false, error: String(err) } }
   const ast = parse(source, { filePath: full })
   if (!ast.isMarkdownAI) return { phase: null, found: false }
 

@@ -13,7 +13,12 @@ export function runBuiltin(command: string, lines: string[]): string[] {
     case 'sort': return runSort(parts.slice(1), lines)
     case 'head': return lines.slice(0, parseCount(parts.slice(1), 10))
     case 'tail': return lines.slice(-parseCount(parts.slice(1), 10))
-    case 'wc': return [String(lines.length)]
+    case 'wc': {
+      const flags = parts.slice(1)
+      if (flags.includes('-w')) return [String(lines.join('\n').split(/\s+/).filter(Boolean).length)]
+      if (flags.includes('-c')) return [String(lines.join('\n').length)]
+      return [String(lines.length)]  // default: -l (line count)
+    }
     case 'uniq': return lines.filter((l, i) => i === 0 || l !== lines[i - 1])
     default: throw new Error(`Unknown built-in command: "${cmd}"`)
   }
