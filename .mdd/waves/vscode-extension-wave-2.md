@@ -3,7 +3,7 @@ id: vscode-extension-wave-2
 title: "Wave 2: Intelligence"
 initiative: vscode-extension
 initiative_version: 1
-status: planned
+status: complete
 depends_on: vscode-extension-wave-1
 demo_state: "Type @call and see every stdlib macro with its description and the label it sets. Hover over @call git-status to see 'Sets {{ git_status }} - compact git status output'. Cmd+click any @call to jump to its @define."
 created: 2026-05-17
@@ -22,10 +22,10 @@ Type `@call ` and an IntelliSense popup lists every stdlib macro and every user-
 
 | # | Feature | Doc | Status | Depends on |
 |---|---------|-----|--------|------------|
-| 1 | completion-provider | - | planned | - |
-| 2 | hover-provider | - | planned | completion-provider |
-| 3 | definition-provider | - | planned | hover-provider |
-| 4 | reference-panel | - | planned | completion-provider |
+| 1 | completion-provider | .mdd/docs/55-completion-provider.md | complete | - |
+| 2 | hover-provider | .mdd/docs/56-hover-provider.md | complete | completion-provider |
+| 3 | definition-provider | .mdd/docs/57-definition-provider.md | complete | hover-provider |
+| 4 | reference-panel | .mdd/docs/58-reference-panel.md | complete | completion-provider |
 
 ## Open Research
 

@@ -1,7 +1,7 @@
 ---
 generated: 2026-05-17
-doc_count: 54
-connection_count: 96
+doc_count: 58
+connection_count: 102
 overlap_count: 9
 ---
 
@@ -98,11 +98,16 @@ Toolchain/
 └── Stripper
     └── 29-stripper  complete
 VS Code Extension/
-└── Foundation
-    ├── 51-package-scaffold  complete
-    ├── 52-language-definition  complete
-    ├── 53-syntax-highlighting  complete
-    └── 54-snippets  complete
+├── Foundation
+│   ├── 51-package-scaffold  complete
+│   ├── 52-language-definition  complete
+│   ├── 53-syntax-highlighting  complete
+│   └── 54-snippets  complete
+└── Intelligence
+    ├── 55-completion-provider  complete
+    ├── 56-hover-provider  complete
+    ├── 57-definition-provider  complete
+    └── 58-reference-panel  complete
 engine/              [WARNING: inconsistent casing - see Warnings]
 ├── conditions
 │   └── 50-match-operator  complete
@@ -168,6 +173,10 @@ graph TD
   d52[52-language-definition]:::complete
   d53[53-syntax-highlighting]:::complete
   d54[54-snippets]:::complete
+  d55[55-completion-provider]:::complete
+  d56[56-hover-provider]:::complete
+  d57[57-definition-provider]:::complete
+  d58[58-reference-panel]:::complete
 
   d02 --> d01
   d03 --> d01
@@ -271,6 +280,12 @@ graph TD
   d52 --> d51
   d53 --> d52
   d54 --> d52
+  d55 --> d51
+  d55 --> d52
+  d56 --> d55
+  d57 --> d55
+  d57 --> d56
+  d58 --> d55
 
   classDef complete fill:#00e5cc,color:#000
   classDef in_progress fill:#ffaa00,color:#000
@@ -291,7 +306,7 @@ Files referenced by 2 or more feature docs:
 | `packages/core/src/commands/build.ts` | 34, 36, 39 |
 | `packages/mcp/src/server.ts` | 30, 39, 47 |
 | `packages/vscode/package.json` | 51, 52, 53, 54 |
-| `packages/vscode/src/extension.ts` | 51, 52 |
+| `packages/vscode/src/extension.ts` | 51, 52, 55, 56, 57, 58 |
 | `packages/engine/src/__tests__/conditions.test.ts` | 47, 50 |
 
 ## Warnings
