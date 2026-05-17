@@ -1,5 +1,5 @@
 {
-  "name": "@markdownai/vscode",
+  "name": "markdownai",
   "displayName": "MarkdownAI",
   "description": "Syntax highlighting, snippets, and autocomplete for MarkdownAI documents",
   "version": "0.0.1",
