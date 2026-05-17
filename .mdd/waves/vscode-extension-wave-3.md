@@ -3,7 +3,7 @@ id: vscode-extension-wave-3
 title: "Wave 3: Tests + Polish"
 initiative: vscode-extension
 initiative_version: 1
-status: planned
+status: complete
 depends_on: vscode-extension-wave-2
 demo_state: "npm test runs green in packages/vscode. An unclosed @if shows a red squiggly. README documents every feature with examples."
 created: 2026-05-17
@@ -22,10 +22,10 @@ hash:
 
 | # | Feature | Doc | Status | Depends on |
 |---|---------|-----|--------|------------|
-| 1 | diagnostics-provider | - | planned | - |
-| 2 | test-suite | - | planned | diagnostics-provider |
-| 3 | extension-settings | - | planned | - |
-| 4 | readme-and-marketplace | - | planned | test-suite |
+| 1 | diagnostics-provider | .mdd/docs/59-diagnostics-provider.md | active | - |
+| 2 | test-suite | .mdd/docs/61-test-suite.md | active | diagnostics-provider |
+| 3 | extension-settings | .mdd/docs/60-extension-settings.md | active | - |
+| 4 | readme-and-marketplace | .mdd/docs/62-readme-and-marketplace.md | active | test-suite |
 
 ## Open Research
 
