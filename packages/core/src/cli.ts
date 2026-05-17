@@ -7,7 +7,7 @@ import { runParse } from './commands/parse.js'
 import { runEval } from './commands/eval.js'
 import { runStrip } from './commands/strip.js'
 import { runBuild } from './commands/build.js'
-import { runInit } from './commands/init.js'
+import { runInit, runInitClaudeMd } from './commands/init.js'
 import { runCacheShow, runCacheClear } from './commands/cache.js'
 import { runListPhases } from './commands/list-phases.js'
 import { runListMacros } from './commands/list-macros.js'
@@ -159,6 +159,7 @@ program
   .command('init')
   .description('install the MarkdownAI hook in your AI client config')
   .option('--client <type>', 'client type: claude-code, cursor (auto-detects if omitted)')
+  .option('--global-claude-md', 'add MarkdownAI instructions to ~/.claude/CLAUDE.md')
   .action((opts: Record<string, string | undefined>) => {
     const clientOpt = opts['client'] as import('./commands/init.js').ClientType | undefined
     const result = runInit(clientOpt ? { client: clientOpt } : {})
@@ -166,6 +167,14 @@ program
       process.stdout.write(`ℹ ${result.message}\n`)
     } else {
       process.stdout.write(`✓ ${result.message}\n`)
+    }
+    if (opts['globalClaudeMd']) {
+      const claudeMdResult = runInitClaudeMd()
+      if (claudeMdResult.alreadyPresent) {
+        process.stdout.write('ℹ MarkdownAI instructions already in ' + claudeMdResult.claudeMdPath + '\n')
+      } else if (claudeMdResult.updated) {
+        process.stdout.write('✓ MarkdownAI instructions added to ' + claudeMdResult.claudeMdPath + '\n')
+      }
     }
   })
 

@@ -10,13 +10,16 @@
   },
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "scripts"
   ],
   "scripts": {
     "build": "tsc && node -e \"import('node:fs').then(fs => { const p = './dist/cli.js'; const c = fs.readFileSync(p,'utf8'); if (!c.startsWith('#!')) fs.writeFileSync(p,'#!/usr/bin/env node\\n'+c); fs.chmodSync(p, 0o755); })\"",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "postinstall": "node scripts/postinstall.js",
+    "preuninstall": "node scripts/preuninstall.js"
   },
   "dependencies": {
     "@markdownai/engine": "*",

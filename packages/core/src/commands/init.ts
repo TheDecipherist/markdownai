@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
+import { CLAUDE_MD_SECTION, SECTION_START_MARKER, SECTION_END_MARKER } from '../templates/claude-section.js'
 
 export type ClientType = 'claude-code' | 'cursor' | 'auto'
 
@@ -40,6 +41,52 @@ function detectClient(): { type: ClientType; configPath: string } {
   if (existsSync(cursorSettings)) return { type: 'cursor', configPath: cursorSettings }
   // Default to claude-code
   return { type: 'claude-code', configPath: claudeSettings }
+}
+
+export interface InitClaudeMdOptions {
+  claudeMdPath?: string
+}
+
+export interface InitClaudeMdResult {
+  updated: boolean
+  alreadyPresent: boolean
+  claudeMdPath: string
+}
+
+export function stripClaudeMdSection(content: string): string {
+  const startIdx = content.indexOf(SECTION_START_MARKER)
+  if (startIdx === -1) return content
+
+  const endIdx = content.indexOf(SECTION_END_MARKER, startIdx)
+  const blockEnd = endIdx === -1
+    ? content.length
+    : endIdx + SECTION_END_MARKER.length
+
+  const before = content.slice(0, startIdx).replace(/\n+$/, '')
+  const after = content.slice(blockEnd).replace(/^\n+/, '')
+
+  if (before === '' && after === '') return ''
+  if (before === '') return after
+  if (after === '') return before
+  return before + '\n\n' + after
+}
+
+export function runInitClaudeMd(options: InitClaudeMdOptions = {}): InitClaudeMdResult {
+  const claudeMdPath = options.claudeMdPath ?? join(homedir(), '.claude', 'CLAUDE.md')
+
+  if (existsSync(claudeMdPath)) {
+    const existing = readFileSync(claudeMdPath, 'utf8')
+    if (existing.includes(SECTION_START_MARKER)) {
+      return { updated: false, alreadyPresent: true, claudeMdPath }
+    }
+    const separator = existing.endsWith('\n') ? '\n' : '\n\n'
+    writeFileSync(claudeMdPath, existing + separator + CLAUDE_MD_SECTION + '\n', 'utf8')
+  } else {
+    mkdirSync(dirname(claudeMdPath), { recursive: true })
+    writeFileSync(claudeMdPath, CLAUDE_MD_SECTION + '\n', 'utf8')
+  }
+
+  return { updated: true, alreadyPresent: false, claudeMdPath }
 }
 
 export function runInit(options: InitOptions = {}): InitResult {
