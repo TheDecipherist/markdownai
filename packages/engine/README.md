@@ -130,7 +130,7 @@ const ctx = makeContext({
 
 ### `strip(source, options?): StripResult`
 
-Removes all MarkdownAI directives from a document, producing clean static Markdown. Conditional blocks are evaluated against the provided environment so the correct branch is preserved.
+Removes all MarkdownAI directives from a document, producing clean static Markdown. Conditional blocks are evaluated against the provided environment so the correct branch is preserved. `@note` blocks are always stripped regardless of their `visible` flag - `mai strip` is for producing plain markdown, not for consumer-targeted rendering.
 
 ```ts
 import { strip } from '@markdownai/engine'

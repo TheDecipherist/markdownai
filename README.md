@@ -801,6 +801,8 @@ MarkdownAI includes a set of features designed specifically for AI consumption:
 
 **@constraint - Machine-readable rules:** Express rules as structured `@constraint` blocks that AI consumers can check programmatically, not just read and hope to remember.
 
+**@note - Human-readable source comments:** Embed explanations for developers reading the raw `.md` file. Stripped from all rendered output by default. Add `visible` to render as a blockquote callout, or `visible consumer="human"` to scope it to human readers only. The human-facing counterpart to `@prompt`.
+
 **Token-efficient format mode:** `@consumer=ai` with format mode strips narrative prose and keeps only machine-actionable directives - reducing token consumption for AI consumers by up to 35% compared to the same document in human mode.
 
 ---
@@ -960,6 +962,7 @@ Condition operators: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `\|\|`, `!`, `start
 | `@consumer=human` | Tag a block for human readers only. |
 | `@prompt` ... `@end` | Embed instructions for AI consumers (not in human output). |
 | `@constraint <name>` ... `@end` | Declare a machine-readable rule. |
+| `@note` ... `@end` | Human-readable source comment, always stripped. Add `visible` to render as a blockquote. |
 
 ---
 
