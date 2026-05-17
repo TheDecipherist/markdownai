@@ -195,9 +195,12 @@ Auto-detect your AI client and install the PreToolUse hook so it automatically r
 mai init                           # auto-detect client
 mai init --client claude-code      # explicit Claude Code
 mai init --client cursor           # explicit Cursor
+mai init --global-claude-md        # append MarkdownAI guidance to ~/.claude/CLAUDE.md
 ```
 
 After `mai init`, every `.md` file with a `@markdownai` header that your AI reads is automatically rendered before the AI sees it.
+
+`--global-claude-md` appends a section to your global `~/.claude/CLAUDE.md` that teaches Claude to prefer MarkdownAI syntax when writing new `.md` files and to use the CLI when no MCP server is running. Safe to run multiple times - idempotent.
 
 ---
 

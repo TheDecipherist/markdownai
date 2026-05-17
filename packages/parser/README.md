@@ -88,6 +88,7 @@ The parser produces a flat array of typed nodes. Every node has a `type` field a
 | `PipeNode` | `source | transform | @render` | Pipe chain |
 | `RenderNode` | `@render` | Render sink with format type |
 | `PromptNode` | `@prompt` | AI instruction block |
+| `NoteNode` | `@note` | Human-readable source comment (stripped by default) |
 | `SectionNode` | `@section` | Context budget priority section |
 | `MarkdownNode` | (plain text) | Non-directive markdown content |
 | `InterpolationNode` | `{{ expression }}` | Inline expression |
@@ -95,7 +96,7 @@ The parser produces a flat array of typed nodes. Every node has a `type` field a
 
 ### Block structure
 
-Block directives (`@define`, `@phase`, `@if`, `@prompt`, `@section`) open with the directive and close with `@end` or `@endif`. The parser tracks nesting and returns each block as a single node with its children.
+Block directives (`@define`, `@phase`, `@if`, `@prompt`, `@note`, `@section`) open with the directive and close with `@end` or `@endif`. The parser tracks nesting and returns each block as a single node with its children.
 
 ```ts
 const ast = parse(`@markdownai
