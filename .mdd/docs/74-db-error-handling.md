@@ -4,7 +4,7 @@ title: DB — Error Handling
 type: SPEC
 initiative: markdownai-db
 wave: markdownai-db-wave-3
-wave_status: planned
+wave_status: complete
 edition: Both
 depends_on: [68-db-executor]
 source_files:
@@ -15,8 +15,8 @@ models: []
 test_files: []
 data_flow: greenfield
 last_synced: 2026-05-17
-status: draft
-phase: documentation
+status: complete
+phase: all
 mdd_version: 1
 tags: [db, error-handling, parse-errors, runtime-errors, fatal, warn, strict, no-results]
 path: DB/Errors

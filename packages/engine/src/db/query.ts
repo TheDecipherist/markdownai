@@ -51,10 +51,26 @@ export type ParsedQuery =
 
 // ---- Parse error
 
+export interface DbParseContext {
+  file?: string
+  line?: number
+}
+
 export class DbParseError extends Error {
-  constructor(message: string) {
+  readonly context: DbParseContext
+  constructor(message: string, context: DbParseContext = {}) {
     super(message)
     this.name = 'DbParseError'
+    this.context = context
+  }
+
+  format(): string {
+    const { file, line } = this.context
+    if (!file && line === undefined) return this.message
+    const parts: string[] = [this.message]
+    if (file) parts.push(`  File:   ${file}`)
+    if (line !== undefined) parts.push(`  Line:   ${line}`)
+    return parts.join('\n')
   }
 }
 
@@ -206,7 +222,20 @@ function parseAggregateOps(args: Record<string, string>, hasAggregate: boolean):
 const OPERATIONS = ['find', 'one', 'count', 'aggregate', 'raw'] as const
 type AnyOperation = typeof OPERATIONS[number]
 
-export function parseQuery(args: Record<string, string>, env: Record<string, string>): ParsedQuery {
+export function parseQuery(
+  args: Record<string, string>,
+  env: Record<string, string>,
+  context: DbParseContext = {},
+): ParsedQuery {
+  try {
+    return parseQueryInternal(args, env)
+  } catch (err) {
+    if (err instanceof DbParseError) throw new DbParseError(err.message, context)
+    throw err
+  }
+}
+
+function parseQueryInternal(args: Record<string, string>, env: Record<string, string>): ParsedQuery {
   // Detect which operation is present
   const presentOps = OPERATIONS.filter(op => args[op] !== undefined)
   // 'count=true' inside aggregate= is NOT a top-level count op

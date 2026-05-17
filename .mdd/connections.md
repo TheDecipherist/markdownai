@@ -1,392 +1,372 @@
 ---
 generated: 2026-05-17
 doc_count: 74
-connection_count: 132
-overlap_count: 17
+connection_count: 129
+overlap_count: 45
 ---
-
-# MDD Connections Map
 
 ## Path Tree
 
 ```
-AI
-  ├── ConsumerMode
-  │     └── ConsumerMode  34-ai-consumer-mode  draft
-  ├── ContextBudget
-  │     └── ContextBudget  36-ai-context-budget  draft
-  ├── Concepts
-  │     └── Concepts  37-ai-concepts  draft
-  ├── Constraints
-  │     └── Constraints  38-ai-constraints  draft
-  ├── Format
-  │     └── Format  39-ai-format  draft
-  └── Prompt
-        └── Prompt  35-ai-prompt  draft
-
-Engine
-  ├── Conditions
-  │     └── Conditions  47-skill-context-variables  complete
-  └── Security
-        └── Security  48-shell-inline  complete
-
-Integration
-  └── MDD
-        ├── MDD  45-mdd-markdownai-integration  draft
-        └── MDD  46-mdd-token-optimization-analysis  draft
-
-Language
-  ├── Conditionals
-  │     └── Conditionals  12-lang-conditionals  complete
-  ├── Connect
-  │     └── Connect  17-lang-connect  complete
-  ├── Env
-  │     └── Env  07-lang-env  complete
-  ├── FileResolution
-  │     └── FileResolution  09-lang-file-resolution  complete
-  ├── Header
-  │     └── Header  05-lang-header  complete
-  ├── Import
-  │     └── Import  11-lang-import  complete
-  ├── Include
-  │     └── Include  10-lang-include  complete
-  ├── Interpolation
-  │     └── Interpolation  06-lang-interpolation  complete
-  ├── Macros
-  │     └── Macros  08-lang-macros  complete
-  ├── Phases
-  │     └── Phases  21-lang-phases  complete
-  ├── Pipeline
-  │     └── Pipeline  13-lang-pipeline  complete
-  └── Sources
-        ├── Sources  14-lang-sources-list  complete
-        ├── Sources  15-lang-sources-read  complete
-        ├── Sources  16-lang-sources-utilities  complete
-        ├── Sources  18-lang-sources-db  complete
-        ├── Sources  19-lang-sources-http  complete
-        └── Sources  20-lang-sources-query  complete
-
-Security
-  ├── Security  22-security-config  complete
-  ├── Security  23-security-filesystem  complete
-  ├── Security  24-security-shell  complete
-  ├── Security  25-security-database  complete
-  ├── Security  26-security-http  complete
-  └── Security  27-security-immutable-rules  complete
-
-Testing
-  ├── AI-E2E
-  │     └── AI-E2E  40-ai-e2e-accuracy  draft
-  ├── E2E
-  │     └── E2E  33-e2e-test-suite  complete
-  └── MCP-E2E
-        ├── MCP-E2E  41-mcp-e2e-protocol  draft
-        ├── MCP-E2E  42-mcp-e2e-tools  draft
-        ├── MCP-E2E  43-mcp-e2e-security  draft
-        └── MCP-E2E  44-mcp-e2e-ai-integration  draft
-
-Toolchain
-  ├── Cache
-  │     └── Cache  28-caching  complete
-  ├── CLI
-  │     ├── CLI  04-cli-core  complete
-  │     └── CLI  32-cli-complete  complete
-  ├── Engine
-  │     └── Engine  03-engine  complete
-  ├── Hook
-  │     └── Hook  31-hook  complete
-  ├── MCP
-  │     └── MCP  30-mcp-server  complete
-  ├── Parser
-  │     └── Parser  01-parser  complete
-  ├── Renderer
-  │     └── Renderer  02-renderer  complete
-  └── Stripper
-        └── Stripper  29-stripper  complete
-
-VS Code Extension
-  ├── Foundation
-  │     ├── Foundation  51-package-scaffold  complete
-  │     ├── Foundation  52-language-definition  complete
-  │     ├── Foundation  53-syntax-highlighting  complete
-  │     ├── Foundation  54-snippets  complete
-  │     └── Foundation  60-extension-settings  complete
-  ├── Intelligence
-  │     ├── Intelligence  55-completion-provider  complete
-  │     ├── Intelligence  56-hover-provider  complete
-  │     ├── Intelligence  57-definition-provider  complete
-  │     └── Intelligence  58-reference-panel  complete
-  └── Quality
-        ├── Quality  59-diagnostics-provider  complete
-        ├── Quality  61-test-suite  complete
-        └── Quality  62-readme-and-marketplace  complete
-
-engine (path case inconsistency - see Warnings)
-  ├── conditions  50-match-operator  complete
-  └── stdlib  49-stdlib  complete
-
-DB
-  ├── Query Language
-  │     ├── Query Language  63-db-query-language  complete
-  │     ├── Query Language  64-db-where-clause  complete
-  │     ├── Query Language  65-db-aggregate-operation  complete
-  │     └── Query Language  66-db-raw-escape-hatch  complete
-  ├── Internals
-  │     ├── Internals  67-db-queryplan-types  complete
-  │     └── Internals  68-db-executor  complete
-  ├── Adapters
-  │     ├── Adapters  69-db-adapter-interface  complete
-  │     ├── Adapters  70-db-mongodb-adapter  complete
-  │     └── Adapters  71-db-sql-adapters  complete
-  ├── Security
-  │     └── Security  72-db-security  draft
-  ├── Caching
-  │     └── Caching  73-db-caching  draft
-  └── Errors
-        └── Errors  74-db-error-handling  draft
+├── AI/
+│   ├── Concepts  37-ai-concepts  draft
+│   ├── Constraints  38-ai-constraints  draft
+│   ├── ConsumerMode  34-ai-consumer-mode  draft
+│   ├── ContextBudget  36-ai-context-budget  draft
+│   ├── Format  39-ai-format  draft
+│   └── Prompt  35-ai-prompt  draft
+├── DB/
+│   ├── Adapters/
+│   │   ├── 69-db-adapter-interface  complete
+│   │   ├── 70-db-mongodb-adapter  complete
+│   │   └── 71-db-sql-adapters  complete
+│   ├── Caching  73-db-caching  complete
+│   ├── Errors  74-db-error-handling  complete
+│   ├── Internals/
+│   │   ├── 67-db-queryplan-types  complete
+│   │   └── 68-db-executor  complete
+│   ├── Query Language/
+│   │   ├── 63-db-query-language  complete
+│   │   ├── 64-db-where-clause  complete
+│   │   ├── 65-db-aggregate-operation  complete
+│   │   └── 66-db-raw-escape-hatch  complete
+│   └── Security  72-db-security  complete
+├── Engine/
+│   ├── Conditions  47-skill-context-variables  complete
+│   └── Security  48-shell-inline  complete
+├── Integration/
+│   └── MDD/
+│       ├── 45-mdd-markdownai-integration  draft
+│       └── 46-mdd-token-optimization-analysis  draft
+├── Language/
+│   ├── Conditionals  12-lang-conditionals  complete
+│   ├── Connect  17-lang-connect  complete
+│   ├── Env  07-lang-env  complete
+│   ├── FileResolution  09-lang-file-resolution  complete
+│   ├── Header  05-lang-header  complete
+│   ├── Import  11-lang-import  complete
+│   ├── Include  10-lang-include  complete
+│   ├── Interpolation  06-lang-interpolation  complete
+│   ├── Macros  08-lang-macros  complete
+│   ├── Phases  21-lang-phases  complete
+│   ├── Pipeline  13-lang-pipeline  complete
+│   └── Sources/
+│       ├── 14-lang-sources-list  complete
+│       ├── 15-lang-sources-read  complete
+│       ├── 16-lang-sources-utilities  complete
+│       ├── 18-lang-sources-db  complete
+│       ├── 19-lang-sources-http  complete
+│       └── 20-lang-sources-query  complete
+├── Security/
+│   ├── 22-security-config  complete
+│   ├── 23-security-filesystem  complete
+│   ├── 24-security-shell  complete
+│   ├── 25-security-database  complete
+│   ├── 26-security-http  complete
+│   └── 27-security-immutable-rules  complete
+├── Testing/
+│   ├── AI-E2E  40-ai-e2e-accuracy  draft
+│   ├── E2E  33-e2e-test-suite  complete
+│   └── MCP-E2E/
+│       ├── 41-mcp-e2e-protocol  draft
+│       ├── 42-mcp-e2e-tools  draft
+│       ├── 43-mcp-e2e-security  draft
+│       └── 44-mcp-e2e-ai-integration  draft
+├── Toolchain/
+│   ├── CLI/
+│   │   ├── 04-cli-core  complete
+│   │   └── 32-cli-complete  complete
+│   ├── Cache  28-caching  complete
+│   ├── Engine  03-engine  complete
+│   ├── Hook  31-hook  complete
+│   ├── MCP  30-mcp-server  complete
+│   ├── Parser  01-parser  complete
+│   ├── Renderer  02-renderer  complete
+│   └── Stripper  29-stripper  complete
+├── VS Code Extension/
+│   ├── Foundation/
+│   │   ├── 51-package-scaffold  complete
+│   │   ├── 52-language-definition  complete
+│   │   ├── 53-syntax-highlighting  complete
+│   │   ├── 54-snippets  complete
+│   │   └── 60-extension-settings  complete
+│   ├── Intelligence/
+│   │   ├── 55-completion-provider  complete
+│   │   ├── 56-hover-provider  complete
+│   │   ├── 57-definition-provider  complete
+│   │   └── 58-reference-panel  complete
+│   └── Quality/
+│       ├── 59-diagnostics-provider  complete
+│       ├── 61-test-suite  complete
+│       └── 62-readme-and-marketplace  complete
+└── engine/
+    ├── conditions  50-match-operator  complete
+    └── stdlib  49-stdlib  complete
 ```
 
 ## Dependency Graph
 
 ```mermaid
-graph TD
-  d01[01-parser]:::complete
-  d02[02-renderer]:::complete
-  d03[03-engine]:::complete
-  d04[04-cli-core]:::complete
-  d05[05-lang-header]:::complete
-  d06[06-lang-interpolation]:::complete
-  d07[07-lang-env]:::complete
-  d08[08-lang-macros]:::complete
-  d09[09-lang-file-resolution]:::complete
-  d10[10-lang-include]:::complete
-  d11[11-lang-import]:::complete
-  d12[12-lang-conditionals]:::complete
-  d13[13-lang-pipeline]:::complete
-  d14[14-lang-sources-list]:::complete
-  d15[15-lang-sources-read]:::complete
-  d16[16-lang-sources-utilities]:::complete
-  d17[17-lang-connect]:::complete
-  d18[18-lang-sources-db]:::complete
-  d19[19-lang-sources-http]:::complete
-  d20[20-lang-sources-query]:::complete
-  d21[21-lang-phases]:::complete
-  d22[22-security-config]:::complete
-  d23[23-security-filesystem]:::complete
-  d24[24-security-shell]:::complete
-  d25[25-security-database]:::complete
-  d26[26-security-http]:::complete
-  d27[27-security-immutable-rules]:::complete
-  d28[28-caching]:::complete
-  d29[29-stripper]:::complete
-  d30[30-mcp-server]:::complete
-  d31[31-hook]:::complete
-  d32[32-cli-complete]:::complete
-  d33[33-e2e-test-suite]:::complete
-  d34[34-ai-consumer-mode]:::draft
-  d35[35-ai-prompt]:::draft
-  d36[36-ai-context-budget]:::draft
-  d37[37-ai-concepts]:::draft
-  d38[38-ai-constraints]:::draft
-  d39[39-ai-format]:::draft
-  d40[40-ai-e2e-accuracy]:::draft
-  d41[41-mcp-e2e-protocol]:::draft
-  d42[42-mcp-e2e-tools]:::draft
-  d43[43-mcp-e2e-security]:::draft
-  d44[44-mcp-e2e-ai-integration]:::draft
-  d45[45-mdd-markdownai-integration]:::draft
-  d46[46-mdd-token-optimization-analysis]:::draft
-  d47[47-skill-context-variables]:::complete
-  d48[48-shell-inline]:::complete
-  d49[49-stdlib]:::complete
-  d50[50-match-operator]:::complete
-  d51[51-package-scaffold]:::complete
-  d52[52-language-definition]:::complete
-  d53[53-syntax-highlighting]:::complete
-  d54[54-snippets]:::complete
-  d55[55-completion-provider]:::complete
-  d56[56-hover-provider]:::complete
-  d57[57-definition-provider]:::complete
-  d58[58-reference-panel]:::complete
-  d59[59-diagnostics-provider]:::complete
-  d60[60-extension-settings]:::complete
-  d61[61-test-suite]:::complete
-  d62[62-readme-and-marketplace]:::complete
-  d63[63-db-query-language]:::complete
-  d64[64-db-where-clause]:::complete
-  d65[65-db-aggregate-operation]:::complete
-  d66[66-db-raw-escape-hatch]:::complete
-  d67[67-db-queryplan-types]:::complete
-  d68[68-db-executor]:::complete
-  d69[69-db-adapter-interface]:::complete
-  d70[70-db-mongodb-adapter]:::complete
-  d71[71-db-sql-adapters]:::complete
-  d72[72-db-security]:::draft
-  d73[73-db-caching]:::draft
-  d74[74-db-error-handling]:::draft
-
-  d02 --> d01
-  d03 --> d01
-  d03 --> d02
-  d04 --> d01
-  d04 --> d02
-  d04 --> d03
-  d05 --> d01
-  d06 --> d01
-  d07 --> d01
-  d08 --> d07
-  d10 --> d09
-  d10 --> d08
-  d11 --> d09
-  d11 --> d07
-  d12 --> d07
-  d12 --> d06
-  d14 --> d13
-  d15 --> d13
-  d17 --> d07
-  d18 --> d17
-  d18 --> d13
-  d19 --> d13
-  d20 --> d13
-  d21 --> d08
-  d21 --> d10
-  d23 --> d22
-  d24 --> d22
-  d25 --> d22
-  d26 --> d22
-  d27 --> d23
-  d27 --> d24
-  d27 --> d25
-  d27 --> d26
-  d30 --> d28
-  d31 --> d30
-  d32 --> d28
-  d32 --> d29
-  d32 --> d30
-  d33 --> d04
-  d33 --> d10
-  d33 --> d11
-  d33 --> d08
-  d33 --> d12
-  d33 --> d13
-  d33 --> d14
-  d33 --> d15
-  d33 --> d16
-  d33 --> d07
-  d33 --> d21
-  d33 --> d28
-  d33 --> d29
-  d33 --> d32
-  d34 --> d12
-  d34 --> d04
-  d35 --> d01
-  d35 --> d03
-  d35 --> d34
-  d36 --> d01
-  d36 --> d03
-  d36 --> d04
-  d37 --> d01
-  d37 --> d03
-  d37 --> d34
-  d38 --> d01
-  d38 --> d03
-  d38 --> d34
-  d39 --> d02
-  d39 --> d04
-  d39 --> d30
-  d40 --> d33
-  d40 --> d34
-  d40 --> d35
-  d40 --> d36
-  d40 --> d37
-  d40 --> d38
-  d40 --> d39
-  d41 --> d30
-  d41 --> d33
-  d42 --> d30
-  d42 --> d41
-  d43 --> d22
-  d43 --> d23
-  d43 --> d27
-  d43 --> d42
-  d44 --> d30
-  d44 --> d39
-  d44 --> d38
-  d44 --> d43
-  d46 --> d45
-  d47 --> d12
-  d47 --> d30
-  d48 --> d12
-  d48 --> d20
-  d48 --> d24
-  d48 --> d47
-  d49 --> d03
-  d49 --> d06
-  d49 --> d08
-  d50 --> d03
-  d52 --> d51
-  d53 --> d52
-  d54 --> d52
-  d55 --> d51
-  d55 --> d52
-  d56 --> d55
-  d57 --> d55
-  d57 --> d56
-  d58 --> d55
-  d59 --> d55
-  d61 --> d59
-  d61 --> d60
-  d62 --> d61
-  d63 --> d17
-  d63 --> d13
-  d64 --> d63
-  d65 --> d63
-  d65 --> d64
-  d66 --> d63
-  d67 --> d64
-  d67 --> d65
-  d68 --> d67
-  d69 --> d67
-  d70 --> d69
-  d71 --> d69
-  d72 --> d68
-  d72 --> d66
-  d73 --> d68
-  d73 --> d28
-  d74 --> d68
-
+flowchart LR
+  n01[01-parser]:::complete
+  n02[02-renderer]:::complete
+  n03[03-engine]:::complete
+  n04[04-cli-core]:::complete
+  n05[05-lang-header]:::complete
+  n06[06-lang-interpolation]:::complete
+  n07[07-lang-env]:::complete
+  n08[08-lang-macros]:::complete
+  n09[09-lang-file-resolution]:::complete
+  n10[10-lang-include]:::complete
+  n11[11-lang-import]:::complete
+  n12[12-lang-conditionals]:::complete
+  n13[13-lang-pipeline]:::complete
+  n14[14-lang-sources-list]:::complete
+  n15[15-lang-sources-read]:::complete
+  n16[16-lang-sources-utilities]:::complete
+  n17[17-lang-connect]:::complete
+  n18[18-lang-sources-db]:::complete
+  n19[19-lang-sources-http]:::complete
+  n20[20-lang-sources-query]:::complete
+  n21[21-lang-phases]:::complete
+  n22[22-security-config]:::complete
+  n23[23-security-filesystem]:::complete
+  n24[24-security-shell]:::complete
+  n25[25-security-database]:::complete
+  n26[26-security-http]:::complete
+  n27[27-security-immutable-rules]:::complete
+  n28[28-caching]:::complete
+  n29[29-stripper]:::complete
+  n30[30-mcp-server]:::complete
+  n31[31-hook]:::complete
+  n32[32-cli-complete]:::complete
+  n33[33-e2e-test-suite]:::complete
+  n34[34-ai-consumer-mode]:::draft
+  n35[35-ai-prompt]:::draft
+  n36[36-ai-context-budget]:::draft
+  n37[37-ai-concepts]:::draft
+  n38[38-ai-constraints]:::draft
+  n39[39-ai-format]:::draft
+  n40[40-ai-e2e-accuracy]:::draft
+  n41[41-mcp-e2e-protocol]:::draft
+  n42[42-mcp-e2e-tools]:::draft
+  n43[43-mcp-e2e-security]:::draft
+  n44[44-mcp-e2e-ai-integration]:::draft
+  n45[45-mdd-markdownai-integration]:::draft
+  n46[46-mdd-token-optimization-analysis]:::draft
+  n47[47-skill-context-variables]:::complete
+  n48[48-shell-inline]:::complete
+  n49[49-stdlib]:::complete
+  n50[50-match-operator]:::complete
+  n51[51-package-scaffold]:::complete
+  n52[52-language-definition]:::complete
+  n53[53-syntax-highlighting]:::complete
+  n54[54-snippets]:::complete
+  n55[55-completion-provider]:::complete
+  n56[56-hover-provider]:::complete
+  n57[57-definition-provider]:::complete
+  n58[58-reference-panel]:::complete
+  n59[59-diagnostics-provider]:::complete
+  n60[60-extension-settings]:::complete
+  n61[61-test-suite]:::complete
+  n62[62-readme-and-marketplace]:::complete
+  n63[63-db-query-language]:::complete
+  n64[64-db-where-clause]:::complete
+  n65[65-db-aggregate-operation]:::complete
+  n66[66-db-raw-escape-hatch]:::complete
+  n67[67-db-queryplan-types]:::complete
+  n68[68-db-executor]:::complete
+  n69[69-db-adapter-interface]:::complete
+  n70[70-db-mongodb-adapter]:::complete
+  n71[71-db-sql-adapters]:::complete
+  n72[72-db-security]:::complete
+  n73[73-db-caching]:::complete
+  n74[74-db-error-handling]:::complete
+  n01 --> n02
+  n01 --> n03
+  n02 --> n03
+  n01 --> n04
+  n02 --> n04
+  n03 --> n04
+  n01 --> n05
+  n01 --> n06
+  n01 --> n07
+  n07 --> n08
+  n09 --> n10
+  n08 --> n10
+  n09 --> n11
+  n07 --> n11
+  n07 --> n12
+  n06 --> n12
+  n13 --> n14
+  n13 --> n15
+  n07 --> n17
+  n17 --> n18
+  n13 --> n18
+  n13 --> n19
+  n13 --> n20
+  n08 --> n21
+  n10 --> n21
+  n22 --> n23
+  n22 --> n24
+  n22 --> n25
+  n22 --> n26
+  n23 --> n27
+  n24 --> n27
+  n25 --> n27
+  n26 --> n27
+  n28 --> n30
+  n30 --> n31
+  n28 --> n32
+  n29 --> n32
+  n30 --> n32
+  n04 --> n33
+  n10 --> n33
+  n11 --> n33
+  n08 --> n33
+  n12 --> n33
+  n13 --> n33
+  n14 --> n33
+  n15 --> n33
+  n16 --> n33
+  n07 --> n33
+  n21 --> n33
+  n28 --> n33
+  n29 --> n33
+  n32 --> n33
+  n12 --> n34
+  n04 --> n34
+  n01 --> n35
+  n03 --> n35
+  n34 --> n35
+  n01 --> n36
+  n03 --> n36
+  n04 --> n36
+  n01 --> n37
+  n03 --> n37
+  n34 --> n37
+  n01 --> n38
+  n03 --> n38
+  n34 --> n38
+  n02 --> n39
+  n04 --> n39
+  n30 --> n39
+  n33 --> n40
+  n34 --> n40
+  n35 --> n40
+  n36 --> n40
+  n37 --> n40
+  n38 --> n40
+  n39 --> n40
+  n30 --> n41
+  n33 --> n41
+  n30 --> n42
+  n41 --> n42
+  n22 --> n43
+  n23 --> n43
+  n27 --> n43
+  n42 --> n43
+  n30 --> n44
+  n39 --> n44
+  n38 --> n44
+  n43 --> n44
+  n45 --> n46
+  n12 --> n47
+  n30 --> n47
+  n12 --> n48
+  n20 --> n48
+  n24 --> n48
+  n47 --> n48
+  n03 --> n49
+  n06 --> n49
+  n08 --> n49
+  n03 --> n50
+  n51 --> n52
+  n52 --> n53
+  n52 --> n54
+  n51 --> n55
+  n52 --> n55
+  n55 --> n56
+  n55 --> n57
+  n56 --> n57
+  n55 --> n58
+  n55 --> n59
+  n59 --> n61
+  n60 --> n61
+  n61 --> n62
+  n17 --> n63
+  n13 --> n63
+  n63 --> n64
+  n63 --> n65
+  n64 --> n65
+  n63 --> n66
+  n64 --> n67
+  n65 --> n67
+  n67 --> n68
+  n67 --> n69
+  n69 --> n70
+  n69 --> n71
+  n68 --> n72
+  n66 --> n72
+  n68 --> n73
+  n28 --> n73
+  n68 --> n74
   classDef complete fill:#00e5cc,color:#000
-  classDef in_progress fill:#ffaa00,color:#000
   classDef draft fill:#888,color:#fff
+  classDef in_progress fill:#ffaa00,color:#000
   classDef deprecated fill:#555,color:#aaa
 ```
 
 ## Source File Overlap
 
-Files referenced by 2 or more feature docs:
+Files referenced by 2 or more docs:
 
-| Source File | Referenced By |
-|-------------|---------------|
-| packages/engine/src/engine.ts | 03, 10, 11, 14, 15, 16, 18, 19, 20, 21, 34, 36, 47, 48, 49 |
-| packages/engine/src/conditions.ts | 03, 06, 12, 47, 50 |
-| packages/engine/src/context.ts | 03, 07, 17, 47 |
-| packages/core/src/commands/render.ts | 04, 34, 36, 39 |
-| packages/vscode/package.json | 51, 52, 53, 54 |
-| packages/core/src/commands/build.ts | 34, 36, 39 |
-| packages/mcp/src/server.ts | 30, 39, 47 |
-| packages/vscode/src/extension.ts | 51, 52, 55 |
-| packages/engine/src/macros.ts | 03, 08 |
-| packages/engine/src/pipe.ts | 03, 13 |
-| packages/renderer/src/renderer.ts | 02, 13 |
-| packages/core/src/commands/strip.ts | 29, 32 |
-| packages/parser/src/parser.ts | 01, 48 |
-| packages/engine/src/db/query.ts | 63, 64, 65, 66, 67, 68 |
-| packages/engine/src/db/executor.ts | 66, 68, 72, 73, 74 |
-| packages/engine/src/db/adapters/mongodb.ts | 65, 70 |
-| packages/engine/src/db/adapters/postgres.ts | 65, 71 |
+- `packages/core/src/commands/build.ts` - 32-cli-complete, 34-ai-consumer-mode, 36-ai-context-budget, 39-ai-format
+- `packages/core/src/commands/init.ts` - 31-hook, 32-cli-complete
+- `packages/core/src/commands/render.ts` - 04-cli-core, 34-ai-consumer-mode, 36-ai-context-budget, 39-ai-format
+- `packages/core/src/commands/strip.ts` - 29-stripper, 32-cli-complete
+- `packages/engine/src/__tests__/conditions.test.ts` - 47-skill-context-variables, 50-match-operator
+- `packages/engine/src/cache.ts` - 03-engine, 28-caching
+- `packages/engine/src/conditions.ts` - 03-engine, 06-lang-interpolation, 12-lang-conditionals, 34-ai-consumer-mode, 47-skill-context-variables, 50-match-operator
+- `packages/engine/src/context.ts` - 03-engine, 07-lang-env, 17-lang-connect, 47-skill-context-variables
+- `packages/engine/src/db/adapters/mongodb.ts` - 65-db-aggregate-operation, 69-db-adapter-interface, 70-db-mongodb-adapter
+- `packages/engine/src/db/adapters/mssql.ts` - 69-db-adapter-interface, 71-db-sql-adapters
+- `packages/engine/src/db/adapters/mysql.ts` - 69-db-adapter-interface, 71-db-sql-adapters
+- `packages/engine/src/db/adapters/postgres.ts` - 65-db-aggregate-operation, 69-db-adapter-interface, 71-db-sql-adapters
+- `packages/engine/src/db/adapters/sqlite.ts` - 69-db-adapter-interface, 71-db-sql-adapters
+- `packages/engine/src/db/executor.ts` - 66-db-raw-escape-hatch, 68-db-executor, 72-db-security, 73-db-caching, 74-db-error-handling
+- `packages/engine/src/db/query.ts` - 63-db-query-language, 64-db-where-clause, 65-db-aggregate-operation, 67-db-queryplan-types, 68-db-executor, 74-db-error-handling
+- `packages/engine/src/engine.ts` - 03-engine, 09-lang-file-resolution, 10-lang-include, 11-lang-import, 14-lang-sources-list, 15-lang-sources-read, 16-lang-sources-utilities, 18-lang-sources-db, 19-lang-sources-http, 21-lang-phases, 47-skill-context-variables, 48-shell-inline, 49-stdlib
+- `packages/engine/src/macros.ts` - 03-engine, 08-lang-macros
+- `packages/engine/src/pipe.ts` - 03-engine, 13-lang-pipeline
+- `packages/engine/src/shell.ts` - 03-engine, 20-lang-sources-query
+- `packages/mcp/src/server.ts` - 30-mcp-server, 39-ai-format, 47-skill-context-variables
+- `packages/mcp/src/tools/read_file.ts` - 30-mcp-server, 47-skill-context-variables
+- `packages/parser/src/directives/call.ts` - 01-parser, 08-lang-macros
+- `packages/parser/src/directives/connect.ts` - 01-parser, 17-lang-connect
+- `packages/parser/src/directives/count.ts` - 01-parser, 16-lang-sources-utilities
+- `packages/parser/src/directives/date.ts` - 01-parser, 16-lang-sources-utilities
+- `packages/parser/src/directives/db.ts` - 01-parser, 18-lang-sources-db, 63-db-query-language
+- `packages/parser/src/directives/define.ts` - 01-parser, 08-lang-macros
+- `packages/parser/src/directives/env.ts` - 01-parser, 07-lang-env
+- `packages/parser/src/directives/graph.ts` - 01-parser, 21-lang-phases
+- `packages/parser/src/directives/header.ts` - 01-parser, 05-lang-header
+- `packages/parser/src/directives/http.ts` - 01-parser, 19-lang-sources-http
+- `packages/parser/src/directives/if.ts` - 01-parser, 12-lang-conditionals
+- `packages/parser/src/directives/import.ts` - 01-parser, 11-lang-import
+- `packages/parser/src/directives/include.ts` - 01-parser, 10-lang-include
+- `packages/parser/src/directives/list.ts` - 01-parser, 14-lang-sources-list
+- `packages/parser/src/directives/phase.ts` - 01-parser, 21-lang-phases
+- `packages/parser/src/directives/pipe.ts` - 01-parser, 13-lang-pipeline
+- `packages/parser/src/directives/query.ts` - 01-parser, 20-lang-sources-query
+- `packages/parser/src/directives/read.ts` - 01-parser, 15-lang-sources-read
+- `packages/parser/src/directives/render.ts` - 01-parser, 13-lang-pipeline
+- `packages/parser/src/directives/tree.ts` - 01-parser, 16-lang-sources-utilities
+- `packages/parser/src/parser.ts` - 01-parser, 48-shell-inline
+- `packages/renderer/src/renderer.ts` - 02-renderer, 13-lang-pipeline
+- `packages/vscode/package.json` - 51-package-scaffold, 52-language-definition, 53-syntax-highlighting, 54-snippets
+- `packages/vscode/src/extension.ts` - 51-package-scaffold, 52-language-definition, 55-completion-provider
 
 ## Warnings
 
-- **Path case inconsistency:** docs 49 (`engine/stdlib`) and 50 (`engine/conditions`) use lowercase paths while all other docs use Title Case. These should be corrected to `Engine/Stdlib` and `Engine/Conditions` to match the established convention.
-- No broken depends_on references detected.
-- No circular dependencies detected.
+None
