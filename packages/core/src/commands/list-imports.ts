@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve, dirname, relative } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { IncludeNode, ImportNode } from '@markdownai/parser'
+import { checkFilePath } from '@markdownai/engine'
 
 export interface ImportEntry {
   path: string
@@ -16,8 +17,8 @@ export interface ListImportsResult {
   exitCode: number
 }
 
-function isConfined(filePath: string, docRoot: string): boolean {
-  const rel = relative(docRoot, filePath)
+function isWithinDocRoot(resolvedPath: string, docRoot: string): boolean {
+  const rel = relative(docRoot, resolvedPath)
   return !rel.startsWith('..')
 }
 
@@ -29,7 +30,7 @@ function collectImports(
   errors: string[]
 ): void {
   if (visited.has(filePath)) return
-  if (!isConfined(filePath, docRoot)) {
+  if (!isWithinDocRoot(filePath, docRoot)) {
     errors.push(`Path traversal blocked: ${filePath} is outside document root ${docRoot}`)
     return
   }
@@ -48,8 +49,14 @@ function collectImports(
   for (const node of ast.nodes) {
     if (node.type === 'include' || node.type === 'import') {
       const n = node as IncludeNode | ImportNode
+      // checkFilePath validates relative directive paths against security rules
+      const check = checkFilePath(n.path, fileDir)
+      if (check.level === 'blocked') {
+        errors.push(`Path traversal blocked in ${filePath}: "${n.path}" — ${check.reason}`)
+        continue
+      }
       const resolved = resolve(fileDir, n.path)
-      if (!isConfined(resolved, docRoot)) {
+      if (!isWithinDocRoot(resolved, docRoot)) {
         errors.push(`Path traversal blocked in ${filePath}: "${n.path}" escapes document root`)
         continue
       }

@@ -5,6 +5,8 @@ import type { ListNode, ReadNode, CountNode, DateNode, TreeNode, DbNode, HttpNod
 import type { EngineContext } from './context.js'
 import { parseQuery, DbParseError } from './db/query.js'
 import { checkHttpUrl } from './security/http.js'
+import { checkFilePath } from './security/filesystem.js'
+import { checkDbOperation } from './security/database.js'
 import type { HttpSecurityConfig } from './security/config.js'
 import { globToRegex, walkDir, listJson, listCsv, readEnvFile } from './sources-file-utils.js'
 
@@ -16,6 +18,14 @@ function checkJailRoot(full: string, ctx: EngineContext): boolean {
 }
 
 export function executeList(node: ListNode, ctx: EngineContext): string[] {
+  const pathCheck = checkFilePath(node.path, ctx.docDir, ctx.security.filesystemConfig)
+  if (pathCheck.level === 'blocked') {
+    ctx.warnings.push(`SECURITY_ALERT: @list path blocked — ${pathCheck.reason}: ${node.path}`)
+    return []
+  }
+  if (pathCheck.level === 'alert') {
+    ctx.warnings.push(`SECURITY_ALERT: @list sensitive path accessed — ${pathCheck.reason}: ${node.path}`)
+  }
   const full = resolve(ctx.docDir, node.path)
   if (!checkJailRoot(full, ctx)) {
     ctx.warnings.push(`SECURITY_ALERT: @list path confined — access denied: ${node.path}`)
@@ -36,6 +46,14 @@ export function executeList(node: ListNode, ctx: EngineContext): string[] {
 }
 
 export function executeRead(node: ReadNode, ctx: EngineContext): string[] {
+  const pathCheck = checkFilePath(node.path, ctx.docDir, ctx.security.filesystemConfig)
+  if (pathCheck.level === 'blocked') {
+    ctx.warnings.push(`SECURITY_ALERT: @read path blocked — ${pathCheck.reason}: ${node.path}`)
+    return []
+  }
+  if (pathCheck.level === 'alert') {
+    ctx.warnings.push(`SECURITY_ALERT: @read sensitive path accessed — ${pathCheck.reason}: ${node.path}`)
+  }
   const full = resolve(ctx.docDir, node.path)
   if (!checkJailRoot(full, ctx)) {
     ctx.warnings.push(`SECURITY_ALERT: @read path confined — access denied: ${node.path}`)
@@ -121,6 +139,14 @@ export function buildTree(dir: string, prefix: string, matchRe: RegExp | null, d
 }
 
 export function executeTree(node: TreeNode, ctx: EngineContext): string[] {
+  const pathCheck = checkFilePath(node.path, ctx.docDir, ctx.security.filesystemConfig)
+  if (pathCheck.level === 'blocked') {
+    ctx.warnings.push(`SECURITY_ALERT: @tree path blocked — ${pathCheck.reason}: ${node.path}`)
+    return []
+  }
+  if (pathCheck.level === 'alert') {
+    ctx.warnings.push(`SECURITY_ALERT: @tree sensitive path accessed — ${pathCheck.reason}: ${node.path}`)
+  }
   const full = resolve(ctx.docDir, node.path)
   const matchPattern = node.args['match']
   const matchRe = matchPattern ? globToRegex(matchPattern) : null
@@ -157,6 +183,20 @@ export function executeDb(node: DbNode, ctx: EngineContext): string[] {
   if (!connection && !uriArg) {
     ctx.warnings.push('@db: no connection resolvable — use @connect or provide uri=env.VAR')
     return []
+  }
+
+  // Security check: validate the operation against db security rules
+  if (ctx.security.dbConfig) {
+    const connectionName = usingName ?? Object.keys(ctx.connections)[0] ?? 'default'
+    const operationStr = parsed.kind === 'raw'
+      ? parsed.query
+      : `${parsed.plan.operation} ${parsed.plan.collection}`
+    const dbCheck = checkDbOperation(operationStr, connectionName, ctx.security.dbConfig)
+    if (!dbCheck.allowed) {
+      const prefix = dbCheck.tier === 'always_block' ? 'SECURITY_ALERT' : 'WARN'
+      ctx.warnings.push(`${prefix}: @db operation blocked [${dbCheck.tier}] — ${dbCheck.reason}`)
+      return []
+    }
   }
 
   // Async DB execution is not available in the synchronous render path — use @cache mock= for development

@@ -1,18 +1,13 @@
-const SENSITIVE_VALUE_PATTERN = /SECRET|PASSWORD|TOKEN|KEY|CREDENTIAL|PRIVATE|AUTH|CERT/i
-// Regex patterns that detect connection string secrets embedded in values
-const CONNECTION_STRING_PATTERNS = [
-  /mongodb(?:\+srv)?:\/\/[^/\s]+:[^@\s]+@/,
-  /postgres(?:ql)?:\/\/[^/\s]+:[^@\s]+@/,
-  /mysql:\/\/[^/\s]+:[^@\s]+@/,
-  /:[^@\s]{8,}@/,  // generic user:password@ pattern (8+ chars to avoid false-positives on port numbers)
-]
+import { applyMasking } from '@markdownai/engine'
+
+const SENSITIVE_KEY_PATTERN = /SECRET|PASSWORD|TOKEN|KEY|CREDENTIAL|PRIVATE|AUTH|CERT/i
 
 function maskArgValue(key: string, value: string): string {
-  if (SENSITIVE_VALUE_PATTERN.test(key)) return '***MASKED***'
-  for (const re of CONNECTION_STRING_PATTERNS) {
-    if (re.test(value)) return value.replace(re, (m) => m.replace(/:([^@]+)@/, ':***MASKED***@'))
-  }
-  return value
+  // Mask by key name first (catches fields that may not contain patterns but are semantically sensitive)
+  if (SENSITIVE_KEY_PATTERN.test(key)) return '***MASKED***'
+  // Then apply engine content masking to catch embedded secrets in values (URIs, bearer tokens, etc.)
+  const { masked } = applyMasking(value)
+  return masked
 }
 
 function maskArgs(args: Record<string, string>): Record<string, string> {

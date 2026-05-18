@@ -1,20 +1,14 @@
 import { readFileSync } from 'node:fs'
-import { resolve, relative, isAbsolute } from 'node:path'
+import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { PhaseNode } from '@markdownai/parser'
-import { execute } from '@markdownai/engine'
+import { execute, checkFilePath } from '@markdownai/engine'
 
 export interface ResolvePhaseResult {
   content: string
   warnings: string[]
   found: boolean
   error?: string
-}
-
-function isConfined(filePath: string, cwd: string): boolean {
-  if (isAbsolute(filePath)) return false
-  const rel = relative(cwd, resolve(cwd, filePath))
-  return !rel.startsWith('..')
 }
 
 function isPhaseNode(n: unknown): n is PhaseNode {
@@ -27,8 +21,9 @@ export function resolvePhase(
   cwd: string,
   env?: Record<string, string>
 ): ResolvePhaseResult {
-  if (!isConfined(filePath, cwd)) {
-    return { content: '', warnings: [], found: false, error: `Path traversal blocked: "${filePath}"` }
+  const check = checkFilePath(filePath, cwd)
+  if (check.level === 'blocked') {
+    return { content: '', warnings: [], found: false, error: `Path traversal blocked: "${filePath}" — ${check.reason}` }
   }
 
   const full = resolve(cwd, filePath)

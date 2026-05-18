@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
-import { resolve, relative, isAbsolute } from 'node:path'
+import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
-import { execute } from '@markdownai/engine'
+import { execute, checkFilePath } from '@markdownai/engine'
 
 export interface CallMacroResult {
   output: string
@@ -12,12 +12,6 @@ export interface CallMacroResult {
 
 // Macro names must be simple identifiers — no injection via name
 const VALID_MACRO_NAME = /^\w+$/
-
-function isConfined(filePath: string, cwd: string): boolean {
-  if (isAbsolute(filePath)) return false
-  const rel = relative(cwd, resolve(cwd, filePath))
-  return !rel.startsWith('..')
-}
 
 function escapeArgValue(v: string): string {
   // Remove characters that could inject new directives or break the @call arg list.
@@ -32,8 +26,9 @@ export function callMacro(
   cwd: string,
   env?: Record<string, string>
 ): CallMacroResult {
-  if (!isConfined(filePath, cwd)) {
-    return { output: '', warnings: [], found: false, error: `Path traversal blocked: "${filePath}"` }
+  const check = checkFilePath(filePath, cwd)
+  if (check.level === 'blocked') {
+    return { output: '', warnings: [], found: false, error: `Path traversal blocked: "${filePath}" — ${check.reason}` }
   }
   if (!VALID_MACRO_NAME.test(macroName)) {
     return { output: '', warnings: [], found: false, error: `Invalid macro name: "${macroName}"` }
