@@ -37,7 +37,7 @@ The database schema gets a new field. The API endpoint moves. The environment va
 
 This is not a process failure. This is physics. Static text cannot track a moving system.
 
-**MarkdownAI is the solution.** Add `@markdownai` to the first line of any `.md` file, and it becomes a live document. Instead of writing values that will go stale, you write directives that fetch the current value every time the document is rendered. Your database record count is queried when someone reads the doc, not when you wrote it. Your API response is real. Your environment variables are live. Your file tree reflects what's actually on disk right now.
+**MarkdownAI is the solution.** Add `@markdownai` to the first line of any `.md` file (or the first line after YAML frontmatter), and it becomes a live document. Instead of writing values that will go stale, you write directives that fetch the current value every time the document is rendered. Your database record count is queried when someone reads the doc, not when you wrote it. Your API response is real. Your environment variables are live. Your file tree reflects what's actually on disk right now.
 
 Run `mai render`. The document executes. The output is clean, standard Markdown with everything resolved.
 
