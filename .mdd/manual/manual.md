@@ -2,14 +2,14 @@
 
 > documentation that cannot lie.
 
-**Version:** 0.0.1  
-**Generated:** 2026-05-16
+**Version:** 0.0.4  
+**Generated:** 2026-05-17
 
-MarkdownAI is a superset of Markdown that makes your documents "live." Instead of writing documentation that drifts from reality the moment your code or data changes, MarkdownAI documents fetch their information directly from the sources that power your application — databases, APIs, the filesystem, environment variables, shell commands — and render fresh, accurate output every time you run them.
+MarkdownAI is a superset of Markdown that makes your documents "live." Instead of writing documentation that drifts from reality the moment your code or data changes, MarkdownAI documents fetch their information directly from the sources that power your application - databases, APIs, the filesystem, environment variables, shell commands - and render fresh, accurate output every time you run them.
 
 The result is documentation that is always current and always honest. When you run `mai render`, the document reflects what your system actually is, not what it was when someone last bothered to update it.
 
-MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes any `.md` file that begins with the `@markdownai` header directive. Everything else in the file is standard Markdown, extended with directives that let you fetch, filter, transform, and display live data. It is organized as a six-package npm monorepo and supports 48 language, security, caching, AI-native, MCP integration, and Claude Code skill context features documented in this manual.
+MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes any `.md` file that begins with the `@markdownai` header directive. Everything else in the file is standard Markdown, extended with directives that let you fetch, filter, transform, and display live data. It is organized as a six-package npm monorepo and supports 78 language, security, caching, AI-native, MCP integration, VS Code extension, and @db query system features documented in this manual.
 
 ---
 
@@ -40,6 +40,9 @@ MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes 
    - [@http HTTP Request Directive](#language--http-http-request-directive)
    - [@query Shell Command Directive](#language--query-shell-command-directive)
    - [@phase, @on complete, and @graph](#language--phase-on-complete-and-graph)
+   - [Standard Library (stdlib)](#standard-library-stdlib)
+   - [match Operator — Regex Matching in Expressions](#match-operator---regex-matching-in-expressions)
+   - [@note Directive](#note-directive)
    - **Security**
    - [Security Config, Runtime Modes, Audit Log](#security--config-file-runtime-modes-audit-log)
    - [Filesystem Confinement and Content Masking](#security--filesystem-confinement-and-content-masking)
@@ -73,6 +76,36 @@ MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes 
    - [MDD Token Economics and Accuracy Analysis](#mdd-token-economics-and-accuracy-analysis)
    - [Skill Context Variables — Claude Code Slash Command Integration](#skill-context-variables--claude-code-slash-command-integration)
    - [Shell Inline - Native !`command` Interception](#shell-inline---native-command-interception)
+   - [Claude-Native Adoption](#claude-native-adoption)
+   - **VS Code Extension**
+   - [Package Scaffold](#vs-code-extension---package-scaffold)
+   - [Language Detection](#vs-code-extension---language-definition-and-detection)
+   - [Syntax Highlighting](#vs-code-extension---syntax-highlighting)
+   - [Snippets](#vs-code-extension---markdownai-snippets)
+   - [Completion Provider](#vs-code-extension---completion-provider)
+   - [Hover Provider](#vs-code-extension---hover-provider)
+   - [Go-To-Definition for Macros](#go-to-definition-for-macros)
+   - [Find All References for Macros](#find-all-references-for-macros)
+   - [Diagnostics Provider](#diagnostics-provider)
+   - [Extension Settings](#extension-settings)
+   - [Extension Test Suite](#extension-test-suite)
+   - [README and Marketplace Metadata](#readme-and-marketplace-metadata)
+   - **@db Query System**
+   - [@db Directive — Query Language](#db-directive---query-language)
+   - [@db where Clause](#db-where-clause)
+   - [@db aggregate Operation](#db-aggregate-operation)
+   - [@db raw= Escape Hatch](#db-raw-escape-hatch)
+   - [DB - QueryPlan Type System](#db---queryplan-type-system)
+   - [DB - Executor](#db---executor)
+   - [DB - DbAdapter Interface](#db---dbadapter-interface)
+   - [DB - MongoDB Adapter](#db---mongodb-adapter)
+   - [DB - SQL Adapters (PostgreSQL, MySQL, MSSQL, SQLite)](#db---sql-adapters-postgresql-mysql-mssql-sqlite)
+   - [DB - Security System](#db---security-system)
+   - [DB - Caching Integration](#db---caching-integration)
+   - [DB - Error Handling](#db---error-handling)
+   - **Toolchain**
+   - [Engine Bug Fixes](#engine-bug-fixes)
+   - [Package README Files - All npm Packages](#package-readme-files---all-npm-packages)
 3. [Command Reference](#command-reference)
 4. [Configuration Reference](#configuration-reference)
 
@@ -2346,6 +2379,971 @@ Shell inline has no label - unlike `@query label=varname`, output is injected at
 Any `@markdownai` document - whether used as a Claude Code skill, a standalone runbook, a spec, or a dashboard - routes all shell execution through the security layer. The document's own header cannot be used as a vector for ungated shell execution, even if the author uses Claude Code's own syntax.
 
 <!-- /mdd-section: 48-shell-inline -->
+
+<!-- mdd-section: 49-stdlib -->
+### Standard Library (stdlib)
+
+The standard library gives every MarkdownAI document a ready-made set of 32 macros for common tasks - git queries, filesystem checks, project detection, and more. No setup required: write `@call git-branch` and it works.
+
+#### What It Does
+
+The stdlib auto-loads when the engine starts, so every document marked `@markdownai` has immediate access to all 32 macros. Calling a macro runs the underlying operation - a git command, a file scan, an environment check - and stores the result in a template variable you can use anywhere in the document. Macros that could produce large output are capped automatically so documents stay readable. If you define a macro with the same name yourself, your version wins.
+
+The 32 macros are grouped into five areas:
+
+- **Git operations (9):** branch, status, log, diff stats, staged files, modified files, untracked files, commits ahead of remote, last commit message
+- **Filesystem (7):** directory listing, file search by pattern, large files, recently changed files, tree view, file count by extension, directory size
+- **Project detection (5):** package manager, primary language, project name, version, test command
+- **Code analysis (5):** TODO comments, console.log calls, TypeScript `any` types, test file locations, arbitrary grep
+- **Environment (6):** Node version, OS, port availability check, command existence check, CI detection, git author
+
+#### How To Use It
+
+1. Open any `.md` file that starts with `@markdownai v1.0`.
+2. Add an `@call` directive anywhere in the document, using the macro name.
+3. Reference the result with `{{ variable_name }}` in surrounding text or inside `@if` conditions.
+4. Render the document with `mai render <file>` - the engine resolves all calls and substitutes values.
+
+**Macro syntax:**
+
+```markdown
+@call <macro-name>
+```
+
+Some macros accept a parameter:
+
+```markdown
+@call fs-find(*.ts)
+@call env-port(3000)
+@call fs-count(ts)
+@call code-grep(TODO)
+```
+
+To override a stdlib macro, define your own `@define` with the same name. Your definition takes precedence.
+
+#### Examples
+
+**Show current branch and project manager:**
+
+```markdown
+@call git-branch
+@call project-manager
+
+Working on: {{ current_branch }}
+Package manager: {{ pkg_manager }}
+```
+
+**Check for TypeScript `any` usage:**
+
+```markdown
+@call code-any-types
+
+TypeScript any count: {{ any_count }}
+```
+
+**Use git status in a conditional:**
+
+```markdown
+@call git-modified
+
+@if {{ modified_files }} != ""
+> Warning: you have uncommitted changes.
+@endif
+```
+
+<!-- /mdd-section: 49-stdlib -->
+
+<!-- mdd-section: 50-match-operator -->
+### match Operator - Regex Matching in Expressions
+
+The `match` operator lets you test a value against a regex pattern directly inside `@if` conditions, inline interpolations, and filter clauses. It removes the need to write raw JavaScript regex syntax in your documents.
+
+#### What It Does
+
+`match` is an infix operator in the MarkdownAI expression system. You place it between a value (an environment variable, a dotted path like `env.BRANCH`, or a `{{ }}` interpolation) and a quoted pattern string. MarkdownAI compiles the pattern into a regular expression at render time and evaluates whether it matches. The result is a boolean - `true` or `false` - which drives conditional blocks, inline output, or list filters depending on where you use it.
+
+#### How To Use It
+
+**Syntax:**
+```
+<value> match "<pattern>"
+```
+
+- `<value>` - an env var name, a dotted path (`env.BRANCH`), or a `{{ }}` interpolation
+- `"<pattern>"` - a regex pattern string without surrounding slashes
+
+**Where you can use it:**
+
+1. **In `@if` conditions** - controls whether a block renders
+   ```markdown
+   @if {{ current_branch }} match "^feat"
+   Content shown only on feature branches.
+   @endif
+   ```
+
+2. **In inline interpolations** - outputs `true` or `false` in text
+   ```markdown
+   On feature branch: {{ current_branch match "^feat" }}
+   ```
+
+3. **In `where` clauses** on `@list`, `@read`, and `@db` - filters items by pattern match
+
+**Negation** - prefix with `!` to invert the match:
+```markdown
+@if !({{ current_branch }} match "^feat")
+Not a feature branch.
+@endif
+```
+
+#### Examples
+
+**Guard a workflow to feature branches only:**
+```markdown
+@call git-branch
+@if {{ current_branch }} match "^feat"
+This is a feature branch - proceed with feature workflow.
+@endif
+```
+
+**Warn when working directly on main:**
+```markdown
+@if {{ current_branch }} match "^(main|master)$"
+@constraint You are on the main branch. Create a feature branch before making changes.
+@endif
+```
+
+**Show branch type inline:**
+```markdown
+Is feature branch: {{ current_branch match "^feat" }}
+```
+
+<!-- /mdd-section: 50-match-operator -->
+
+<!-- mdd-section: 51-package-scaffold -->
+### VS Code Extension - Package Scaffold
+
+The MarkdownAI VS Code extension package provides the foundation that all editor features build on. It registers the extension with VS Code and exports the activation hooks that subsequent features populate.
+
+#### What It Does
+
+This package sets up the `@markdownai/vscode` extension as a member of the monorepo. It wires up the two entry points VS Code requires - `activate()` and `deactivate()` - so that subsequent features (language detection, syntax highlighting, snippets, completions) can register their behavior in a consistent place. The extension loads when VS Code finishes starting up, which means it is ready before you open your first file. Minimum VS Code version required is 1.85.
+
+#### How To Use It
+
+The scaffold itself has no user-facing commands or settings. You interact with it by installing the extension and then using the features built on top of it. To build from source:
+
+1. Navigate to the monorepo root.
+2. Run `npm install` to install all workspace dependencies.
+3. Run `npm run build --workspace=packages/vscode` to compile the extension.
+4. In VS Code, press F5 inside the `packages/vscode` folder to launch a development host window.
+
+#### Examples
+
+```bash
+# Build only the VS Code package
+npm run build --workspace=packages/vscode
+```
+
+<!-- /mdd-section: 51-package-scaffold -->
+
+<!-- mdd-section: 52-language-definition -->
+### VS Code Extension - Language Definition and Detection
+
+MarkdownAI files are plain `.md` files with a special header, so VS Code cannot tell them apart from ordinary markdown by filename alone. This feature solves that by checking file content at open time and switching the language mode automatically - so every other editor feature activates exactly when it should.
+
+#### What It Does
+
+When you open any `.md` file whose very first line is `@markdownai`, the extension detects it and switches that document's language to `markdownai`. This detection runs on files that are already open when VS Code starts, and on every file you open afterward. The language switch is what triggers grammar highlighting, snippet suggestions, and completions to activate. Files that do not start with `@markdownai` stay in standard markdown mode.
+
+#### How To Use It
+
+Detection is automatic once the extension is installed. No settings to configure.
+
+1. Open any `.md` file in VS Code.
+2. Make sure the very first line (no leading spaces) is exactly `@markdownai`.
+3. The language mode indicator in the status bar switches from "Markdown" to "MarkdownAI".
+4. If the file was already open before the extension activated, the switch still happens.
+
+Two things to watch:
+- The match is case-sensitive. `@MarkdownAI` or `@markdownai ` (trailing space) will not trigger detection.
+- If a document is already set to `markdownai` language, the extension skips it to avoid redundant processing.
+
+#### Examples
+
+A file that triggers detection (first line is the header):
+```markdown
+@markdownai v1.0
+
+## My Document
+
+@env DATABASE_URL
+```
+
+A file that does NOT trigger detection (header is not the first line):
+```markdown
+## My Document
+
+@markdownai v1.0
+```
+
+<!-- /mdd-section: 52-language-definition -->
+
+<!-- mdd-section: 53-syntax-highlighting -->
+### VS Code Extension - Syntax Highlighting
+
+MarkdownAI files mix directive syntax with standard markdown, and without highlighting the two blur together. This feature gives every MarkdownAI construct its own color so you can read a document at a glance without mentally parsing the syntax.
+
+#### What It Does
+
+The extension registers a language grammar for MarkdownAI files. It colors directive keywords (like `@env`, `@if`, `@include`), `{{ expression }}` interpolations, named parameters like `label=` or `ext=`, and the `@markdownai` header line - each in a distinct scope that your color theme can style. Everything that is not a MarkdownAI construct falls through to standard markdown highlighting, so headings, bold text, lists, and code fences all look the same as in any other markdown file.
+
+All directive keywords are covered: `import`, `include`, `define`, `enddefine`, `call`, `env`, `if`, `elseif`, `else`, `endif`, `query`, `list`, `read`, `http`, `db`, `connect`, `tree`, `date`, `count`, `render`, `phase`, `on`, `graph`, `prompt`, `constraint`, `cache`, and `match`.
+
+#### How To Use It
+
+Highlighting activates automatically when a file is detected as MarkdownAI. No configuration needed.
+
+If your color theme does not style MarkdownAI scopes distinctly, add token color overrides in VS Code `settings.json` under `editor.tokenColorCustomizations`.
+
+<!-- /mdd-section: 53-syntax-highlighting -->
+
+<!-- mdd-section: 54-snippets -->
+### VS Code Extension - MarkdownAI Snippets
+
+Remembering the exact syntax for multi-line directives like `@define...@enddefine` or `@if...@endif` slows you down and leads to typos. Snippets let you type a short prefix, press Tab, and get a correctly structured template with your cursor already in the right place.
+
+#### What It Does
+
+The extension ships a snippet for every commonly-used MarkdownAI directive. Each snippet expands to the full directive structure - including closing tags where needed - and uses tab stops so you can jump between the parts that need your input. The header snippet (`mai`) gives you the `@markdownai` line needed to activate the language on any new document.
+
+#### How To Use It
+
+1. Open a `.md` file with MarkdownAI highlighting active.
+2. Type the snippet prefix.
+3. Press **Tab** to expand the snippet.
+4. Fill in the first placeholder, then press **Tab** again to move to the next one.
+
+Available snippets:
+
+| Prefix | Expands to |
+|--------|-----------|
+| `mai` | `@markdownai` header |
+| `@import` | `@import ./path.md` |
+| `@include` | `@include ./path.md` |
+| `@define` | Full `@define name ... @enddefine` block |
+| `@call` | `@call macro-name` |
+| `@env` | `@env VAR_NAME` |
+| `@if` | Full `@if ... @endif` block |
+| `@ifelse` | Full `@if ... @else ... @endif` block |
+| `@query` | `@query label=result command` |
+| `@http` | `@http https://...` |
+| `@list` | `@list from=./data.json` |
+| `@read` | `@read ./file.txt` |
+| `{{` | `{{ variable }}` |
+| `@prompt` | `@prompt` block |
+| `@constraint` | `@constraint description` |
+| `@define-concept` | `@define-concept Name\nDefinition.` |
+
+#### Examples
+
+Typing `@define` and pressing Tab expands to:
+```markdown
+@define name param
+...
+@enddefine
+```
+Your cursor lands on `name`, then tabs to `param`, then to the body.
+
+Typing `{{` and pressing Tab expands to `{{ variable }}` with the cursor on `variable`.
+
+<!-- /mdd-section: 54-snippets -->
+
+<!-- mdd-section: 55-completion-provider -->
+### VS Code Extension - Completion Provider
+
+When you type `@call ` in a MarkdownAI document, an IntelliSense popup lists every available macro. This saves you from memorizing macro names and shows you what each one does before you commit to using it.
+
+#### What It Does
+
+The completion provider scans three sources for macros: the 32 built-in stdlib macros (things like `git-status`, `git-branch`, and `fs-ls`), any `@define` blocks in the current file, and macros from files pulled in with `@import`. Each item in the popup shows the macro name, the label variable it writes to (so you know how to reference the output), and a short description of what the macro does. Your own macros appear first, imported macros second, and stdlib macros last.
+
+#### How To Use It
+
+1. Open any `.md` file that starts with `@markdownai`.
+2. Type `@call ` (include the space after `call`).
+3. The IntelliSense popup appears automatically.
+4. Browse the list and select a macro with Enter or Tab.
+
+#### Examples
+
+Typing `@call ` shows a popup item for `git-branch`:
+```
+git-branch   → {{ current_branch }}
+Returns the active git branch name.
+```
+
+Typing `@call git` narrows the list to macros whose names start with `git`.
+
+<!-- /mdd-section: 55-completion-provider -->
+
+<!-- mdd-section: 56-hover-provider -->
+### VS Code Extension - Hover Provider
+
+Hovering over a macro name in a MarkdownAI document shows an inline tooltip with the macro's description, what variable it sets, and where it comes from. You get the documentation you need without switching windows.
+
+#### What It Does
+
+The hover provider activates whenever your cursor rests on a line containing `@call macro-name` or `@define macro-name`. It looks up that macro across stdlib, the current file, and any imported files, then displays a small formatted card. The card shows the macro name, whether it comes from stdlib, a local `@define`, or an imported file, the label variable the macro writes its output to, and a plain-English description of what it does. If the macro is not found anywhere, no tooltip appears.
+
+#### How To Use It
+
+1. Open any `.md` file that starts with `@markdownai`.
+2. Find a line with `@call` or `@define` followed by a macro name.
+3. Hover your cursor anywhere on that line.
+4. The tooltip appears after VS Code's normal hover delay.
+
+#### Examples
+
+Hovering over `@call git-status` shows:
+```
+**git-status** (stdlib)
+- sets `{{ git_status }}`
+
+Compact working tree status.
+```
+
+Hovering over a custom `@define summarize-errors` in the same file:
+```
+**summarize-errors** (local)
+- sets `{{ summary }}`
+
+Your description from the @define comment block.
+```
+
+<!-- /mdd-section: 56-hover-provider -->
+
+<!-- mdd-section: 57-definition-provider -->
+### Go-To-Definition for Macros
+
+Press Cmd+Click (Mac) or F12 on any `@call macro-name` line to jump directly to where that macro is defined. This works whether the macro lives in the same file, an imported file, or the MarkdownAI standard library.
+
+#### What It Does
+
+When you're reading or editing a MarkdownAI document, macros can be defined anywhere - in the current file, in a file you've imported with `@import`, or in the built-in stdlib. This feature lets you navigate to the definition instantly, just like jumping to a function definition in a programming language. If the macro can't be found, nothing happens - no error, just no navigation.
+
+#### How To Use It
+
+1. Open any MarkdownAI document in VS Code.
+2. Find a line that calls a macro - it will look like `@call macro-name`.
+3. Hold Cmd (Mac) or Ctrl (Windows/Linux) and click anywhere on that line, or press F12 with your cursor on the line.
+4. VS Code jumps to the `@define macro-name` block where that macro is declared.
+5. If the macro is defined in a different file, VS Code opens that file automatically and positions you at the definition.
+
+<!-- /mdd-section: 57-definition-provider -->
+
+<!-- mdd-section: 58-reference-panel -->
+### Find All References for Macros
+
+Press Shift+F12 on any `@call macro-name` or `@define macro-name` line to see every place that macro is used in the current document. The results appear in VS Code's standard References panel.
+
+#### What It Does
+
+When you want to know everywhere a macro is called before renaming or changing it, this feature gives you a complete list. It scans the current document for all `@call` occurrences of that macro and includes the `@define` location if the macro is defined locally. Note that the search covers the current file only.
+
+#### How To Use It
+
+1. Open a MarkdownAI document in VS Code.
+2. Place your cursor on any line containing `@call macro-name` or `@define macro-name`.
+3. Press Shift+F12.
+4. The References panel opens showing every location where that macro appears.
+5. Click any result in the panel to jump to that line.
+
+<!-- /mdd-section: 58-reference-panel -->
+
+<!-- mdd-section: 59-diagnostics-provider -->
+### Diagnostics Provider
+
+The Diagnostics Provider catches structural mistakes and broken macro references in your MarkdownAI documents before you render them. Problems show up as squiggly underlines directly in the editor - red for errors, yellow for warnings.
+
+#### What It Does
+
+Every time you open or edit a MarkdownAI document, the extension runs two checks. The first check looks at block structure: if you open an `@if`, `@define`, or `@phase` block and never close it, the opening line gets a red error underline. The second check looks at macro calls: if you use `@call someMacro` and that macro is not defined anywhere in scope, the `@call` line gets a yellow warning underline. When you close the document, all diagnostics for it are cleared.
+
+#### How To Use It
+
+1. Open any MarkdownAI document.
+2. Write or edit your directives normally.
+3. Watch the editor for squiggly underlines - red means a block is missing its closing tag, yellow means a macro name is not recognized.
+4. Hover over an underline to read the diagnostic message.
+5. Fix the issue and the underline disappears automatically.
+
+See Extension Settings to disable diagnostics or silence undefined-macro warnings independently.
+
+#### Examples
+
+Unclosed block (red error on the `@if` line):
+```markdown
+@if env.DEBUG
+Some debug content
+(no @endif - error here)
+```
+
+Unknown macro reference (yellow warning):
+```markdown
+@call formatTable
+```
+
+<!-- /mdd-section: 59-diagnostics-provider -->
+
+<!-- mdd-section: 60-extension-settings -->
+### Extension Settings
+
+Extension Settings give you control over how the MarkdownAI extension behaves in VS Code. You can turn off diagnostics entirely, silence undefined-macro warnings while keeping structural checks, or point the extension at a custom stdlib file.
+
+#### What It Does
+
+The extension registers a set of configuration options under the `markdownai` namespace. These options let you tune the Diagnostics Provider and tell the extension where to find your stdlib macro definitions.
+
+#### How To Use It
+
+1. Open VS Code Settings with `Cmd+,` (macOS) or `Ctrl+,` (Windows/Linux).
+2. Search for `markdownai`.
+3. Update the setting. Changes take effect on the next document open or edit - no restart needed.
+
+#### Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `markdownai.diagnostics.enabled` | boolean | `true` | Set to `false` to turn off all diagnostics and clear existing underlines |
+| `markdownai.diagnostics.warnUndefinedMacros` | boolean | `true` | Set to `false` to skip macro reference checks; structural errors still reported |
+| `markdownai.stdlibPath` | string | `"packages/engine/src/stdlib.md"` | Path to stdlib macro definitions, relative to workspace root |
+
+<!-- /mdd-section: 60-extension-settings -->
+
+<!-- mdd-section: 61-test-suite -->
+### Extension Test Suite
+
+The MarkdownAI VS Code extension ships with a full automated test suite that verifies every major feature. All 79 tests run in under a second without needing a running VS Code instance or a display server.
+
+#### What It Does
+
+The test suite covers autocomplete, hover documentation, diagnostics, go-to-definition, reference finding, language detection, snippet content, grammar token scopes, and settings behavior. Rather than testing against the VS Code API directly, the suite targets pure analysis modules - so tests are fast, reliable, and run in any environment including CI.
+
+#### How To Use It
+
+```bash
+cd packages/vscode
+npm test
+```
+
+All 9 test files run automatically. If a test fails, the output names the specific check and the module it tests.
+
+<!-- /mdd-section: 61-test-suite -->
+
+<!-- mdd-section: 62-readme-and-marketplace -->
+### README and Marketplace Metadata
+
+The extension README is the first thing users see in the VS Code Marketplace and the Extensions panel. This feature covers all the content and metadata that make the extension discoverable and easy to understand before install.
+
+#### What It Does
+
+The README explains what MarkdownAI is, lists every feature the extension provides, and documents all available settings with their defaults. The extension's `package.json` also includes the publisher metadata required to build a `.vsix` package with `vsce package`.
+
+#### How To Use It
+
+1. Install the extension from the VS Code Marketplace or by opening a `.vsix` file.
+2. Open any `.md` file that starts with `@markdownai` on the first line.
+3. All features activate automatically - no manual setup required.
+4. Adjust behavior via VS Code Settings by searching for `markdownai`.
+
+<!-- /mdd-section: 62-readme-and-marketplace -->
+
+<!-- mdd-section: 63-db-query-language -->
+### @db Directive - Query Language
+
+The `@db` directive runs a database query and returns rows as output you can pipe into other directives. It works with MongoDB, Postgres, MySQL, SQL Server, and SQLite - and a document written for one database looks identical when pointed at another.
+
+#### What It Does
+
+`@db` connects to a database, runs one of five operations (find, one, count, aggregate, or raw), and passes typed rows downstream. The query language is database-agnostic, so if your team switches databases, the document stays the same. Because this directive accesses live data, it is disabled by default and must be explicitly enabled in your security configuration.
+
+#### How To Use It
+
+1. Enable `@db` in `~/.markdownai/security.json`.
+2. Set up a named connection using `@connect`, or prepare an environment variable holding your connection string.
+3. Add an `@db` directive with exactly one operation.
+4. Pipe the output into `@render` or another directive to format results.
+
+**Five operations - pick exactly one per directive:**
+
+| Operation | What It Does |
+|-----------|--------------|
+| `find="collection"` | Returns multiple rows matching your filter |
+| `one="collection"` | Returns the first matching row |
+| `count="collection"` | Returns a row count |
+| `aggregate="collection"` | Groups and summarizes rows |
+| `raw="SQL string"` | Runs a raw SQL statement (read-only) |
+
+**Common options:**
+
+| Option | Applies To | Description |
+|--------|------------|-------------|
+| `using="name"` | All | Named connection from `@connect` registry |
+| `uri=env.VAR` | All | Inline connection string from an environment variable |
+| `where="expression"` | find, one, count, aggregate | Filter condition |
+| `sort="field:asc"` | find, one | Sort order |
+| `limit=N` | find | Maximum rows to return |
+| `columns="field:Label,..."` | find, one, aggregate | Select and rename output fields |
+| `group="field"` | aggregate | Group rows by this field |
+| `count=true` | aggregate | Count rows per group |
+| `sum="field"` | aggregate | Sum a numeric field per group |
+| `avg="field"` | aggregate | Average a numeric field per group |
+| `as="table"` | All | Shorthand for `\| @render type="table"` |
+| `@cache` | All | Cache the result - always the last token |
+
+#### Examples
+
+Return all active users as a table:
+```markdown
+@db using="primary" find="users" where="active==true" | @render type="table"
+```
+
+Look up a single record by environment variable:
+```markdown
+@db using="primary" one="users" where="email==env.ADMIN_EMAIL"
+```
+
+Count pending orders:
+```markdown
+@db using="primary" count="orders" where="status==pending"
+```
+
+Summarize orders by status:
+```markdown
+@db using="primary" aggregate="orders" group="status" count=true | @render type="bar"
+```
+
+<!-- /mdd-section: 63-db-query-language -->
+
+<!-- mdd-section: 64-db-where-clause -->
+### @db where Clause
+
+The `where=` option filters what rows a `@db` directive returns. It uses the same expression system as the rest of MarkdownAI, so you can reference environment variables, combine conditions with AND and OR, and group sub-expressions with parentheses.
+
+#### What It Does
+
+When you add `where=` to a `@db` directive, MarkdownAI evaluates the expression before the query runs. On MongoDB, the filter becomes a native server-side query. On SQL databases, MarkdownAI fetches rows and applies the filter in memory - so for large SQL datasets, a `raw=` query with a native WHERE clause performs better. Environment variable references are resolved before anything is sent to the database.
+
+#### How To Use It
+
+Write the `where=` value as a string expression:
+
+| Operator | Meaning |
+|----------|---------|
+| `==` | Equal |
+| `!=` | Not equal |
+| `>` / `<` | Greater / less than |
+| `>=` / `<=` | Greater or equal / less or equal |
+| `&&` | AND |
+| `\|\|` | OR |
+| `( )` | Grouping |
+
+MarkdownAI automatically infers value types: `true`/`false` become booleans, numeric strings become numbers, `null` becomes null, `env.VAR` is resolved from the environment.
+
+#### Examples
+
+Filter by boolean:
+```markdown
+@db using="primary" find="users" where="active==true"
+```
+
+Filter with an environment variable:
+```markdown
+@db using="primary" one="users" where="id==env.TARGET_USER_ID"
+```
+
+Combine conditions:
+```markdown
+@db using="primary" find="users" where="active==true && role==admin"
+```
+
+Group sub-expressions:
+```markdown
+@db using="primary" find="users" where="(role==admin || role==editor) && active==true"
+```
+
+<!-- /mdd-section: 64-db-where-clause -->
+
+<!-- mdd-section: 65-db-aggregate-operation -->
+### @db aggregate Operation
+
+The aggregate operation groups database rows by a field and computes summary values for each group. Use it to answer questions like "how many orders per status?" or "what is the total revenue by region?" directly in your document.
+
+#### What It Does
+
+When you query a collection with `aggregate=`, MarkdownAI groups every row by the field you specify in `group=`, then computes whichever summary values you ask for - counts, sums, averages, minimums, or maximums. The result comes back as a flat table with one row per group, ready to pipe into a chart or table renderer. You can combine multiple aggregation functions on a single directive, and you can filter rows with `where=` before grouping happens.
+
+#### How To Use It
+
+1. Add `aggregate="<collection>"` as the operation.
+2. Add `group="<field>"` - required.
+3. Add at least one aggregation function:
+   - `count=true` - rows per group (output column: `count`)
+   - `sum="<field>"` - sum per group (output column: `sum_<field>`)
+   - `avg="<field>"` - average per group (output column: `avg_<field>`)
+   - `min="<field>"` / `max="<field>"` - min/max per group
+4. Optionally add `where=` to filter rows before grouping, or `columns=` to rename output columns.
+5. Pipe to `@render` to display.
+
+#### Examples
+
+Count orders by status as a bar chart:
+```markdown
+@db using="primary" aggregate="orders" group="status" count=true | @render type="bar"
+```
+
+Sum revenue by region:
+```markdown
+@db using="primary" aggregate="orders" group="region" sum="amount" | @render type="table"
+```
+
+Multiple aggregations with a date filter:
+```markdown
+@db using="primary" aggregate="orders" group="status" count=true sum="amount" avg="amount" where="createdAt>2025-01-01" | @render type="table"
+```
+
+Output shape:
+```
+status    | count | sum_amount | avg_amount
+----------|-------|------------|----------
+pending   | 142   | 28400.00   | 200.00
+complete  | 1203  | 240600.00  | 200.00
+```
+
+<!-- /mdd-section: 65-db-aggregate-operation -->
+
+<!-- mdd-section: 66-db-raw-escape-hatch -->
+### @db raw= Escape Hatch
+
+The `raw=` option lets you pass a native query string directly to your database, bypassing the structured `@db` query syntax. Use it for queries that cannot be expressed in structured form - complex joins, window functions, CTEs, or full aggregation pipelines.
+
+#### What It Does
+
+Every `@db` directive normally uses structured options (`find=`, `aggregate=`, `where=`, etc.) to build queries in a controlled way. The `raw=` escape hatch hands your string straight to the database adapter, giving you the full power of the underlying query language. Because this bypasses the structured layer, it carries extra requirements: you must opt in per connection via your security config, every execution writes a warning to the audit log, and write patterns are still blocked by MarkdownAI's immutable rules regardless. Raw queries are never cached by default - add `@cache` explicitly if you need caching.
+
+#### How To Use It
+
+1. Set `allow_raw: true` in `~/.markdownai/security.json` for the named connection. Without this, the directive is stripped with a warning.
+2. Write your directive with `raw="<native query string>"`.
+3. Pipe to `@render` as usual.
+4. Add `@cache` explicitly if you want caching.
+
+Keep in mind:
+- `raw=` cannot be combined with `find=`, `one=`, `count=`, or `aggregate=`.
+- Every execution appends a WARN to the audit log. This cannot be suppressed.
+- Patterns like `DROP TABLE` and `DELETE FROM` raise SECURITY_ALERT and halt the document, even with `allow_raw: true`.
+
+#### Examples
+
+Join users to their orders, count per user:
+```markdown
+@db using="primary" raw="SELECT u.name, COUNT(o.id) as orders FROM users u LEFT JOIN orders o ON u.id = o.user_id WHERE u.active = true GROUP BY u.id ORDER BY orders DESC LIMIT 10" | @render type="table"
+```
+
+<!-- /mdd-section: 66-db-raw-escape-hatch -->
+
+<!-- mdd-section: 67-db-queryplan-types -->
+### DB - QueryPlan Type System
+
+The QueryPlan type system is the intermediate representation that sits between the `@db` directive parser and the database adapters. The parser produces a QueryPlan, every adapter consumes one, and this contract is what makes the database-agnostic directive syntax possible.
+
+#### What It Does
+
+QueryPlan defines a fixed set of TypeScript types that describe any supported query in a normalized, adapter-neutral form. The core types cover operations (`find`, `one`, `count`, `aggregate`), filter conditions with resolved primitive values, sort terms, column mappings, and aggregate functions. The `Row` type restricts values to primitives and null - no nested objects, arrays, or Date instances pass through. This strict boundary keeps adapters simple and output predictable. Raw queries bypass the QueryPlan entirely and are handled through a separate code path.
+
+#### How To Use It
+
+When writing a new adapter, implement `execute(plan: QueryPlan)` - you receive a fully resolved plan with no env tokens or unevaluated expressions. When extending the parser, produce a QueryPlan with all `Filter.value` fields resolved to typed primitives before emitting. Never add `"raw"` as an operation type - raw routing is handled outside the QueryPlan flow.
+
+<!-- /mdd-section: 67-db-queryplan-types -->
+
+<!-- mdd-section: 68-db-executor -->
+### DB - Executor
+
+The executor is the bridge between the query parser and the adapter layer. It parses `@db` directive options into a QueryPlan, routes to the correct adapter by connection type, handles security checks for raw queries, and returns normalized rows.
+
+#### What It Does
+
+The executor splits into two modules. The parsing module takes raw `@db` options, resolves all `env.VAR` tokens, infers value types, parses where clauses, and produces a QueryPlan. The routing module receives that QueryPlan, looks up the adapter by connection type string, and calls the adapter's `execute` method. For raw queries, it checks `allow_raw` first - if false, the directive is stripped with a WARN; if true, an unconditional WARN is written to the audit log before execution. Connection lifecycle: the MCP server connects at startup and holds connections open; the CLI connects on demand and disconnects after each command.
+
+#### How To Use It
+
+To add support for a new database: create one adapter file implementing DbAdapter, add the type string to the `supported_types` list in the executor module. No other changes needed. The executor handles all routing and security checks automatically.
+
+<!-- /mdd-section: 68-db-executor -->
+
+<!-- mdd-section: 69-db-adapter-interface -->
+### DB - DbAdapter Interface
+
+The DbAdapter interface is the contract every database adapter must implement. It defines five methods covering connection management, query execution, raw query passthrough, health checks, and clean teardown.
+
+#### What It Does
+
+Any new adapter must implement: `connect(uri)` to open the connection, `execute(plan)` to translate a QueryPlan to a native query and return typed rows, `executeRaw(query)` to pass a query string directly to the driver, `disconnect()` to close the connection safely, and `ping()` to check connection health without throwing. Two hard constraints apply: `execute()` must use parameterized queries (never string-concatenate filter values), and all returned Row values must be primitives - strings, numbers, booleans, or null. Adapters handle connection pooling internally.
+
+#### How To Use It
+
+Create a single file implementing DbAdapter. Implement all five methods. Add one type string to the supported_types list. Nothing else in the codebase changes. Test `execute()` by constructing a QueryPlan directly from the types module - you don't need to run the full parser pipeline.
+
+<!-- /mdd-section: 69-db-adapter-interface -->
+
+<!-- mdd-section: 70-db-mongodb-adapter -->
+### DB - MongoDB Adapter
+
+The MongoDB adapter implements DbAdapter using the native mongodb driver (no Mongoose). It translates QueryPlan operations into MongoDB driver calls and returns flattened primitive rows.
+
+#### What It Does
+
+Each QueryPlan operation maps to a specific driver call: `find` runs `collection.find()` with filter, projection, sort, and limit; `one` runs `collection.findOne()`; `count` uses `collection.countDocuments()`; `aggregate` builds a `$group` pipeline from AggregateOp definitions; `raw` passes a pipeline or query string straight to the driver. AND-chained filters become plain filter objects; OR-chained filters become `$or` arrays. Column maps become projections with `_id` excluded by default. Boolean filter values pass through without coercion - MongoDB handles them natively. ObjectId values are coerced to strings before returning. Connection pooling is handled by MongoClient internally.
+
+<!-- /mdd-section: 70-db-mongodb-adapter -->
+
+<!-- mdd-section: 71-db-sql-adapters -->
+### DB - SQL Adapters (PostgreSQL, MySQL, MSSQL, SQLite)
+
+Four SQL adapters let `@db` directives query relational databases. Each adapter translates the standard `@db` query syntax into parameterized SQL for its target engine - PostgreSQL, MySQL, SQL Server, or SQLite.
+
+#### What It Does
+
+The adapters support all four structured operations: `find` (SELECT with filters and sorting), `one` (single-row LIMIT 1 lookup), `count` (COUNT(*)), and `aggregate` (GROUP BY with functions). All filter values are bound as query parameters - never concatenated - making SQL injection structurally impossible through directive input.
+
+Engine-specific differences: SQLite has no native boolean type, so `true` and `false` become `1` and `0`. MSSQL uses `TOP N` instead of `LIMIT N`. Date values from any adapter are normalized to ISO strings before returning, so your document always gets consistent date formatting regardless of how the database stores them.
+
+#### Examples
+
+Query with filters, sort, and column selection:
+```markdown
+@db using="primary" find="users" where="active==true && role==admin" sort="name:asc" limit=10 columns="name:Name,email:Email"
+```
+
+This generates (PostgreSQL):
+```sql
+SELECT name AS "Name", email AS "Email"
+FROM users
+WHERE active = $1 AND role = $2
+ORDER BY name ASC
+LIMIT 10
+-- parameters: [true, "admin"]
+```
+
+<!-- /mdd-section: 71-db-sql-adapters -->
+
+<!-- mdd-section: 72-db-security -->
+### DB - Security System
+
+The DB security system controls what each database connection can do when an `@db` directive runs. It combines per-connection rules you configure with a fixed set of hardcoded block patterns that cannot be disabled under any circumstances.
+
+#### What It Does
+
+Security operates in two layers. The first layer is configurable - you define per-connection limits in `~/.markdownai/security.json`, restricting which operations and collections a connection can touch. The second layer is a fixed list of destructive SQL and MongoDB patterns that are always blocked. If a query matches a blocked pattern, the engine raises a `SECURITY_ALERT` and halts the entire document - this is not a warning that can be silenced.
+
+The immutable SQL block list covers: `DROP TABLE`, `TRUNCATE`, `DELETE FROM`, `UPDATE ... SET`, `ALTER TABLE`, `CREATE USER`, `GRANT`, `REVOKE`. The MongoDB block list covers: `dropDatabase()`, `deleteMany()`, `updateMany()`, `remove()`, `insertMany()`, and any `db.admin()` command.
+
+#### Configuration
+
+Add a `db` key to `~/.markdownai/security.json`. Each entry matches a named connection:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `allowed_operations` | string[] | all | If non-empty, only these operations are permitted |
+| `denied_operations` | string[] | none | Always blocked for this connection |
+| `allowed_collections` | string[] | all | If non-empty, only these tables/collections may be queried |
+| `denied_collections` | string[] | none | Always blocked; takes precedence over `allowed_collections` |
+| `allow_raw` | boolean | false | Whether `raw=` queries are permitted on this connection |
+| `max_results` | number | 1000 | Hard cap on rows; excess is silently truncated with a WARN |
+
+#### Examples
+
+Read-only connection limited to two collections:
+```json
+{
+  "db": {
+    "primary": {
+      "allowed_operations": ["find", "one", "count"],
+      "allowed_collections": ["users", "orders"],
+      "allow_raw": false,
+      "max_results": 500
+    }
+  }
+}
+```
+
+<!-- /mdd-section: 72-db-security -->
+
+<!-- mdd-section: 73-db-caching -->
+### DB - Caching Integration
+
+The `@cache` modifier lets you control how `@db` query results are stored and reused across renders. In AI sessions it acts as a correctness guarantee - not just a speed boost.
+
+#### What It Does
+
+When a document renders in multiple phases (as happens in AI sessions), a live database query can return different rows each time. That inconsistency corrupts the context the AI sees. Adding `@cache session` to a `@db` directive locks in a single result for the entire session, so every phase reads identical data. Other cache modes let you persist results across sessions, expire them after a set time, or swap in a local JSON fixture for offline development.
+
+All cache modes from the caching system apply to `@db`: `session`, `persist`, `ttl=N`, and `mock=./file.json`. The `@cache` token always appears as the last option before the pipe.
+
+#### How To Use It
+
+Add `@cache` and a mode directly after your `@db` options on the same line:
+
+- `session` - same result for the entire current session (recommended for AI documents)
+- `persist` - result survives across sessions until manually cleared
+- `ttl=N` - result expires after N seconds
+- `mock=./file.json` - serve a local JSON file instead of hitting the database
+
+For offline development, seed a fixture file from production once, then use `persist` or `mock=` to work without a live connection.
+
+#### Examples
+
+Lock query results for an AI session:
+```markdown
+@db using="primary" find="users" where="active==true" @cache session | @render type="table"
+```
+
+Seed a fixture from production, then work offline:
+```bash
+mai cache seed input.md --env .env.production --directive db
+mai watch input.md
+```
+
+<!-- /mdd-section: 73-db-caching -->
+
+<!-- mdd-section: 74-db-error-handling -->
+### DB - Error Handling
+
+Errors in `@db` directives fall into three categories with different severities. Most runtime problems produce empty output and let the document continue - only configuration mistakes and security violations stop rendering immediately.
+
+#### What It Does
+
+Parse errors (bad options, missing required fields, conflicting operations) are always fatal. The document halts immediately and prints the file path, line number, what was found, and a hint for how to fix it. Runtime errors like a dropped connection or a timeout produce empty output by default and let the rest of the document render - pass `--strict` to make these fatal. Soft conditions like zero rows or hitting the `max_results` cap never produce errors; they return empty or truncated output and carry on.
+
+| Condition | Severity | Document behavior |
+|-----------|----------|-------------------|
+| Invalid options / conflicting operations | FATAL | Document halts |
+| Connection failure / query timeout | ERROR (default) / FATAL (`--strict`) | Empty output, continues |
+| Zero rows returned | none | Empty string, no log entry |
+| max_results hit | WARN | Result truncated, continues |
+| raw= without allow_raw | WARN | Directive stripped, continues |
+| Immutable block pattern match | SECURITY_ALERT | Document halts |
+
+Note: `--silent` never suppresses SECURITY_ALERT or FATAL messages.
+
+<!-- /mdd-section: 74-db-error-handling -->
+
+<!-- mdd-section: 75-engine-bug-fixes -->
+### Engine Bug Fixes
+
+Four bugs in the engine execution layer have been resolved, covering shell command execution, macro behavior, conditional evaluation, and import error handling.
+
+#### What It Does
+
+Shell commands via `@query` now execute correctly. Previously, `mai security shell enable` saved your settings but the render path never read them, so shell commands silently returned empty output. That is fixed - your security config is loaded before any execution happens. As a side effect, `@query` inside `@define` and `@call` macros also works correctly now. Two smaller fixes: `@if` conditions that reference an undefined label no longer emit a confusing warning - they evaluate quietly to false. And an absolute path in `@import` no longer crashes the entire render - it emits a warning and skips that import instead.
+
+<!-- /mdd-section: 75-engine-bug-fixes -->
+
+<!-- mdd-section: 76-packages-readmes -->
+### Package README Files - All npm Packages
+
+All five `@markdownai` npm packages now have complete README files. Developers landing on any individual package page get full documentation without needing to visit the main repo.
+
+#### What It Does
+
+Each package README covers what the package does, how to install it, and full usage documentation for every exported API or command. Security notes are included where relevant. A compact nav at the top of each README links to all other packages in the family. The packages covered are `@markdownai/parser`, `@markdownai/renderer`, `@markdownai/engine`, `@markdownai/mcp`, and `@markdownai/core`.
+
+<!-- /mdd-section: 76-packages-readmes -->
+
+<!-- mdd-section: 77-claude-native -->
+### Claude-Native Adoption
+
+When you install `@markdownai/core`, Claude learns what MarkdownAI is and why it is worth using. This removes the gap between installing the package and having Claude reach for MarkdownAI syntax when writing new markdown files.
+
+#### What It Does
+
+The feature hooks into the package install and uninstall lifecycle to keep your Claude configuration in sync. On install, it offers to add a MarkdownAI education section to your global Claude config. On uninstall, it removes that section cleanly, leaving the rest of your config untouched. The education section explains the format to Claude in concrete terms so it prefers MarkdownAI naturally - goal is informed preference, not enforcement.
+
+#### How To Use It
+
+1. Install the package: `npm install -g @markdownai/core`
+2. If your terminal is interactive, you will be asked whether to add MarkdownAI instructions to your Claude config. Press `y` to confirm.
+3. If you skipped during install or ran a non-interactive install, run `mai init --global-claude-md` at any time to add the section manually.
+4. When you uninstall the package, the section is stripped from your Claude config automatically.
+
+#### Examples
+
+Interactive install prompt:
+```
+Add MarkdownAI instructions to ~/.claude/CLAUDE.md? (y/N) y
+Added MarkdownAI section to ~/.claude/CLAUDE.md
+```
+
+Manual add via CLI:
+```bash
+mai init --global-claude-md
+```
+
+<!-- /mdd-section: 77-claude-native -->
+
+<!-- mdd-section: 78-lang-note -->
+### @note Directive
+
+`@note` lets you leave source-level explanations inside a MarkdownAI document for anyone reading the raw file. By default the block disappears entirely from rendered output.
+
+#### What It Does
+
+A plain `@note` block is invisible in all rendered output - it exists to explain what a nearby directive or section does when someone opens the raw file. Adding the `visible` flag turns the block into a rendered blockquote callout. The optional `consumer` argument scopes a visible note to render only for human readers or only for AI consumers via MCP. `@note` is the human-facing counterpart to `@prompt` - where `@prompt` carries instructions aimed at AI readers, `@note` carries explanations for humans reading the source.
+
+`mai strip` always removes `@note` blocks regardless of the `visible` flag.
+
+#### How To Use It
+
+```markdown
+@note
+Source-only comment - never appears in output.
+@end
+
+@note visible
+Renders as a blockquote callout for all readers.
+@end
+
+@note visible consumer="human"
+Renders only for human readers.
+@end
+
+@note visible consumer="ai"
+Renders only for AI consumers (MCP).
+@end
+```
+
+#### Examples
+
+Source-only explanation for a complex directive:
+```markdown
+@note
+This @db directive pulls from the staging replica.
+Switch the alias to "prod" before the next release.
+@end
+```
+
+Visible callout in output:
+```markdown
+@note visible
+This section updates nightly. Refresh before sharing.
+@end
+```
+Renders as:
+> **Note:**
+> This section updates nightly. Refresh before sharing.
+
+<!-- /mdd-section: 78-lang-note -->
 
 ---
 

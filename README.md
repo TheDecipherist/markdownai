@@ -14,6 +14,10 @@
   <a href="#directive-reference">
     <img src="https://img.shields.io/badge/Directives-Full_Reference-059669?style=for-the-badge&labelColor=1e293b" alt="Directive Reference" />
   </a>
+  &nbsp;
+  <a href=".mdd/manual/manual.md">
+    <img src="https://img.shields.io/badge/User_Manual-78_features-7c3aed?style=for-the-badge&labelColor=1e293b" alt="User Manual" />
+  </a>
 </p>
 
 [![npm](https://img.shields.io/badge/npm-%40markdownai%2Fmarkdownai-red)](https://www.npmjs.com/package/@markdownai/markdownai)
@@ -82,6 +86,7 @@ The result is documentation that cannot lie - because it doesn't store facts, it
 - [MDD Integration](#mdd-integration)
 - [Installation](#installation)
 - [Architecture](#architecture)
+- [User Manual](.mdd/manual/manual.md)
 
 ---
 
