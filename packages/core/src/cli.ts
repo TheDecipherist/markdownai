@@ -276,5 +276,5 @@ universalOptions(
   })
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const { version } = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as { version: string }
+const { version } = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf-8')) as { version: string }
 program.name('mai').version(version).parse()
