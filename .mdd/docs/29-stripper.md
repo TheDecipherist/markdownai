@@ -9,7 +9,7 @@ source_files:
 wave: markdownai-core-wave-4
 wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-16
+last_synced: 2026-05-18
 status: complete
 mdd_version: 1
 tags: [stripper, strip, clean-markdown, removal-rules, conditional-stripping, mai-strip]
@@ -45,7 +45,7 @@ Removes all MarkdownAI syntax, producing clean vanilla markdown safe for commit,
 | `pipe` | Removed (entire pipe chain) |
 | `conditional` | Evaluated against current env -- matching branch rendered, other branches removed, directive tags removed |
 | `graph` | Passed through unchanged (documentation) |
-| `markdown` | Passed through unchanged |
+| `markdown` | Passed through unchanged -- blank-line nodes (empty text) are preserved as blank lines in output |
 | `passthrough` | Passed through unchanged |
 | `interpolation` | Evaluated if possible, else removed |
 

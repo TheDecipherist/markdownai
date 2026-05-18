@@ -11,7 +11,7 @@ source_files:
 wave: markdownai-core-wave-2
 wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-16
+last_synced: 2026-05-18
 status: complete
 mdd_version: 1
 tags: [tree, date, count, filesystem, ascii-tree, date-format, utility-directives]
@@ -38,7 +38,12 @@ Three focused utility source directives: directory visualization (@tree), date/t
 **@date:**
 - Syntax: `@date`, `@date format="YYYY-MM-DD"`, `@date file="./file.ts" type="modified"`
 - Options:
-  - `format`: date format string. Tokens: `YYYY`, `MM`, `DD`, `HH`, `mm`, `ss`
+  - `format`: date format string. Tokens (longest matched first):
+    - Date/time: `YYYY` (year), `MM` (month), `DD` (day), `HH` (24h hour), `hh` (12h hour), `h` (12h no pad), `mm` (minute), `ss` (second)
+    - AM/PM: `A` (AM/PM), `a` (am/pm)
+    - Timezone: `zzz`/`z` (abbreviation e.g. UTC, EST), `Z` (+HH:mm offset), `ZZ` (+HHmm offset)
+    - Epoch: `X` (Unix seconds), `x` (Unix milliseconds)
+    - Special values: `ISO` (full ISO 8601), `date` (YYYY-MM-DD only)
   - `file`: path to file for modified-time lookup
   - `type`: `current` (default) or `modified` -- `created` is NOT supported
 - `type="created"` → parse error with message: "created is unreliable on Linux; use git log instead"
