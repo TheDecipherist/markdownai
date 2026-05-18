@@ -60,6 +60,35 @@
         "path": "./snippets/markdownai.code-snippets"
       }
     ],
+    "commands": [
+      {
+        "command": "markdownai.openPreview",
+        "title": "Open MarkdownAI Preview",
+        "icon": "$(open-preview)",
+        "category": "MarkdownAI"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "markdownai.openPreview",
+          "when": "resourceLangId == markdownai",
+          "group": "navigation"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "markdownai.openPreview",
+          "when": "resourceLangId == markdownai"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "markdownai.openPreview",
+          "when": "resourceLangId == markdownai"
+        }
+      ]
+    },
     "configuration": {
       "title": "MarkdownAI",
       "properties": {
