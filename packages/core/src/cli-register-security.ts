@@ -1,7 +1,7 @@
 import type { Command } from 'commander'
 import {
   securityShow, securityInit, securityDisable,
-  securityShellEnable, securityShellAdd, securityShellRemove, securityShellList,
+  securityShellEnable, securityShellAdd, securityShellRemove, securityShellList, securityShellTest,
   securityHttpEnable, securityHttpAddDomain, securityHttpRemoveDomain,
 } from './commands/security.js'
 
@@ -27,6 +27,11 @@ export function registerSecurity(program: Command): void {
     const patterns = securityShellList().data as string[]
     if (patterns.length === 0) process.stdout.write('No allow patterns\n')
     else patterns.forEach((p: string) => process.stdout.write(`  ${p}\n`))
+  })
+  shell.command('test <command>').description('test whether a command would be allowed').action((command: string) => {
+    const result = securityShellTest(command)
+    process.stdout.write(`${result.message}\n`)
+    if (!result.success) process.exit(1)
   })
 
   const http = security.command('http').description('manage HTTP security')

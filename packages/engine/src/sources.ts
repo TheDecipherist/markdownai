@@ -72,13 +72,33 @@ export function executeRead(node: ReadNode, ctx: EngineContext): string[] {
 export function formatDate(date: Date, fmt: string): string {
   if (fmt === 'ISO') return date.toISOString()
   if (fmt === 'date') return date.toISOString().split('T')[0] ?? ''
-  return fmt
-    .replace('YYYY', String(date.getFullYear()))
-    .replace('MM', String(date.getMonth() + 1).padStart(2, '0'))
-    .replace('DD', String(date.getDate()).padStart(2, '0'))
-    .replace('HH', String(date.getHours()).padStart(2, '0'))
-    .replace('mm', String(date.getMinutes()).padStart(2, '0'))
-    .replace('ss', String(date.getSeconds()).padStart(2, '0'))
+  const offMin = -date.getTimezoneOffset()
+  const sign = offMin >= 0 ? '+' : '-'
+  const offH = Math.floor(Math.abs(offMin) / 60).toString().padStart(2, '0')
+  const offM = (Math.abs(offMin) % 60).toString().padStart(2, '0')
+  const tzAbbr = Intl.DateTimeFormat('en-US', { timeZoneName: 'short' }).formatToParts(date).find(p => p.type === 'timeZoneName')?.value ?? 'UTC'
+  const h12 = date.getHours() % 12 || 12
+  const tokens: [string, string][] = [
+    ['YYYY', String(date.getFullYear())],
+    ['MM',   String(date.getMonth() + 1).padStart(2, '0')],
+    ['DD',   String(date.getDate()).padStart(2, '0')],
+    ['HH',   String(date.getHours()).padStart(2, '0')],
+    ['hh',   String(h12).padStart(2, '0')],
+    ['mm',   String(date.getMinutes()).padStart(2, '0')],
+    ['ss',   String(date.getSeconds()).padStart(2, '0')],
+    ['zzz',  tzAbbr],
+    ['ZZ',   `${sign}${offH}${offM}`],
+    ['Z',    `${sign}${offH}:${offM}`],
+    ['A',    date.getHours() < 12 ? 'AM' : 'PM'],
+    ['a',    date.getHours() < 12 ? 'am' : 'pm'],
+    ['h',    String(h12)],
+    ['z',    tzAbbr],
+    ['X',    String(Math.floor(date.getTime() / 1000))],
+    ['x',    String(date.getTime())],
+  ]
+  let result = fmt
+  for (const [token, value] of tokens) result = result.split(token).join(value)
+  return result
 }
 
 export function executeCount(node: CountNode, ctx: EngineContext): string[] {

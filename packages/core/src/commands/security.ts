@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { defaultSecurityConfig, loadSecurityConfig } from '@markdownai/engine'
-import type { SecurityJsonConfig } from '@markdownai/engine'
+import { defaultSecurityConfig, loadSecurityConfig, checkShellCommand } from '@markdownai/engine'
+import type { SecurityJsonConfig, ShellCheckResult } from '@markdownai/engine'
 
 const SECURITY_CONFIG_PATH = join(homedir(), '.markdownai', 'security.json')
 
@@ -73,6 +73,21 @@ export function securityShellRemove(pattern: string): SecurityResult {
 export function securityShellList(): SecurityResult {
   const config = readConfig()
   return { success: true, message: 'Shell allow patterns', data: config.shell.allow_patterns }
+}
+
+export function securityShellTest(command: string): SecurityResult & { check: ShellCheckResult } {
+  const config = readConfig()
+  const shellConfig = {
+    enabled: config.shell.enabled,
+    allow_patterns: config.shell.allow_patterns,
+    deny_patterns: config.shell.deny_patterns ?? [],
+    allow_network: config.shell.allow_network ?? false,
+    require_confirmation: config.shell.require_confirmation ?? false,
+    audit_log: config.shell.audit_log ?? false,
+  }
+  const check = checkShellCommand(command, shellConfig)
+  const verdict = check.allowed ? 'ALLOWED' : 'BLOCKED'
+  return { success: check.allowed, message: `${verdict} [${check.tier}]: ${check.reason}`, check }
 }
 
 export function securityHttpEnable(enable: boolean): SecurityResult {

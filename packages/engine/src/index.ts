@@ -15,3 +15,5 @@ export type { FilesystemCheckResult, FilesystemCheckLevel } from './security/fil
 export { applyMasking } from './security/masking.js'
 export { checkDbOperation } from './security/database.js'
 export type { DbCheckResult, DbCheckTier } from './security/database.js'
+export { checkShellCommand } from './security/shell.js'
+export type { ShellCheckResult, ShellCheckTier } from './security/shell.js'
