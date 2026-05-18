@@ -2,7 +2,7 @@
   "name": "markdownai",
   "displayName": "MarkdownAI",
   "description": "Syntax highlighting, snippets, and autocomplete for MarkdownAI documents",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "markdownai",
   "engines": {
     "vscode": "^1.85.0"
@@ -36,7 +36,10 @@
     "languages": [
       {
         "id": "markdownai",
-        "aliases": ["MarkdownAI", "markdownai"],
+        "aliases": [
+          "MarkdownAI",
+          "markdownai"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
