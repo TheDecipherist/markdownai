@@ -399,7 +399,35 @@ Supported formats: JSON, YAML, TOML, CSV. (`.env` files are blocked by built-in 
 ```
 @date format="YYYY-MM-DD"
 @date format="YYYY-MM-DD HH:mm:ss"
-@date format="MMMM D, YYYY"
+@date format="hh:mm A zzz"
+@date format="ISO"
+```
+
+Available tokens:
+
+| Token | Output |
+|-------|--------|
+| `YYYY` | Full year (2026) |
+| `MM` | Month, zero-padded (01-12) |
+| `DD` | Day, zero-padded (01-31) |
+| `HH` | Hour, 24h zero-padded (00-23) |
+| `hh` | Hour, 12h zero-padded (01-12) |
+| `h` | Hour, 12h no padding (1-12) |
+| `mm` | Minutes, zero-padded |
+| `ss` | Seconds, zero-padded |
+| `A` | AM or PM |
+| `a` | am or pm |
+| `zzz` / `z` | Timezone abbreviation (UTC, EST) |
+| `Z` | UTC offset (+HH:mm) |
+| `ZZ` | UTC offset compact (+HHmm) |
+| `X` | Unix timestamp in seconds |
+| `x` | Unix timestamp in milliseconds |
+| `ISO` | Full ISO 8601 string |
+| `date` | Shorthand for YYYY-MM-DD |
+
+File modified time:
+```
+@date file="./CHANGELOG.md" type="modified" format="YYYY-MM-DD"
 ```
 
 **Count files matching a pattern:**
