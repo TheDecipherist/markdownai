@@ -10,6 +10,10 @@ export interface ServeResult {
 }
 
 export function runServe(options: ServeOptions = {}): ServeResult {
-  startServer(options.cwd ? { cwd: options.cwd } : {})
-  return { started: true, message: 'MCP server started on stdio' }
+  try {
+    startServer(options.cwd ? { cwd: options.cwd } : {})
+    return { started: true, message: 'MCP server started on stdio' }
+  } catch (err) {
+    return { started: false, message: `MCP server failed to start: ${String(err)}` }
+  }
 }

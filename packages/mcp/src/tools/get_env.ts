@@ -19,6 +19,9 @@ export function getEnv(
 ): GetEnvResult {
   if (!key || typeof key !== 'string') return { value: '', found: false }
 
+  // Reject keys that don't look like valid env var names
+  if (!/^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(key)) return { value: '', found: false }
+
   if (DENIED_KEY_PATTERNS.test(key)) {
     return { value: '', found: false, denied: true }
   }

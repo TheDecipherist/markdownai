@@ -9,7 +9,7 @@ function findDefinitionLocation(macroName: string, registry: MacroRegistry, docu
   if (!localMacro?.filePath || localMacro.definitionLine === undefined) return null;
   const defStart = '@define '.length;
   return new vscode.Location(
-    vscode.Uri.parse(localMacro.filePath),
+    vscode.Uri.file(localMacro.filePath),
     new vscode.Range(
       new vscode.Position(localMacro.definitionLine, defStart),
       new vscode.Position(localMacro.definitionLine, defStart + macroName.length),
@@ -28,9 +28,9 @@ export function registerReferenceProvider(
         const macroName = extractCallTarget(document.lineAt(position).text, position.character);
         if (!macroName) return [];
 
-        const locations = findCallSites(document.getText(), macroName, document.uri.toString()).map(site =>
+        const locations = findCallSites(document.getText(), macroName, document.uri.fsPath).map(site =>
           new vscode.Location(
-            vscode.Uri.parse(site.filePath),
+            vscode.Uri.file(site.filePath),
             new vscode.Range(new vscode.Position(site.line, site.startChar), new vscode.Position(site.line, site.endChar)),
           )
         );

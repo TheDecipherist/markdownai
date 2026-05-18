@@ -115,9 +115,9 @@ describe('Renderer', () => {
   })
 
   describe('timeline format', () => {
-    it('renders events connected by ──► arrows', () => {
+    it('renders events as a numbered list', () => {
       const out = render({ type: 'timeline', data: ['2024-Q1', '2024-Q2', '2024-Q3'] })
-      expect(out).toBe('2024-Q1 ──► 2024-Q2 ──► 2024-Q3')
+      expect(out).toBe('1. 2024-Q1\n2. 2024-Q2\n3. 2024-Q3')
     })
   })
 

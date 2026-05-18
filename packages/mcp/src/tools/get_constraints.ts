@@ -12,6 +12,7 @@ export interface ConstraintEntry {
 export interface GetConstraintsResult {
   constraints: ConstraintEntry[]
   isMarkdownAI: boolean
+  blocked?: boolean
 }
 
 const SEVERITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
@@ -37,7 +38,7 @@ function collectConstraints(nodes: import('@markdownai/parser').ASTNode[]): Cons
 
 export function getConstraints(filePath: string, cwd: string): GetConstraintsResult {
   if (!isConfined(filePath, cwd)) {
-    return { constraints: [], isMarkdownAI: false }
+    return { constraints: [], isMarkdownAI: false, blocked: true }
   }
 
   const full = resolve(cwd, filePath)
