@@ -40,11 +40,13 @@ Six packages in an npm workspaces monorepo:
 packages/
   parser/     @markdownai/parser    -- AST production only, no execution
   renderer/   @markdownai/renderer  -- 11 format modules, ASCII output
-  engine/     @markdownai/engine    -- execution, env resolution, pipe, cache
-  stripper/   (built into core)     -- syntax removal, conditional evaluation
-  mcp/        @markdownai/mcp       -- MCP server, phase tools
+  engine/     @markdownai/engine    -- execution, env resolution, pipe, cache, strip
+  mcp/        @markdownai/mcp       -- MCP server, 9 tools, phase navigation
   core/       @markdownai/core      -- mai binary, all CLI commands
+  vscode/     markdownai (VS Code)  -- language detection, snippets, completions, hover, diagnostics
 ```
+
+The stripper (`mai strip`) is in `packages/engine/src/stripper.ts`, not a separate package.
 
 ## TypeScript Rules
 

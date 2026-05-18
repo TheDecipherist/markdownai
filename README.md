@@ -23,7 +23,7 @@
 [![npm](https://img.shields.io/badge/npm-%40markdownai%2Fmarkdownai-red)](https://www.npmjs.com/package/@markdownai/markdownai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js >=18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
-[![Tests: 689](https://img.shields.io/badge/tests-689_passing-brightgreen)](./packages)
+[![Tests: 754](https://img.shields.io/badge/tests-754_passing-brightgreen)](./packages)
 
 ---
 
@@ -84,6 +84,7 @@ The result is documentation that cannot lie - because it doesn't store facts, it
 - [CLI Reference](#cli-reference)
 - [Directive Reference](#directive-reference)
 - [MDD Integration](#mdd-integration)
+- [VS Code Extension](#vs-code-extension)
 - [Installation](#installation)
 - [Architecture](#architecture)
 - [User Manual](.mdd/manual/manual.md)
@@ -149,7 +150,7 @@ The toolchain has six components:
 | `@markdownai/renderer` | Formats data into 11 output styles (table, bar chart, flow, etc.) |
 | `@markdownai/mcp` | MCP server - serves live document execution to Claude and other AI tools |
 | `@markdownai/core` | The `mai` binary and all CLI commands |
-| `@markdownai/stripper` | Removes directives, producing plain Markdown |
+| `markdownai` (VS Code) | VS Code extension - language detection, syntax highlighting, snippets, completions, hover, go-to-definition, diagnostics |
 
 ---
 
@@ -377,13 +378,12 @@ Read and extract values from structured files:
 
 ```
 @read ./package.json path=$.version
-@read ./.env key=DATABASE_URL
 @read ./config.yaml path=$.server.port
 @read ./data.csv column=email where="active == true"
 @read ./config.toml path=$.database.host
 ```
 
-Supported formats: JSON, YAML, TOML, `.env` (flat key-value), CSV. The `path` option uses dot-notation for JSON/YAML/TOML. The `key` option looks up a single value in `.env` files. `column` and `where` filter CSV data.
+Supported formats: JSON, YAML, TOML, CSV. (`.env` files are blocked by built-in security rules to prevent credential exposure.) The `path` option uses dot-notation for JSON/YAML/TOML. `column` and `where` filter CSV data.
 
 ---
 
@@ -698,11 +698,11 @@ Available MCP tools:
 | `list_phases` | List all `@phase` blocks in a document with their status |
 | `resolve_phase` | Check if a phase's preconditions are met |
 | `next_phase` | Advance to the next phase in a sequence |
-| `execute_directive` | Run a single directive and return the result |
-| `get_constraints` | Return structured rules from the document |
 | `call_macro` | Execute a named `@define` macro |
-| `validate_document` | Check a document for errors without rendering |
-| `cache_status` | Show cached entries for a document |
+| `get_env` | Retrieve resolved environment variable values |
+| `execute_directive` | Run a single directive and return the result |
+| `get_constraints` | Return structured `@constraint` rules from the document |
+| `invalidate_cache` | Clear session or persist cache entries |
 
 ---
 
@@ -991,6 +991,44 @@ The philosophical payoff: MDD enforces "document first." MarkdownAI enforces "do
 
 ---
 
+## VS Code Extension
+
+The MarkdownAI VS Code extension (`markdownai`) provides full IDE support for `.md` files that begin with `@markdownai`.
+
+**Install from the VS Code marketplace** (search "MarkdownAI") or build from the `packages/vscode` directory.
+
+### What it provides
+
+**Language detection** - Any `.md` file whose first line is `@markdownai` is automatically re-tagged as the `markdownai` language type, activating all extension features. Files with YAML frontmatter before `@markdownai` are also detected.
+
+**Syntax highlighting** - TextMate grammar covers all MarkdownAI directives: `@markdownai`, `@define`/`@end`, `@phase`/`@on`, `@if`/`@elseif`/`@else`/`@endif`, `@include`, `@import`, `@env`, `@call`, `@list`, `@read`, `@tree`, `@date`, `@count`, `@connect`, `@db`, `@http`, `@query`, `@render`, `@graph`, `@prompt`, `@constraint`, `@note`, `@cache`, `@section`, `@chunk-boundary`, `@define-concept`, and `{{ }}` interpolations.
+
+**Snippets** - Tab-triggered snippets for all directives. Type `@def` and expand to a complete `@define`/`@end` block, `@if` to a full conditional, `@phase` to a phase skeleton, and so on. 15+ snippets covering core directives.
+
+**Completion** - As you type `@`, the extension shows all valid directives with descriptions. Inside `@call`, it shows all macros defined in the current workspace. Inside `@import` and `@include`, it shows files matching `.md` in the workspace.
+
+**Hover** - Hovering over any `@define` name or `@call` shows the macro definition inline.
+
+**Go-to-definition** - `F12` or `Ctrl+click` on any `@call` name jumps to the `@define` that declares it, even across files linked by `@import`.
+
+**Find all references** - Right-click any `@define` name and "Find All References" lists every `@call` site across the workspace.
+
+**Diagnostics** - The extension checks documents as you type and reports:
+- `@call` to undefined macros (error)
+- `@include` and `@import` pointing to files that don't exist (error)
+- `@env` variables without a fallback (warning, configurable)
+- Undefined macros in `@call` positions (warning, configurable)
+
+### Extension settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `markdownai.diagnosticsEnabled` | `true` | Enable/disable real-time diagnostics |
+| `markdownai.warnUndefinedMacros` | `true` | Warn when `@call` references an undefined macro |
+| `markdownai.warnMissingFallback` | `true` | Warn when `@env` has no fallback value |
+
+---
+
 ## Installation
 
 ```bash
@@ -1029,16 +1067,17 @@ MarkdownAI is a six-package npm workspaces monorepo, all in TypeScript with stri
 packages/
   parser/     @markdownai/parser    - AST production only, no execution
   renderer/   @markdownai/renderer  - 11 format modules, ASCII output
-  engine/     @markdownai/engine    - execution, env resolution, pipe, cache
-  mcp/        @markdownai/mcp       - MCP server, 9 phase tools
+  engine/     @markdownai/engine    - execution, env resolution, pipe, cache, strip
+  mcp/        @markdownai/mcp       - MCP server, 9 tools, phase navigation
   core/       @markdownai/core      - mai binary, all CLI commands
+  vscode/     markdownai (VS Code)  - language detection, syntax highlighting, snippets, completions, hover, diagnostics
 ```
 
 The parser is intentionally inert - it never executes anything. This separation means you can parse any document safely in any environment. The engine runs directives. The renderer formats output. The MCP server serves live context to AI tools. The core binary wires them together and exposes the CLI.
 
 Security enforcement happens in the engine, not in individual directives. The security layer sits between the engine's directive runner and any external system. This means security gates apply regardless of which directive triggers the operation.
 
-689 tests across all packages. The test suite includes unit tests for every directive, E2E tests for the full CLI pipeline, MCP protocol conformance tests, and a dedicated AI-native feature test suite.
+754 tests across all packages. The test suite includes unit tests for every directive, E2E tests for the full CLI pipeline, MCP protocol conformance tests, and a dedicated AI-native feature test suite.
 
 ---
 
