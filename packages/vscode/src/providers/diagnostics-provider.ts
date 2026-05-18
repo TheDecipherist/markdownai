@@ -47,7 +47,8 @@ export class DiagnosticsProvider {
         return new vscode.Diagnostic(range, info.message, sev);
       });
       this.collection.set(doc.uri, diagnostics);
-    } catch {
+    } catch (err) {
+      console.error('[markdownai] diagnostics analysis failed for', doc.uri.toString(), ':', err)
       this.collection.delete(doc.uri);
     }
   }

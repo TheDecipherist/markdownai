@@ -5,9 +5,10 @@ edition: Both
 depends_on: [12-lang-conditionals, 20-lang-sources-query, 24-security-shell, 47-skill-context-variables]
 source_files:
   - packages/parser/src/parser.ts
-  - packages/parser/src/directives/shell-inline.ts
+  - packages/parser/src/parser-state.ts
+  - packages/parser/src/interpolation.ts
   - packages/engine/src/engine.ts
-  - packages/engine/src/nodes/shell-inline.ts
+  - packages/engine/src/engine-interpolate.ts
   - packages/engine/src/__tests__/shell-inline.test.ts
 wave: markdownai-core-wave-5
 wave_status: complete

@@ -16,7 +16,7 @@ source_files:
   - packages/mcp/src/tools/execute_directive.ts
   - packages/mcp/src/tools/invalidate_cache.ts
   - packages/mcp/src/connections.ts
-  - packages/mcp/index.ts
+  - packages/mcp/src/index.ts
 wave: markdownai-core-wave-4
 wave_status: complete
 initiative: markdownai-core
@@ -42,11 +42,11 @@ satisfies_contracts:
   - from: 23-security-filesystem
     function: checkFilePath(resolved, ctx.jailRoot, ctx.security)
     when: before reading files in next_phase, list_phases, resolve_phase
-    status: pending
+    status: done
   - from: 27-security-immutable-rules
     function: Object.freeze() on all rule arrays at definition
     when: in security/rules.ts — all exported arrays
-    status: pending
+    status: done
 known_issues: []
 ---
 

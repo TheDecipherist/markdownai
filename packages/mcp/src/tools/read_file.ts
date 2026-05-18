@@ -25,6 +25,36 @@ export interface ReadFileResult {
   warnings: string[]
 }
 
+function buildSkillContext(args: ReadFileArgs): {
+  args: string; argsList: string[]; namedArgs: Record<string, string>; sessionId: string; effort: string; skillDir: string
+} {
+  const rawSkillArgs = args.skillArgs ?? ''
+  const skillArgsList = rawSkillArgs.trim().length > 0
+    ? [...rawSkillArgs.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map(m => m[1] ?? m[2] ?? m[3] ?? '')
+    : []
+  return {
+    args: rawSkillArgs,
+    argsList: skillArgsList,
+    namedArgs: args.skillNamedArgs ?? {},
+    sessionId: args.skillSessionId ?? '',
+    effort: args.skillEffort ?? '',
+    skillDir: args.skillDir ?? '',
+  }
+}
+
+function postProcessContent(content: string, args: ReadFileArgs): string {
+  const budget = args.budget ?? 0
+  let result = budget > 0
+    ? applyBudget(content, budget)
+    : content
+        .replace(/<!-- mda-section priority="[^"]*"(?:\s+id="[^"]*")?\s*-->\n?/g, '')
+        .replace(/<!-- \/mda-section -->\n?/g, '')
+  // MCP default: ai format — callers must explicitly pass format="standard" to opt out
+  const format = args.format ?? 'ai'
+  if (format === 'ai') result = aiFilter(result)
+  return result
+}
+
 export function readFile(args: ReadFileArgs, cwd: string): ReadFileResult {
   const check = checkFilePath(args.path, cwd)
   if (check.level === 'blocked') {
@@ -41,47 +71,17 @@ export function readFile(args: ReadFileArgs, cwd: string): ReadFileResult {
     return { content: source, isMarkdownAI: false, warnings: [] }
   }
 
-  const consumer = args.consumer ?? 'ai'
-
-  // Parse skill args into positional list (shell-style: handles "quoted strings")
-  const rawSkillArgs = args.skillArgs ?? ''
-  const skillArgsList = rawSkillArgs.trim().length > 0
-    ? [...rawSkillArgs.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map(m => m[1] ?? m[2] ?? m[3] ?? '')
-    : []
-
   const result = execute(ast, {
     filePath: fullPath,
     ctx: {
       envFiles: args.env ?? {},
       phase: args.phase ?? null,
-      consumer,
-      skillContext: {
-        args: rawSkillArgs,
-        argsList: skillArgsList,
-        namedArgs: args.skillNamedArgs ?? {},
-        sessionId: args.skillSessionId ?? '',
-        effort: args.skillEffort ?? '',
-        skillDir: args.skillDir ?? '',
-      },
+      consumer: args.consumer ?? 'ai',
+      skillContext: buildSkillContext(args),
     },
   })
 
-  let content = result.output
-
-  // Apply budget pass (keeps section markers for the pass, then strips them)
-  const budget = args.budget ?? 0
-  if (budget > 0) {
-    content = applyBudget(content, budget)
-  } else {
-    content = content
-      .replace(/<!-- mda-section priority="[^"]*"(?:\s+id="[^"]*")?\s*-->\n?/g, '')
-      .replace(/<!-- \/mda-section -->\n?/g, '')
-  }
-
-  // MCP default: ai format — callers must explicitly pass format="standard" to opt out
-  const format = args.format ?? 'ai'
-  if (format === 'ai') content = aiFilter(content)
-
+  const content = postProcessContent(result.output, args)
   return { content, isMarkdownAI: true, warnings: result.warnings }
 }
 

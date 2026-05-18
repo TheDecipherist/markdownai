@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const snippetsPath = join(__dirname, '../../snippets/markdownai.code-snippets');
 
 type Snippet = {
@@ -13,11 +15,9 @@ type Snippet = {
 type SnippetsFile = Record<string, Snippet>;
 
 describe('MarkdownAI Snippets', () => {
-  let snippets: SnippetsFile;
-
   it('should be valid JSON', () => {
     const raw = readFileSync(snippetsPath, 'utf8');
-    expect(() => { snippets = JSON.parse(raw) as SnippetsFile; }).not.toThrow();
+    expect(() => { JSON.parse(raw); }).not.toThrow();
   });
 
   it('should include a snippet for the @markdownai header', () => {

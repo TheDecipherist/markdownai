@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { shouldSwitchToMarkdownAI } from '../language-detection';
+import { shouldSwitchToMarkdownAI } from '../language-detection.js';
 
 describe('Language Detection', () => {
   describe('shouldSwitchToMarkdownAI', () => {

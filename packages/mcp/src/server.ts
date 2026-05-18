@@ -9,6 +9,7 @@ import { getEnv } from './tools/get_env.js'
 import { executeDirective } from './tools/execute_directive.js'
 import { invalidateCache } from './tools/invalidate_cache.js'
 import { getConstraints } from './tools/get_constraints.js'
+import { validateMcpInput } from './validate.js'
 
 interface JsonRpcRequest {
   jsonrpc: '2.0'
@@ -110,9 +111,19 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
         })
         break
       case 'tools/call': {
-        const toolName = String((p['name'] as string) ?? '')
+        const nameVal = p['name']
+        const argsVal = p['arguments']
+        const nameValidation = validateMcpInput([{ field: 'name', value: nameVal }])
+        if (!nameValidation.ok) { respondError(req.id, -32602, `Invalid params: ${nameValidation.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); break }
+        if (argsVal !== undefined && argsVal !== null && (typeof argsVal !== 'object' || Array.isArray(argsVal))) {
+          respondError(req.id, -32602, 'Invalid params: "arguments" must be an object'); break
+        }
+        const toolName = String(nameVal)
         if (!TOOL_ALLOWLIST.has(toolName)) { respondError(req.id, -32601, `Unknown tool: "${toolName}"`); break }
-        dispatchTool(toolName, (p['arguments'] as Record<string, unknown>) ?? {}, req.id, cwd)
+        const toolArgs = (typeof argsVal === 'object' && argsVal !== null && !Array.isArray(argsVal))
+          ? argsVal as Record<string, unknown>
+          : {}
+        dispatchTool(toolName, toolArgs, req.id, cwd)
         break
       }
       default:

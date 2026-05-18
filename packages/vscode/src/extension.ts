@@ -14,7 +14,9 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   vscode.workspace.textDocuments.forEach(doc => handleDocument(doc));
 
-  registry.initialize(vscode.workspace.workspaceFolders ?? []).catch(() => { /* registry init failure is non-fatal */ });
+  registry.initialize(vscode.workspace.workspaceFolders ?? []).catch((err: unknown) => {
+    console.error('[markdownai] registry initialization failed:', err)
+  });
   registerCompletionProvider(context, registry);
   registerHoverProvider(context, registry);
   registerDefinitionProvider(context, registry);

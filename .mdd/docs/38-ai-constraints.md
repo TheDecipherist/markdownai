@@ -5,7 +5,6 @@ edition: Both
 depends_on: [01-parser, 03-engine, 34-ai-consumer-mode]
 source_files:
   - packages/parser/src/directives/constraint.ts
-  - packages/engine/src/constraints.ts
 routes: []
 models: []
 test_files:

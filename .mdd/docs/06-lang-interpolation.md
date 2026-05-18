@@ -4,7 +4,7 @@ title: Language — Inline Interpolation {{ }}
 edition: Both
 depends_on: [01-parser]
 source_files:
-  - packages/parser/src/directives/interpolation.ts
+  - packages/parser/src/interpolation.ts
   - packages/engine/src/conditions.ts
 wave: markdownai-core-wave-2
 wave_status: complete

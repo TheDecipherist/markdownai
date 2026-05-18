@@ -13,7 +13,7 @@ source_files:
   - packages/engine/src/pipe.ts
   - packages/engine/src/shell.ts
   - packages/engine/src/cache.ts
-  - packages/engine/index.ts
+  - packages/engine/src/index.ts
 routes: []
 models: []
 test_files: []
@@ -32,23 +32,23 @@ satisfies_contracts:
   - from: 23-security-filesystem
     function: checkFilePath(resolved, ctx.jailRoot, ctx.security)
     when: before readFileSync in executeInclude and executeImport
-    status: pending
+    status: done
   - from: 24-security-shell
     function: checkShellCommand(command, ctx.security)
     when: before execSync in engine/shell.ts
-    status: pending
+    status: done
   - from: 26-security-http
     function: checkHttpUrl(url, ctx.security)
     when: before HTTP execution in engine
-    status: pending
+    status: done
   - from: 25-security-database
     function: checkDatabaseOperation(connection, operation, ctx.security)
     when: before @db/@query execution
-    status: pending
+    status: done
   - from: 28-caching
     function: applyMasking(value, ctx.security)
     when: before writeCache stores any value
-    status: pending
+    status: done
 known_issues: []
 ---
 

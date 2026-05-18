@@ -3,7 +3,7 @@ import type { CacheConfig } from '@markdownai/parser'
 import { cacheKey, readCache, writeCache } from '../cache.js'
 import { DB_ALWAYS_BLOCK_KEYWORDS, DB_ALWAYS_BLOCK_MONGO } from '../security/rules.js'
 import { writeAuditEntry } from '../security/audit.js'
-import type { DbSecurityConfig } from '../security/config.js'
+import type { DbSecurityConfig, FilesystemSecurityConfig } from '../security/config.js'
 
 export const supported_types = Object.freeze(['mongodb', 'postgres', 'mysql', 'mssql', 'sqlite'] as const)
 export type DbType = typeof supported_types[number]
@@ -17,6 +17,7 @@ export interface ResolvedConnection {
 export interface ExecuteOptions {
   cacheConfig?: CacheConfig
   strict?: boolean
+  maskingConfig?: FilesystemSecurityConfig
 }
 
 export type { DbAdapter }
@@ -115,6 +116,27 @@ export async function execute(
   throw new Error(`@db: unknown query kind "${(parsed as { kind: string }).kind}"`)
 }
 
+async function runAdapterExecute(
+  plan: QueryPlan,
+  connection: ResolvedConnection,
+  options: ExecuteOptions | undefined,
+): Promise<Row[] | null> {
+  if (!isSupportedType(connection.type)) {
+    throw new Error(`@db: unsupported database type "${connection.type}" — supported: ${supported_types.join(', ')}`)
+  }
+  const adapter = adapterRegistry.get(connection.type)
+  if (!adapter) return []
+
+  try {
+    return await adapter.execute(plan)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    writeAuditEntry({ level: 'ERROR', directive: '@db', file: connection.name, line: 0, message: `Runtime error: ${msg}`, action: 'BLOCKED' })
+    if (options?.strict) throw err
+    return null
+  }
+}
+
 async function executePlan(
   plan: QueryPlan,
   connection: ResolvedConnection,
@@ -123,14 +145,7 @@ async function executePlan(
 ): Promise<Row[]> {
   const secBlock = checkConnectionSecurity(plan.operation, plan.collection, connection.name, securityConfig)
   if (secBlock) {
-    writeAuditEntry({
-      level: 'ERROR',
-      directive: '@db',
-      file: connection.name,
-      line: 0,
-      message: secBlock,
-      action: 'BLOCKED',
-    })
+    writeAuditEntry({ level: 'ERROR', directive: '@db', file: connection.name, line: 0, message: secBlock, action: 'BLOCKED' })
     throw new Error(`@db: ${secBlock}`)
   }
 
@@ -140,28 +155,8 @@ async function executePlan(
     if (cached !== null) return JSON.parse(cached) as Row[]
   }
 
-  if (!isSupportedType(connection.type)) {
-    throw new Error(`@db: unsupported database type "${connection.type}" — supported: ${supported_types.join(', ')}`)
-  }
-  const adapter = adapterRegistry.get(connection.type)
-  if (!adapter) return []
-
-  let rows: Row[]
-  try {
-    rows = await adapter.execute(plan)
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    writeAuditEntry({
-      level: 'ERROR',
-      directive: '@db',
-      file: connection.name,
-      line: 0,
-      message: `Runtime error: ${msg}`,
-      action: 'BLOCKED',
-    })
-    if (options?.strict) throw err
-    return []
-  }
+  const rows = await runAdapterExecute(plan, connection, options)
+  if (rows === null) return []
 
   const { rows: capped, cap } = applyMaxResults(rows, connection.name, securityConfig)
   if (cap !== null) {
@@ -177,10 +172,20 @@ async function executePlan(
 
   if (options?.cacheConfig && options.cacheConfig.mode !== 'mock') {
     const key = buildDbCacheKey(plan, connection)
-    writeCache(key, JSON.stringify(capped), options.cacheConfig, undefined, 'db')
+    writeCache(key, JSON.stringify(capped), options.cacheConfig, options.maskingConfig, 'db')
   }
 
   return capped
+}
+
+function checkDeniedKeywords(query: string, connName: string, securityConfig: DbSecurityConfig): string | null {
+  const connConfig = securityConfig[connName]
+  if (!connConfig?.denied_keywords.length) return null
+  const upper = query.toUpperCase()
+  for (const kw of connConfig.denied_keywords) {
+    if (upper.includes(kw.toUpperCase())) return kw
+  }
+  return null
 }
 
 export async function executeRaw(
@@ -215,24 +220,16 @@ export async function executeRaw(
   }
 
   // Per-connection denied keywords (additional restriction beyond always-block)
-  const connConfig = securityConfig[connection.name]
-  if (connConfig?.denied_keywords.length) {
-    const upper = query.toUpperCase()
-    for (const kw of connConfig.denied_keywords) {
-      if (upper.includes(kw.toUpperCase())) {
-        writeAuditEntry({
-          level: 'ERROR',
-          directive: '@db raw=',
-          file: connection.name,
-          line: 0,
-          message: `Raw query blocked — denied keyword: "${kw}"`,
-          action: 'BLOCKED',
-        })
-        throw new Error(`@db: raw query blocked — denied keyword: "${kw}"`)
-      }
-    }
+  const deniedKw = checkDeniedKeywords(query, connection.name, securityConfig)
+  if (deniedKw !== null) {
+    writeAuditEntry({ level: 'ERROR', directive: '@db raw=', file: connection.name, line: 0, message: `Raw query blocked — denied keyword: "${deniedKw}"`, action: 'BLOCKED' })
+    throw new Error(`@db: raw query blocked — denied keyword: "${deniedKw}"`)
   }
 
+  return dispatchRaw(query, connection)
+}
+
+async function dispatchRaw(query: string, connection: ResolvedConnection): Promise<Row[]> {
   writeAuditEntry({
     level: 'WARN',
     directive: '@db raw=',
@@ -241,7 +238,6 @@ export async function executeRaw(
     message: `Raw query executed on connection "${connection.name}"`,
     action: 'ALLOWED',
   })
-
   if (!isSupportedType(connection.type)) {
     throw new Error(`@db: unsupported database type "${connection.type}"`)
   }

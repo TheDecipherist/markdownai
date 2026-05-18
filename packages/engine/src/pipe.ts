@@ -1,4 +1,6 @@
 const BUILTINS = new Set(['grep', 'sort', 'head', 'tail', 'wc', 'uniq'])
+const MAX_GREP_PATTERN_LENGTH = 200
+const REDOS_SUSPECT = /(\([^)]*[+*][^)]*\)[+*]|\(\?[^)]*\)[+*][+*]|\.\*.*\.\*)/
 
 export function isBuiltin(command: string): boolean {
   const cmd = command.trim().split(/\s+/)[0] ?? ''
@@ -45,11 +47,14 @@ function runGrep(args: string[], lines: string[]): string[] {
     else if (arg === '-iv' || arg === '-vi') { caseInsensitive = true; negate = true }
     else patternParts.push(arg)
   }
+  const pattern = patternParts.join(' ')
+  if (pattern.length > MAX_GREP_PATTERN_LENGTH) throw new Error(`grep: pattern too long (max ${MAX_GREP_PATTERN_LENGTH} chars)`)
+  if (REDOS_SUSPECT.test(pattern)) throw new Error(`grep: pattern rejected (suspected ReDoS): ${pattern}`)
   let re: RegExp
   try {
-    re = new RegExp(patternParts.join(' '), caseInsensitive ? 'i' : '')
+    re = new RegExp(pattern, caseInsensitive ? 'i' : '')
   } catch {
-    throw new Error(`grep: invalid pattern: ${patternParts.join(' ')}`)
+    throw new Error(`grep: invalid pattern: ${pattern}`)
   }
   return lines.filter(l => negate ? !re.test(l) : re.test(l))
 }

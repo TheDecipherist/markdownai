@@ -9,8 +9,8 @@ const call: ParseModule = {
     const raw = args.trim()
     if (!raw) throw new ParseError('@call requires a macro name', ctx.line, ctx.filePath)
 
-    // Detect name(arg1, arg2) or name(key=value) paren syntax
-    const parenMatch = raw.match(/^(\w+)\(([^)]*)\)$/)
+    // Detect name(arg1, arg2) or name(key=value) paren syntax — [\w-]+ matches hyphens like @define
+    const parenMatch = raw.match(/^([\w-]+)\(([^)]*)\)$/)
     if (parenMatch) {
       const name = parenMatch[1] ?? ''
       const inner = (parenMatch[2] ?? '').trim()

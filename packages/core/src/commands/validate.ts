@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { resolve, relative, dirname } from 'node:path'
 import { parse, ParseError } from '@markdownai/parser'
 import type { ASTNode, ConditionalBranch, PhaseNode, GraphNode, ImportNode } from '@markdownai/parser'
+import { checkFilePath } from '@markdownai/engine'
 
 export interface ValidateOptions {
   env?: string
@@ -17,7 +18,8 @@ export interface ValidateResult {
 }
 
 export function runValidate(filePath: string, options: ValidateOptions = {}): ValidateResult {
-  const resolved = resolve(options.cwd ?? process.cwd(), filePath)
+  const cwd = options.cwd ?? process.cwd()
+  const resolved = resolve(cwd, filePath)
   let source: string
   try {
     source = readFileSync(resolved, 'utf8')
@@ -61,6 +63,11 @@ function collectDefines(nodes: ASTNode[], dir?: string, seen: Set<string> = new 
       const importPath = resolve(dir, importNode.path)
       if (root && relative(root, importPath).startsWith('..')) {
         warnings?.push(`@import: path traversal blocked: ${importNode.path}`)
+        continue
+      }
+      const importCheck = checkFilePath(importNode.path, dir ?? root ?? '')
+      if (importCheck.level === 'blocked') {
+        warnings?.push(`@import: path blocked — ${importCheck.reason}: ${importNode.path}`)
         continue
       }
       if (!seen.has(importPath) && existsSync(importPath)) {

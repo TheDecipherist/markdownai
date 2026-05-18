@@ -15,7 +15,8 @@ export interface ParseCmdResult {
 }
 
 export function runParse(filePath: string, options: ParseCmdOptions = {}): ParseCmdResult {
-  const resolved = resolve(options.cwd ?? process.cwd(), filePath)
+  const cwd = options.cwd ?? process.cwd()
+  const resolved = resolve(cwd, filePath)
   let source: string
   try {
     source = readFileSync(resolved, 'utf8')
