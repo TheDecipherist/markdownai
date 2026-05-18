@@ -7,7 +7,7 @@
   },
   "types": "./dist/index.d.ts",
   "bin": {
-    "mai-serve": "./dist/server.js"
+    "mai-serve": "dist/server.js"
   },
   "files": [
     "dist"
