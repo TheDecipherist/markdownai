@@ -139,7 +139,7 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
     case 'chunk-boundary': return ctx.consumer === 'ai' ? `---chunk:${node.id}---` : `<!-- chunk: ${node.id} -->`
     case 'define-concept': return executeConcept(node, ctx)
     case 'constraint': return executeConstraint(node, ctx)
-    default: { ctx.warnings.push(`walkNode: unhandled AST node type "${(node as { type: string }).type}"`); return '' }
+    default: throw new Error(`walkNode: unhandled AST node type "${(node as { type: string }).type}"`)
   }
 }
 
@@ -220,6 +220,7 @@ function executePipe(node: PipeNode, ctx: EngineContext): string {
         return render(input)
       }
       case 'scalar': return lines.join(' ')
+      default: throw new Error(`executePipe: unhandled stage type "${(stage as { type: string }).type}"`)
     }
   }
   return render({ type: 'list', data: lines })

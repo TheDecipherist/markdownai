@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 
 export const PREVIEW_SCHEME = 'markdownai-preview';
 
@@ -10,7 +10,7 @@ export class PreviewProvider implements vscode.TextDocumentContentProvider {
   provideTextDocumentContent(uri: vscode.Uri): Thenable<string> {
     const filePath = uri.with({ scheme: 'file' }).fsPath;
     return new Promise(resolve => {
-      exec(`mai render "${filePath}"`, { timeout: 15000 }, (err, stdout, stderr) => {
+      execFile('mai', ['render', filePath], { timeout: 15000 }, (err, stdout, stderr) => {
         if (err) {
           const msg = (stderr || err.message).trim();
           resolve(`# MarkdownAI Preview — Render Error\n\n\`\`\`\n${msg}\n\`\`\`\n\n> Save the file and try again, or run \`mai render\` in the terminal for details.`);

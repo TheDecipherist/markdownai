@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { resolve, dirname, isAbsolute } from 'node:path'
 import { parse } from '@markdownai/parser'
-import { execute, loadSecurityConfig } from '@markdownai/engine'
+import { execute, loadSecurityConfig, checkFilePath } from '@markdownai/engine'
 import type { SecurityConfig } from '@markdownai/engine'
 import { aiFilter } from '@markdownai/renderer'
 import { loadEnvFile } from '../env-loader.js'
@@ -100,7 +100,12 @@ function postProcessOutput(output: string, options: RenderOptions): string {
 }
 
 export function runRender(filePath: string, options: RenderOptions = {}): RenderResult {
-  const resolved = resolve(options.cwd ?? process.cwd(), filePath)
+  const cwd = options.cwd ?? process.cwd()
+  if (!isAbsolute(filePath)) {
+    const check = checkFilePath(filePath, cwd)
+    if (check.level === 'blocked') return { output: '', errors: [`Path blocked: ${check.reason}`], warnings: [], exitCode: 1 }
+  }
+  const resolved = resolve(cwd, filePath)
   let source: string
   try {
     source = readFileSync(resolved, 'utf8')

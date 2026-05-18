@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import { execute, checkFilePath } from '@markdownai/engine'
+import { validateMcpInput, validateEnvRecord } from '../validate.js'
 
 export interface CallMacroResult {
   output: string
@@ -26,6 +27,14 @@ export function callMacro(
   cwd: string,
   env?: Record<string, string>
 ): CallMacroResult {
+  const validation = validateMcpInput([
+    { field: 'filePath', value: filePath, noPathInjection: true },
+    { field: 'macroName', value: macroName },
+    { field: 'cwd', value: cwd, noPathInjection: true },
+  ])
+  if (!validation.ok) return { output: '', warnings: [], found: false, error: validation.errors.map(e => `${e.field}: ${e.reason}`).join('; ') }
+  const envErrors = validateEnvRecord(env)
+  if (envErrors.length > 0) return { output: '', warnings: [], found: false, error: envErrors.map(e => `${e.field}: ${e.reason}`).join('; ') }
   const check = checkFilePath(filePath, cwd)
   if (check.level === 'blocked') {
     return { output: '', warnings: [], found: false, error: `Path traversal blocked: "${filePath}" — ${check.reason}` }

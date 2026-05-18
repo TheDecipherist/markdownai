@@ -77,6 +77,10 @@ function placeholder(dialect: SqlDialect, idx: number): string {
     case 'mysql':    return '?'
     case 'mssql':    return `@p${idx}`
     case 'sqlite':   return '?'
+    default: {
+      const _: never = dialect
+      throw new Error(`placeholder: unhandled dialect "${_}"`)
+    }
   }
 }
 
@@ -95,14 +99,15 @@ function mssqlTop(n: number, dialect: SqlDialect): string {
   return dialect === 'mssql' ? `TOP ${n} ` : ''
 }
 
-function buildWhereExpr(f: Filter, ph: string, _dialect: SqlDialect): string {
+function buildWhereExpr(f: Filter, ph: string, dialect: SqlDialect): string {
+  const field = qi(f.field, dialect)
   switch (f.operator) {
-    case '==': return `${f.field} = ${ph}`
-    case '!=': return `${f.field} != ${ph}`
-    case '>':  return `${f.field} > ${ph}`
-    case '<':  return `${f.field} < ${ph}`
-    case '>=': return `${f.field} >= ${ph}`
-    case '<=': return `${f.field} <= ${ph}`
+    case '==': return `${field} = ${ph}`
+    case '!=': return `${field} != ${ph}`
+    case '>':  return `${field} > ${ph}`
+    case '<':  return `${field} < ${ph}`
+    case '>=': return `${field} >= ${ph}`
+    case '<=': return `${field} <= ${ph}`
     default: throw new Error(`unhandled where operator: ${f.operator}`)
   }
 }

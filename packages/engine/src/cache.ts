@@ -4,6 +4,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { CacheConfig } from '@markdownai/parser'
 import { applyMasking } from './security/masking.js'
+import { checkFilePath } from './security/filesystem.js'
 import type { FilesystemSecurityConfig } from './security/config.js'
 
 interface PersistEntry {
@@ -24,9 +25,13 @@ export function cacheKey(directiveType: string, options: Record<string, unknown>
     .digest('hex')
 }
 
-export function readCache(key: string, config: CacheConfig): string | null {
+export function readCache(key: string, config: CacheConfig, docRoot?: string): string | null {
   if (config.mode === 'mock') {
     if (!config.mockPath) return null
+    if (docRoot) {
+      const check = checkFilePath(config.mockPath, docRoot)
+      if (check.level === 'blocked') return null
+    }
     try { return readFileSync(config.mockPath, 'utf8') } catch { return null }
   }
   if (config.mode === 'session') return SESSION_CACHE.get(key) ?? null

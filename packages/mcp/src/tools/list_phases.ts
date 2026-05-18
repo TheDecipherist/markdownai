@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { PhaseNode, TransitionNode } from '@markdownai/parser'
 import { checkFilePath } from '@markdownai/engine'
+import { validateMcpInput } from '../validate.js'
 
 export interface PhaseInfo {
   name: string
@@ -15,6 +16,11 @@ export interface ListPhasesResult {
 }
 
 export function listPhases(filePath: string, cwd: string): ListPhasesResult {
+  const validation = validateMcpInput([
+    { field: 'filePath', value: filePath, noPathInjection: true },
+    { field: 'cwd', value: cwd, noPathInjection: true },
+  ])
+  if (!validation.ok) return { phases: [], error: validation.errors.map(e => `${e.field}: ${e.reason}`).join('; ') }
   if (!filePath) return { phases: [], error: 'filePath must not be empty' }
   if (!cwd) return { phases: [], error: 'cwd must not be empty' }
   const check = checkFilePath(filePath, cwd)

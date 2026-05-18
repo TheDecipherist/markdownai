@@ -95,8 +95,16 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
       return { ...node as ConceptNode, definition: subStr(node.definition, args) }
     case 'constraint':
       return { ...node as ConstraintNode, body: subStr(node.body, args) }
-    // header, transition, env, graph, passthrough — no user-visible string params to substitute
-    default:
+    // header, transition, env, graph, passthrough, chunk-boundary — no user-visible string params to substitute
+    case 'header':
+    case 'transition':
+    case 'env':
+    case 'graph':
+    case 'passthrough':
+    case 'chunk-boundary':
       return node
+    default:
+      throw new Error(`substituteNode: unhandled AST node type "${(node as { type: string }).type}"`)
+
   }
 }

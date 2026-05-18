@@ -1,12 +1,14 @@
 import { appendFileSync, mkdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, dirname, resolve, isAbsolute } from 'node:path'
+import { FILESYSTEM_ALWAYS_BLOCK_PATHS, matchGlob } from './rules.js'
 
-const BLOCKED_LOG_PREFIXES = ['/etc/', '/proc/', '/sys/', '/bin/', '/sbin/', '/usr/bin/', '/dev/']
+const EXTRA_LOG_BLOCK_PREFIXES: readonly string[] = Object.freeze(['/bin/', '/sbin/', '/usr/bin/', '/dev/'])
 
 function isSafeLogPath(logPath: string): boolean {
-  const resolved = isAbsolute(logPath) ? logPath : resolve(homedir(), '.markdownai', logPath)
-  return !BLOCKED_LOG_PREFIXES.some(prefix => resolved.startsWith(prefix))
+  const abs = isAbsolute(logPath) ? logPath : resolve(homedir(), '.markdownai', logPath)
+  if (FILESYSTEM_ALWAYS_BLOCK_PATHS.some(pattern => matchGlob(pattern, abs))) return false
+  return !EXTRA_LOG_BLOCK_PREFIXES.some(prefix => abs.startsWith(prefix))
 }
 
 export type AuditLevel = 'INFO' | 'WARN' | 'ERROR' | 'FATAL' | 'SECURITY_ALERT' | 'SECURITY_NOTICE'

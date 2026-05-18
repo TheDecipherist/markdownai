@@ -1,5 +1,5 @@
 import { runInNewContext } from 'node:vm'
-import type { ASTNode, ParseResult, InterpolationSpan } from '@markdownai/parser'
+import type { ASTNode, ParseResult, InterpolationSpan, SectionNode, ConceptNode, ConstraintNode } from '@markdownai/parser'
 
 const SAFE_ENV_KEY = /^[A-Z_][A-Z0-9_]*$/i
 
@@ -74,6 +74,11 @@ function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[
     case 'passthrough': return node.raw
     case 'markdown': return stripInterpolations(node.text, node.interpolations, env, warnings)
     case 'phase': return collectParts(node.body, env, warnings).join('\n').trimStart()
+    case 'section': return collectParts((node as SectionNode).body, env, warnings).join('\n').trimStart()
+    case 'prompt': return ''
+    case 'chunk-boundary': return ''
+    case 'define-concept': return `**${(node as ConceptNode).name}** — ${(node as ConceptNode).definition}`
+    case 'constraint': return `> **CONSTRAINT [${(node as ConstraintNode).id}] — ${(node as ConstraintNode).severity.toUpperCase()}**\n> ${(node as ConstraintNode).body}`
     case 'conditional': {
       for (const branch of node.branches) {
         if (branch.condition === null) return collectParts(branch.body, env, warnings).join('\n').trimStart()
@@ -87,10 +92,9 @@ function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[
       }
       return ''
     }
-    default: {
-      warnings.push(`strip: unknown AST node type "${(node as ASTNode).type}" — node dropped`)
-      return ''
-    }
+    default:
+      throw new Error(`stripNode: unhandled AST node type "${(node as ASTNode).type}"`)
+
   }
 }
 
