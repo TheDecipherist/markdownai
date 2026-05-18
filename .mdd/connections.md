@@ -1,8 +1,8 @@
 ---
 generated: 2026-05-18
-doc_count: 78
-connection_count: 144
-overlap_count: 49
+doc_count: 79
+connection_count: 146
+overlap_count: 50
 ---
 
 ## Path Tree
@@ -100,7 +100,8 @@ overlap_count: 49
 │   │   ├── 55-completion-provider  complete
 │   │   ├── 56-hover-provider  complete
 │   │   ├── 57-definition-provider  complete
-│   │   └── 58-reference-panel  complete
+│   │   ├── 58-reference-panel  complete
+│   │   └── 79-vscode-preview  complete
 │   └── Quality/
 │       ├── 59-diagnostics-provider  complete
 │       ├── 61-test-suite  complete
@@ -189,6 +190,7 @@ flowchart LR
   n73[73-db-caching]:::complete
   n74[74-db-error-handling]:::complete
   n75[75-engine-bug-fixes]:::complete
+  n79[79-vscode-preview]:::complete
   n76[76-packages-readmes]:::complete
   n77[77-claude-native]:::complete
   n78[78-lang-note]:::complete
@@ -332,6 +334,8 @@ flowchart LR
   n03 --> n76
   n04 --> n76
   n30 --> n76
+  n51 --> n79
+  n32 --> n79
   n32 --> n77
   n12 --> n78
   n29 --> n78
@@ -393,8 +397,8 @@ Files referenced by 2 or more docs:
 - `packages/parser/src/registry.ts` - 01-parser, 78-lang-note
 - `packages/parser/src/types.ts` - 01-parser, 78-lang-note
 - `packages/renderer/src/renderer.ts` - 02-renderer, 13-lang-pipeline
-- `packages/vscode/package.json` - 51-package-scaffold, 52-language-definition, 53-syntax-highlighting, 54-snippets
-- `packages/vscode/src/extension.ts` - 51-package-scaffold, 52-language-definition, 55-completion-provider
+- `packages/vscode/package.json` - 51-package-scaffold, 52-language-definition, 53-syntax-highlighting, 54-snippets, 79-vscode-preview
+- `packages/vscode/src/extension.ts` - 51-package-scaffold, 52-language-definition, 55-completion-provider, 79-vscode-preview
 
 ## Warnings
 
