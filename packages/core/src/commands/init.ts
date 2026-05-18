@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { CLAUDE_MD_SECTION, SECTION_START_MARKER, SECTION_END_MARKER } from '../templates/claude-section.js'
+import { FILESYSTEM_ALWAYS_BLOCK_PATHS, matchGlob } from '@markdownai/engine'
 
 export type ClientType = 'claude-code' | 'cursor' | 'auto'
 
@@ -81,8 +82,16 @@ export function stripClaudeMdSection(content: string): string {
   return before + '\n\n' + after
 }
 
+function isClaudeMdPathSafe(p: string): boolean {
+  return !FILESYSTEM_ALWAYS_BLOCK_PATHS.some(pattern => matchGlob(pattern, p))
+}
+
 export function runInitClaudeMd(options: InitClaudeMdOptions = {}): InitClaudeMdResult {
   const claudeMdPath = options.claudeMdPath ?? join(homedir(), '.claude', 'CLAUDE.md')
+
+  if (!isClaudeMdPathSafe(claudeMdPath)) {
+    return { updated: false, alreadyPresent: false, claudeMdPath }
+  }
 
   if (existsSync(claudeMdPath)) {
     const existing = readFileSync(claudeMdPath, 'utf8')
@@ -99,47 +108,29 @@ export function runInitClaudeMd(options: InitClaudeMdOptions = {}): InitClaudeMd
   return { updated: true, alreadyPresent: false, claudeMdPath }
 }
 
-export function runInit(options: InitOptions = {}): InitResult {
-  const detected = options.client === 'auto' || !options.client ? detectClient() : null
-  const clientType = options.client && options.client !== 'auto' ? options.client : (detected?.type ?? 'claude-code')
-
-  let configPath: string
-  if (clientType === 'claude-code') {
-    configPath = join(homedir(), '.claude', 'settings.json')
-  } else if (clientType === 'cursor') {
-    configPath = join(homedir(), '.cursor', 'settings.json')
-  } else {
-    configPath = join(homedir(), '.claude', 'settings.json')
-  }
-
-  // Write the hook file
-  const hookDir = join(homedir(), '.markdownai', 'hooks')
-  const hookPath = join(hookDir, 'preToolUse.mjs')
+function ensureHookFile(hookDir: string, hookPath: string): void {
   mkdirSync(hookDir, { recursive: true })
-
   const hookAlreadyExists = existsSync(hookPath) &&
     readFileSync(hookPath, 'utf8').includes('MarkdownAI PreToolUse hook')
-
   if (!hookAlreadyExists) {
     writeFileSync(hookPath, HOOK_SCRIPT, 'utf8')
   }
+}
 
-  // Update AI client config to register the hook
+interface HookUpdateResult {
+  alreadyInstalled: boolean
+  error?: string
+}
+
+function updateClientHooks(configPath: string, hookPath: string): HookUpdateResult {
   let config: Record<string, unknown> = {}
   if (existsSync(configPath)) {
     try {
       config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>
     } catch (err) {
-      return {
-        success: false,
-        clientDetected: clientType,
-        configPath,
-        alreadyInstalled: false,
-        message: `Cannot parse settings file at ${configPath}: ${String(err)}`,
-      }
+      return { alreadyInstalled: false, error: `Cannot parse settings file at ${configPath}: ${String(err)}` }
     }
   }
-
   const hooks = (config['hooks'] as Record<string, unknown> | undefined) ?? {}
   const existingEntries = Array.isArray(hooks['PreToolUse']) ? hooks['PreToolUse'] as unknown[] : []
   const alreadyInstalled = existingEntries.some((entry: unknown) => {
@@ -147,24 +138,36 @@ export function runInit(options: InitOptions = {}): InitResult {
     const subhooks = Array.isArray(e['hooks']) ? e['hooks'] as Array<Record<string, unknown>> : []
     return subhooks.some(h => typeof h['command'] === 'string' && h['command'].includes('markdownai'))
   })
-
   if (!alreadyInstalled) {
-    const newEntry = {
-      matcher: 'Read',
-      hooks: [{ type: 'command', command: `node ${hookPath}` }],
-    }
-    hooks['PreToolUse'] = [...existingEntries, newEntry]
+    hooks['PreToolUse'] = [...existingEntries, { matcher: 'Read', hooks: [{ type: 'command', command: `node ${hookPath}` }] }]
     config['hooks'] = hooks
     mkdirSync(dirname(configPath), { recursive: true })
     writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf8')
   }
+  return { alreadyInstalled }
+}
 
+export function runInit(options: InitOptions = {}): InitResult {
+  const detected = options.client === 'auto' || !options.client ? detectClient() : null
+  const clientType = options.client && options.client !== 'auto' ? options.client : (detected?.type ?? 'claude-code')
+  const configPath = clientType === 'cursor'
+    ? join(homedir(), '.cursor', 'settings.json')
+    : join(homedir(), '.claude', 'settings.json')
+
+  const hookDir = join(homedir(), '.markdownai', 'hooks')
+  const hookPath = join(hookDir, 'preToolUse.mjs')
+  ensureHookFile(hookDir, hookPath)
+
+  const result = updateClientHooks(configPath, hookPath)
+  if (result.error) {
+    return { success: false, clientDetected: clientType, configPath, alreadyInstalled: false, message: result.error }
+  }
   return {
     success: true,
     clientDetected: clientType,
     configPath,
-    alreadyInstalled,
-    message: alreadyInstalled
+    alreadyInstalled: result.alreadyInstalled,
+    message: result.alreadyInstalled
       ? `MarkdownAI hook already installed in ${configPath}`
       : `MarkdownAI hook installed in ${configPath}`,
   }
