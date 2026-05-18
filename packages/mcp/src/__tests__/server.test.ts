@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { getEnv } from '../tools/get_env.js'
+import { getConstraints } from '../tools/get_constraints.js'
 import { listPhases } from '../tools/list_phases.js'
 import { resolvePhase } from '../tools/resolve_phase.js'
 import { nextPhase } from '../tools/next_phase.js'
@@ -39,6 +40,32 @@ describe('getEnv', () => {
     const result = getEnv('DEFINITELY_MISSING_VAR_XYZ')
     expect(result.value).toBe('')
     expect(result.found).toBe(false)
+  })
+
+  it('denies keys matching sensitive patterns', () => {
+    for (const key of ['MY_SECRET', 'DB_PASSWORD', 'API_KEY', 'AUTH_TOKEN', 'PRIVATE_KEY', 'DATABASE_URL']) {
+      const result = getEnv(key)
+      expect(result.denied).toBe(true)
+      expect(result.value).toBe('')
+    }
+  })
+
+  it('denies keys with invalid format', () => {
+    for (const key of ['', '123INVALID', 'has-hyphen', 'has space', 'a'.repeat(129)]) {
+      const result = getEnv(key)
+      expect(result.found).toBe(false)
+      expect(result.value).toBe('')
+    }
+  })
+
+  it('enforces allowedKeys when provided', () => {
+    process.env['MAI_ALLOWED'] = 'yes'
+    process.env['MAI_NOT_ALLOWED'] = 'no'
+    const allowed = new Set(['MAI_ALLOWED'])
+    expect(getEnv('MAI_ALLOWED', undefined, allowed).found).toBe(true)
+    expect(getEnv('MAI_NOT_ALLOWED', undefined, allowed).denied).toBe(true)
+    delete process.env['MAI_ALLOWED']
+    delete process.env['MAI_NOT_ALLOWED']
   })
 })
 
@@ -140,8 +167,13 @@ describe('nextPhase', () => {
 describe('executeDirective', () => {
   it('executes @env directive', () => {
     const result = executeDirective('@env TEST_EXEC_VAR fallback', process.cwd(), { TEST_EXEC_VAR: 'value' })
-    // env sets fallback, actual value comes from env
     expect(result.errors).toHaveLength(0)
+  })
+
+  it('executes @date directive', () => {
+    const result = executeDirective('@date', process.cwd())
+    expect(result.errors).toHaveLength(0)
+    expect(result.output.trim().length).toBeGreaterThan(0)
   })
 
   it('rejects @query — not in MCP allowlist', () => {
@@ -151,10 +183,72 @@ describe('executeDirective', () => {
     expect(result.errors[0]).toContain('not permitted via MCP')
   })
 
+  it('rejects @shell — not in MCP allowlist', () => {
+    const result = executeDirective('@shell echo hi', process.cwd())
+    expect(result.errors[0]).toContain('not permitted via MCP')
+  })
+
+  it('rejects @http — not in MCP allowlist', () => {
+    const result = executeDirective('@http url=https://example.com', process.cwd())
+    expect(result.errors[0]).toContain('not permitted via MCP')
+  })
+
+  it('rejects @db — not in MCP allowlist', () => {
+    const result = executeDirective('@db sql="SELECT 1"', process.cwd())
+    expect(result.errors[0]).toContain('not permitted via MCP')
+  })
+
+  it('rejects @include — not in MCP allowlist', () => {
+    const result = executeDirective('@include file.md', process.cwd())
+    expect(result.errors[0]).toContain('not permitted via MCP')
+  })
+
+  it('rejects @import — not in MCP allowlist', () => {
+    const result = executeDirective('@import macros.md', process.cwd())
+    expect(result.errors[0]).toContain('not permitted via MCP')
+  })
+
+  it('rejects @connect — not in MCP allowlist', () => {
+    const result = executeDirective('@connect name=db type=postgres', process.cwd())
+    expect(result.errors[0]).toContain('not permitted via MCP')
+  })
+
+  it('rejects embedded newlines (injection attempt)', () => {
+    const result = executeDirective('@env SAFE_VAR\n@shell rm -rf /', process.cwd())
+    // newline stripped — only @env is processed, @shell part becomes part of the env directive
+    expect(result.errors).toHaveLength(0)
+  })
+
   it('rejects unknown directives via MCP', () => {
     const result = executeDirective('@completely-unknown-directive', process.cwd())
     expect(result.errors.length).toBeGreaterThan(0)
     expect(result.errors[0]).toContain('not permitted via MCP')
+  })
+})
+
+describe('getConstraints', () => {
+  it('returns blocked=true for path traversal', () => {
+    const result = getConstraints('../../etc/passwd', '/tmp')
+    expect(result.blocked).toBe(true)
+    expect(result.constraints).toHaveLength(0)
+  })
+
+  it('returns empty constraints for missing file', () => {
+    const result = getConstraints('nonexistent.md', '/tmp')
+    expect(result.blocked).toBeUndefined()
+    expect(result.constraints).toHaveLength(0)
+  })
+
+  it('returns constraints from a MarkdownAI document', () => {
+    setup()
+    const content = '@markdownai\n@constraint id=C1 severity=high\nAll inputs must be validated.\n@end'
+    writeFileSync(join(TMP, 'constrained.md'), content)
+    const result = getConstraints('constrained.md', TMP)
+    expect(result.isMarkdownAI).toBe(true)
+    expect(result.constraints).toHaveLength(1)
+    expect(result.constraints[0]?.id).toBe('C1')
+    expect(result.constraints[0]?.severity).toBe('high')
+    teardown()
   })
 })
 
