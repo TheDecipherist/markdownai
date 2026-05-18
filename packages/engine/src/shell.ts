@@ -13,11 +13,16 @@ export function runShell(command: string, input: string[], ctx: EngineContext): 
     audit_log: false,
   }
 
+  if (command.includes('\n') || command.includes('\r')) {
+    throw new Error('Shell command blocked: embedded newlines not allowed')
+  }
+
   const result = checkShellCommand(command, shellConfig)
   if (!result.allowed) {
     throw new Error(`Shell command blocked [${result.tier}]: ${result.reason}`)
   }
 
+  // execSync blocks the event loop; the 10s timeout prevents indefinite blocking
   const output = execSync(command, {
     input: input.join('\n'),
     cwd: ctx.cwd,

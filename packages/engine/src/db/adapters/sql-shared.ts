@@ -50,7 +50,7 @@ export function buildSql(plan: QueryPlan, dialect: SqlDialect): SqlBuild {
       break
     }
     case 'one': {
-      const selectClause = mssqlTop(1, dialect) + buildSelectCols(plan.columns, dialect)
+      const selectClause = `SELECT ${mssqlTop(1, dialect)}${buildSelectCols(plan.columns, dialect)}`
       const parts = [selectClause, `FROM ${qi(plan.collection, dialect)}`]
       if (where) parts.push(where)
       if (dialect !== 'mssql') parts.push('LIMIT 1')
@@ -59,7 +59,7 @@ export function buildSql(plan: QueryPlan, dialect: SqlDialect): SqlBuild {
     }
     default: { // find
       const topClause = plan.limit !== null && dialect === 'mssql' ? mssqlTop(plan.limit, dialect) : ''
-      const selectClause = topClause + buildSelectCols(plan.columns, dialect)
+      const selectClause = `SELECT ${topClause}${buildSelectCols(plan.columns, dialect)}`
       const parts = [selectClause, `FROM ${qi(plan.collection, dialect)}`]
       if (where) parts.push(where)
       if (plan.sort.length > 0) {
@@ -90,13 +90,12 @@ function qi(name: string, dialect: SqlDialect): string {
 }
 
 function buildSelectCols(columns: ColumnMap[], dialect: SqlDialect): string {
-  if (columns.length === 0) return 'SELECT *'
-  const cols = columns.map(c => `${qi(c.field, dialect)} AS ${qi(c.label, dialect)}`)
-  return 'SELECT ' + cols.join(', ')
+  if (columns.length === 0) return '*'
+  return columns.map(c => `${qi(c.field, dialect)} AS ${qi(c.label, dialect)}`).join(', ')
 }
 
 function mssqlTop(n: number, dialect: SqlDialect): string {
-  return dialect === 'mssql' ? `SELECT TOP ${n} ` : ''
+  return dialect === 'mssql' ? `TOP ${n} ` : ''
 }
 
 function buildWhereExpr(f: Filter, ph: string, _dialect: SqlDialect): string {

@@ -28,18 +28,18 @@ export function checkShellCommand(command: string, config: ShellSecurityConfig):
     }
   }
 
-  // 3. User deny_patterns (deny wins over allow)
+  // 3. enabled=false blocks everything not already blocked by immutable rules
+  if (!config.enabled) return { allowed: false, tier: 'not_allowed', reason: 'Shell execution disabled' }
+
+  // 4. User deny_patterns (deny wins over allow)
   for (const pattern of config.deny_patterns) {
     if (matchGlob(pattern, cmd) || matchShellPattern(pattern, cmd)) {
       return { allowed: false, tier: 'deny_pattern', reason: `User deny pattern: "${pattern}"` }
     }
   }
 
-  // 4. User allowlist check
+  // 5. User allowlist check
   const inAllowlist = config.allow_patterns.some(p => matchGlob(p, cmd) || matchShellPattern(p, cmd))
-
-  // enabled:false blocks everything not in always_block (already handled above) — check before allowlist
-  if (!config.enabled) return { allowed: false, tier: 'not_allowed', reason: 'Shell execution disabled' }
 
   if (alertPattern) {
     if (inAllowlist) return { allowed: true, tier: 'always_alert', reason: `Alert pattern in allowlist: "${alertPattern}"` }

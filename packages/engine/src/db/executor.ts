@@ -5,7 +5,7 @@ import { DB_ALWAYS_BLOCK_KEYWORDS, DB_ALWAYS_BLOCK_MONGO } from '../security/rul
 import { writeAuditEntry } from '../security/audit.js'
 import type { DbSecurityConfig } from '../security/config.js'
 
-export const supported_types = ['mongodb', 'postgres', 'mysql', 'mssql', 'sqlite'] as const
+export const supported_types = Object.freeze(['mongodb', 'postgres', 'mysql', 'mssql', 'sqlite'] as const)
 export type DbType = typeof supported_types[number]
 
 export interface ResolvedConnection {
@@ -109,7 +109,10 @@ export async function execute(
   if (parsed.kind === 'raw') {
     return executeRaw(parsed.query, connection, securityConfig)
   }
-  return executePlan(parsed.plan, connection, securityConfig, options)
+  if (parsed.kind === 'plan') {
+    return executePlan(parsed.plan, connection, securityConfig, options)
+  }
+  throw new Error(`@db: unknown query kind "${(parsed as { kind: string }).kind}"`)
 }
 
 async function executePlan(
@@ -174,7 +177,7 @@ async function executePlan(
 
   if (options?.cacheConfig && options.cacheConfig.mode !== 'mock') {
     const key = buildDbCacheKey(plan, connection)
-    writeCache(key, JSON.stringify(capped), options.cacheConfig)
+    writeCache(key, JSON.stringify(capped), options.cacheConfig, undefined, 'db')
   }
 
   return capped
@@ -209,6 +212,25 @@ export async function executeRaw(
       action: 'STRIPPED',
     })
     return []
+  }
+
+  // Per-connection denied keywords (additional restriction beyond always-block)
+  const connConfig = securityConfig[connection.name]
+  if (connConfig?.denied_keywords.length) {
+    const upper = query.toUpperCase()
+    for (const kw of connConfig.denied_keywords) {
+      if (upper.includes(kw.toUpperCase())) {
+        writeAuditEntry({
+          level: 'ERROR',
+          directive: '@db raw=',
+          file: connection.name,
+          line: 0,
+          message: `Raw query blocked — denied keyword: "${kw}"`,
+          action: 'BLOCKED',
+        })
+        throw new Error(`@db: raw query blocked — denied keyword: "${kw}"`)
+      }
+    }
   }
 
   writeAuditEntry({

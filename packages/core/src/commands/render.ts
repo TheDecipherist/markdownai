@@ -32,11 +32,11 @@ function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4)
 }
 
+interface Section { full: string; priority: string; content: string }
+
 function applyBudget(output: string, budget: number): string {
   if (budget <= 0) return output
 
-  // Collect sections with their match positions
-  interface Section { full: string; priority: string; content: string }
   const sections: Section[] = []
   for (const m of output.matchAll(SECTION_RE)) {
     sections.push({ full: m[0]!, priority: m[1]!, content: m[3]! })

@@ -18,7 +18,9 @@ const BUILT_IN_MASKING_PATTERNS: Array<{ re: RegExp; name: string }> = [
   { re: /^[A-Z][A-Z0-9_]+=(?=[A-Za-z0-9+/]{32,})[A-Za-z0-9+/=_-]{32,}$/gm, name: 'env-value' },
 ]
 
-const MAX_USER_PATTERN_LENGTH = 500
+const MAX_USER_PATTERN_LENGTH = 200
+// Simple heuristic for catastrophic backtracking: nested quantifiers like (a+)+ or (.*)*
+const REDOS_SUSPECT = /(\([^)]*[+*][^)]*\)[+*]|\(\?[^)]*\)[+*][+*]|\.\*.*\.\*)/
 
 export function applyMasking(
   content: string,
@@ -47,11 +49,16 @@ export function applyMasking(
   if (config?.user_masking_patterns?.length) {
     for (const pattern of config.user_masking_patterns) {
       if (typeof pattern !== 'string' || pattern.length > MAX_USER_PATTERN_LENGTH) continue
+      if (REDOS_SUSPECT.test(pattern)) {
+        return { masked: result, wasMasked, alert: `WARN: user_masking_pattern rejected (suspected ReDoS): ${pattern}` }
+      }
       try {
         const re = new RegExp(pattern, 'g')
         const replaced = result.replace(re, '***MASKED***')
         if (replaced !== result) { wasMasked = true; result = replaced }
-      } catch { /* ignore invalid regex patterns */ }
+      } catch {
+        return { masked: result, wasMasked, alert: `WARN: invalid user_masking_pattern — skipped: ${pattern}` }
+      }
     }
   }
 

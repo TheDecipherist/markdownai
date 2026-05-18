@@ -1,159 +1,12 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { resolve, join } from 'node:path'
-import { runInNewContext } from 'node:vm'
 import { execSync } from 'node:child_process'
 import type { ListNode, ReadNode, CountNode, DateNode, TreeNode, DbNode, HttpNode, QueryNode } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
 import { parseQuery, DbParseError } from './db/query.js'
-
-function globToRegex(pattern: string): RegExp {
-  const re = pattern
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
-    .replace(/\*\*/g, '\x00')
-    .replace(/\*/g, '[^/]*')
-    .replace(/\x00/g, '.*')
-    .replace(/\?/g, '[^/]')
-  return new RegExp(`^${re}$`)
-}
-
-function walkDir(dir: string, rel: string, matchRe: RegExp | null, typeFilter: string, depth: number, maxDepth: number): string[] {
-  if (maxDepth >= 0 && depth > maxDepth) return []
-  let names: string[]
-  try { names = readdirSync(dir) } catch { return [] }
-  const results: string[] = []
-  for (const name of names) {
-    const full = join(dir, name)
-    const entRel = rel ? `${rel}/${name}` : name
-    let isDir = false
-    try { isDir = statSync(full).isDirectory() } catch { continue }
-    const matches = !matchRe || matchRe.test(entRel)
-    if (!isDir && typeFilter !== 'dirs' && matches) results.push(entRel)
-    if (isDir && typeFilter !== 'files' && matches) results.push(entRel)
-    if (isDir) results.push(...walkDir(full, entRel, matchRe, typeFilter, depth + 1, maxDepth))
-  }
-  return results
-}
-
-function whereMatches(row: Record<string, unknown>, expr: string): boolean {
-  try { return Boolean(runInNewContext(expr, { ...row }, { timeout: 500 })) } catch { return false }
-}
-
-function rowToTabLine(row: Record<string, unknown>, columns: string[] | null, collapse: boolean): string {
-  const keys = columns ?? Object.keys(row)
-  return keys.map(k => {
-    const v = row[k]
-    return collapse && v !== null && typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')
-  }).join('\t')
-}
-
-function getAtPath(obj: unknown, path: string): unknown {
-  // Supports dot-notation and [n] array indices: "users[0].name"
-  const tokens = path.replace(/\[(\d+)\]/g, '.$1').split('.').filter(Boolean)
-  return tokens.reduce((cur, key) => {
-    if (cur === null || cur === undefined) return undefined
-    if (Array.isArray(cur)) { const i = parseInt(key, 10); return isNaN(i) ? undefined : cur[i] }
-    if (typeof cur === 'object') return (cur as Record<string, unknown>)[key]
-    return undefined
-  }, obj)
-}
-
-function listJson(fullPath: string, args: Record<string, string | undefined>): string[] {
-  let raw: string
-  try { raw = readFileSync(fullPath, 'utf8') } catch { return [] }
-  let parsed: unknown
-  try { parsed = JSON.parse(raw) } catch { return [] }
-
-  const target = args['path'] ? getAtPath(parsed, args['path']) : parsed
-  const colSpec = args['columns']
-  const cols = colSpec ? colSpec.split(',').map(c => (c.includes(':') ? c.split(':')[0]! : c).trim()) : null
-  const collapse = args['collapse'] === 'true'
-  const whereExpr = args['where']
-
-  if (Array.isArray(target)) {
-    return (target as unknown[])
-      .map(item => (item !== null && typeof item === 'object' ? item as Record<string, unknown> : { value: item }))
-      .filter(row => !whereExpr || whereMatches(row, whereExpr))
-      .map(row => rowToTabLine(row, cols, collapse))
-  }
-
-  if (target !== null && typeof target === 'object') {
-    const obj = target as Record<string, unknown>
-    const mode = args['mode'] ?? 'keys'
-    if (mode === 'values') return Object.values(obj).map(v => String(v ?? ''))
-    if (mode === 'entries') return Object.entries(obj).map(([k, v]) => `${k}\t${String(v ?? '')}`)
-    return Object.keys(obj)
-  }
-
-  return [String(target ?? '')]
-}
-
-function parseCsvLine(line: string): string[] {
-  const cells: string[] = []
-  let cur = ''
-  let inQuote = false
-  for (const ch of line) {
-    if (inQuote) {
-      if (ch === '"') inQuote = false
-      else cur += ch
-    } else if (ch === '"') {
-      inQuote = true
-    } else if (ch === ',') {
-      cells.push(cur.trim())
-      cur = ''
-    } else {
-      cur += ch
-    }
-  }
-  cells.push(cur.trim())
-  return cells
-}
-
-function listCsv(fullPath: string, args: Record<string, string | undefined>): string[] {
-  let raw: string
-  try { raw = readFileSync(fullPath, 'utf8') } catch { return [] }
-  const allLines = raw.split('\n').filter(l => l.trim())
-  const skipN = parseInt(args['skip'] ?? '0', 10)
-  const lines = allLines.slice(skipN)
-  if (lines.length === 0) return []
-
-  const headers = parseCsvLine(lines[0] ?? '')
-  const singleCol = args['column']
-  const colSpec = args['columns']
-  const selectedCols = colSpec ? colSpec.split(',').map(c => c.trim()) : headers
-  const whereExpr = args['where']
-
-  const rows = lines.slice(1)
-    .map(l => {
-      const cells = parseCsvLine(l)
-      const row: Record<string, string> = {}
-      headers.forEach((h, i) => { row[h] = cells[i] ?? '' })
-      return row
-    })
-    .filter(row => !whereExpr || whereMatches(row, whereExpr))
-
-  if (singleCol) return rows.map(row => row[singleCol] ?? '')
-  return rows.map(row => selectedCols.map(c => row[c] ?? '').join('\t'))
-}
-
-function readEnvFile(fullPath: string, args: Record<string, string | undefined>): string[] {
-  if (args['path'] !== undefined) return ['ERROR: use key= for .env files, not path=']
-  let raw: string
-  try { raw = readFileSync(fullPath, 'utf8') } catch { return [] }
-  const pairs: Record<string, string> = {}
-  for (const line of raw.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) continue
-    const eqIdx = trimmed.indexOf('=')
-    if (eqIdx === -1) continue
-    const k = trimmed.slice(0, eqIdx).trim()
-    let v = trimmed.slice(eqIdx + 1).trim()
-    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1)
-    pairs[k] = v
-  }
-  const key = args['key']
-  if (key) return pairs[key] !== undefined ? [pairs[key]!] : []
-  return Object.entries(pairs).map(([k, v]) => `${k}=${v}`)
-}
+import { checkHttpUrl } from './security/http.js'
+import type { HttpSecurityConfig } from './security/config.js'
+import { globToRegex, walkDir, listJson, listCsv, readEnvFile } from './sources-file-utils.js'
 
 function checkJailRoot(full: string, ctx: EngineContext): boolean {
   const jailRoot = ctx.security.jailRoot
@@ -210,8 +63,12 @@ export function formatDate(date: Date, fmt: string): string {
 }
 
 export function executeCount(node: CountNode, ctx: EngineContext): string[] {
+  const full = resolve(ctx.docDir, node.path)
+  if (!checkJailRoot(full, ctx)) {
+    ctx.warnings.push(`SECURITY_ALERT: @count path confined — access denied: ${node.path}`)
+    return ['0']
+  }
   try {
-    const full = resolve(ctx.docDir, node.path)
     const st = statSync(full)
     if (st.isDirectory()) {
       const matchPattern = node.args['match']
@@ -223,7 +80,7 @@ export function executeCount(node: CountNode, ctx: EngineContext): string[] {
   } catch { return ['0'] }
 }
 
-export function executeDate(node: DateNode): string[] {
+export function executeDate(node: DateNode, ctx?: EngineContext): string[] {
   const fmt = node.args['format'] ?? 'ISO'
   const filePath = node.args['file']
   const type = node.args['type'] ?? 'current'
@@ -232,7 +89,17 @@ export function executeDate(node: DateNode): string[] {
   }
   let date = new Date()
   if (type === 'modified' && filePath) {
-    try { date = new Date(statSync(filePath).mtime) } catch { /* fallback to now */ }
+    const jailRoot = ctx?.security.jailRoot
+    if (jailRoot) {
+      const abs = resolve(jailRoot, filePath)
+      if (!abs.startsWith(jailRoot)) {
+        ctx?.warnings.push(`SECURITY_ALERT: @date file= path confined — access denied: ${filePath}`)
+      } else {
+        try { date = new Date(statSync(abs).mtime) } catch { /* fallback to now */ }
+      }
+    } else {
+      try { date = new Date(statSync(filePath).mtime) } catch { /* fallback to now */ }
+    }
   }
   return [formatDate(date, fmt)]
 }
@@ -292,23 +159,25 @@ export function executeDb(node: DbNode, ctx: EngineContext): string[] {
     return []
   }
 
-  // Raw query warning — will be executed by executor.executeRaw() once adapters are registered (Wave 2)
+  // Async DB execution is not available in the synchronous render path — use @cache mock= for development
   if (parsed.kind === 'raw') {
-    ctx.warnings.push('@db: raw query parsed — adapter execution requires a configured driver (Wave 2)')
+    ctx.warnings.push('@db: raw query requires async execution — use @cache mock= for development or call via MCP')
     return []
   }
 
-  // Plan produced — adapter execution requires Wave 2 adapters
-  ctx.warnings.push('@db: query plan parsed — adapter execution requires a configured driver (Wave 2)')
+  ctx.warnings.push('@db: database query requires async execution — use @cache mock= for development or call via MCP')
   return []
 }
 
-// Cloud metadata endpoints — always blocked, immutable security rule
-const BLOCKED_HOSTS: readonly string[] = Object.freeze(['169.254.169.254', 'metadata.google.internal', 'fd00:ec2::254', '100.100.100.200'])
-
-function isBlockedHost(url: string): boolean {
-  try { return BLOCKED_HOSTS.some(h => new URL(url).hostname.includes(h)) } catch { return false }
-}
+// Permissive fallback used when no httpConfig is loaded — only immutable rules apply
+const PERMISSIVE_HTTP_CONFIG: HttpSecurityConfig = Object.freeze({
+  enabled: true,
+  allowed_domains: [],
+  denied_domains: [],
+  allowed_methods: ['GET'],
+  max_response_size: 1_048_576,
+  timeout: 10_000,
+})
 
 export function executeHttp(node: HttpNode, ctx: EngineContext): string[] {
   if (!ctx.security.allowHttp) return []  // jailed: stripped silently
@@ -316,9 +185,11 @@ export function executeHttp(node: HttpNode, ctx: EngineContext): string[] {
   const url = node.args['url'] ?? ''
   if (!url) { ctx.warnings.push('@http: url= is required'); return [] }
 
-  // Cloud metadata endpoints always blocked — immutable rule
-  if (isBlockedHost(url)) {
-    ctx.warnings.push(`SECURITY_ALERT: @http blocked — cloud metadata endpoint: ${url}`)
+  const method = (node.args['method'] ?? 'GET').toUpperCase()
+  const check = checkHttpUrl(url, ctx.security.httpConfig ?? PERMISSIVE_HTTP_CONFIG, method)
+  if (!check.allowed) {
+    const prefix = check.tier === 'always_block' ? 'SECURITY_ALERT' : 'WARN'
+    ctx.warnings.push(`${prefix}: @http blocked [${check.tier}] — ${check.reason}`)
     return []
   }
 

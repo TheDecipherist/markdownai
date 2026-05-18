@@ -223,6 +223,29 @@ function parseAggregateOps(args: Record<string, string>, hasAggregate: boolean):
 const OPERATIONS = ['find', 'one', 'count', 'aggregate', 'raw'] as const
 type AnyOperation = typeof OPERATIONS[number]
 
+function detectOperation(args: Record<string, string>): AnyOperation {
+  const presentOps = OPERATIONS.filter(op => args[op] !== undefined)
+  // 'count=true' inside aggregate= is NOT a top-level count op
+  const isAggregateCount = args['aggregate'] !== undefined && args['count'] === 'true'
+  const filteredOps = isAggregateCount ? presentOps.filter(op => op !== 'count') : presentOps
+  if (filteredOps.length === 0) {
+    throw new DbParseError('@db: no operation specified — use find=, one=, count=, aggregate=, or raw=')
+  }
+  if (filteredOps.length > 1) {
+    throw new DbParseError(`@db: multiple operations on one directive (${filteredOps.join(', ')}) — only one is allowed`)
+  }
+  return filteredOps[0]! as AnyOperation
+}
+
+function validateQueryPlan(op: AnyOperation, args: Record<string, string>, group: string | null, aggregations: AggregateOp[]): void {
+  if (op === 'count' && args['sort']) throw new DbParseError('@db: sort= is not valid with count= operation')
+  if (op === 'count' && args['columns']) throw new DbParseError('@db: columns= is not valid with count= operation')
+  if (op === 'aggregate' && !group) throw new DbParseError('@db: aggregate= requires group= field')
+  if (op === 'aggregate' && aggregations.length === 0) {
+    throw new DbParseError('@db: aggregate= requires at least one aggregation function (count=true, sum=, avg=, min=, or max=)')
+  }
+}
+
 export function parseQuery(
   args: Record<string, string>,
   env: Record<string, string>,
@@ -237,86 +260,23 @@ export function parseQuery(
 }
 
 function parseQueryInternal(args: Record<string, string>, env: Record<string, string>): ParsedQuery {
-  // Detect which operation is present
-  const presentOps = OPERATIONS.filter(op => args[op] !== undefined)
-  // 'count=true' inside aggregate= is NOT a top-level count op
-  const isAggregateCount = args['aggregate'] !== undefined && args['count'] === 'true'
-  const filteredOps = isAggregateCount
-    ? presentOps.filter(op => op !== 'count')
-    : presentOps
-
-  if (filteredOps.length === 0) {
-    throw new DbParseError('@db: no operation specified — use find=, one=, count=, aggregate=, or raw=')
-  }
-  if (filteredOps.length > 1) {
-    throw new DbParseError(
-      `@db: multiple operations on one directive (${filteredOps.join(', ')}) — only one is allowed`
-    )
-  }
-
-  const op = filteredOps[0]! as AnyOperation
-
-  // raw= bypass: no QueryPlan
-  if (op === 'raw') {
-    const rawQuery = args['raw']!
-    return { kind: 'raw', query: rawQuery }
-  }
+  const op = detectOperation(args)
+  if (op === 'raw') return { kind: 'raw', query: args['raw']! }
 
   const collection = args[op]!
-
-  // where clause
-  const { filters, hasOr } = args['where']
-    ? parseFilters(args['where'], env)
-    : { filters: [], hasOr: false }
-
-  // sort
+  const { filters, hasOr } = args['where'] ? parseFilters(args['where'], env) : { filters: [], hasOr: false }
   const sort = args['sort'] ? parseSortTerms(args['sort']) : []
-
-  // limit
-  const limitRaw = args['limit']
-  const limit = limitRaw !== undefined ? parseInt(limitRaw, 10) : null
-
-  // columns
+  const limit = args['limit'] !== undefined ? parseInt(args['limit'], 10) : null
   const columns = args['columns'] ? parseColumns(args['columns']) : []
-
-  // group (aggregate only)
   const group = args['group'] ?? null
-
-  // aggregations
   const aggregations = parseAggregateOps(args, op === 'aggregate')
 
-  // Validation rules
-  if ((op === 'find' || op === 'one') && args['sort']) {
-    // valid — sort is allowed on find and one
-  }
-  if (op === 'count' && args['sort']) {
-    throw new DbParseError('@db: sort= is not valid with count= operation')
-  }
-  if (op === 'count' && args['columns']) {
-    throw new DbParseError('@db: columns= is not valid with count= operation')
-  }
-  if (op === 'aggregate' && !group) {
-    throw new DbParseError('@db: aggregate= requires group= field')
-  }
-  if (op === 'aggregate' && aggregations.length === 0) {
-    throw new DbParseError('@db: aggregate= requires at least one aggregation function (count=true, sum=, avg=, min=, or max=)')
-  }
+  validateQueryPlan(op, args, group, aggregations)
 
   const plan: QueryPlan = {
-    operation: op as Operation,
-    collection,
-    where: filters,
-    sort,
-    limit,
-    columns,
-    group,
-    aggregations,
+    operation: op as Operation, collection,
+    where: filters, sort, limit, columns, group, aggregations,
   }
-
-  // Attach OR flag as non-enumerable so adapters can detect it without type violation
-  if (hasOr) {
-    Object.defineProperty(plan, '_hasOrFilters', { value: true, enumerable: false })
-  }
-
+  if (hasOr) Object.defineProperty(plan, '_hasOrFilters', { value: true, enumerable: false })
   return { kind: 'plan', plan }
 }

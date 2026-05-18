@@ -253,7 +253,6 @@ export type ASTNode =
   | GraphNode
   | MarkdownNode
   | PassthroughNode
-  | InterpolationNode
   | PromptNode
   | SectionNode
   | ChunkBoundaryNode

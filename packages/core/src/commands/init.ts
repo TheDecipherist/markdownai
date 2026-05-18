@@ -127,7 +127,7 @@ export function runInit(options: InitOptions = {}): InitResult {
   // Update AI client config to register the hook
   let config: Record<string, unknown> = {}
   if (existsSync(configPath)) {
-    try { config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown> } catch { /* start fresh */ }
+    try { config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown> } catch { config = {} }
   }
 
   const hooks = (config['hooks'] as Record<string, unknown> | undefined) ?? {}

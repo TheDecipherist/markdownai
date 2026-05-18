@@ -20,7 +20,11 @@ if (startIdx === -1) {
 }
 
 const endIdx = content.indexOf(SECTION_END_MARKER, startIdx);
-const blockEnd = endIdx === -1 ? content.length : endIdx + SECTION_END_MARKER.length;
+if (endIdx === -1) {
+  console.error('WARN: MarkdownAI section end marker not found in ~/.claude/CLAUDE.md — skipping removal to avoid data loss. Remove the section manually.');
+  process.exit(0);
+}
+const blockEnd = endIdx + SECTION_END_MARKER.length;
 
 const before = content.slice(0, startIdx).replace(/\n+$/, '');
 const after = content.slice(blockEnd).replace(/^\n+/, '');

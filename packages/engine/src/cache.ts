@@ -9,6 +9,7 @@ import type { FilesystemSecurityConfig } from './security/config.js'
 interface PersistEntry {
   value: string
   expires: number
+  directive?: string
 }
 
 const SESSION_CACHE = new Map<string, string>()
@@ -45,7 +46,8 @@ export function writeCache(
   key: string,
   value: string,
   config: CacheConfig,
-  securityConfig?: FilesystemSecurityConfig
+  securityConfig?: FilesystemSecurityConfig,
+  directiveType?: string
 ): void {
   const { masked } = applyMasking(value, securityConfig)
   if (config.mode === 'session') {
@@ -53,7 +55,9 @@ export function writeCache(
   } else if (config.mode === 'persist') {
     const ttlMs = (config.ttl ?? 3600) * 1000
     mkdirSync(CACHE_DIR, { recursive: true })
-    writeFileSync(join(CACHE_DIR, key + '.json'), JSON.stringify({ value: masked, expires: Date.now() + ttlMs }))
+    const entry: PersistEntry = { value: masked, expires: Date.now() + ttlMs }
+    if (directiveType) entry.directive = directiveType
+    writeFileSync(join(CACHE_DIR, key + '.json'), JSON.stringify(entry))
   }
 }
 

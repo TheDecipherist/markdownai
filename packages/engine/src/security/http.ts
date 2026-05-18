@@ -9,7 +9,7 @@ export interface HttpCheckResult {
   reason: string
 }
 
-export function checkHttpUrl(url: string, config: HttpSecurityConfig): HttpCheckResult {
+export function checkHttpUrl(url: string, config: HttpSecurityConfig, method = 'GET'): HttpCheckResult {
   let hostname: string
   try {
     const raw = new URL(url).hostname
@@ -47,6 +47,11 @@ export function checkHttpUrl(url: string, config: HttpSecurityConfig): HttpCheck
   if (config.allowed_domains.length > 0) {
     const inAllowlist = config.allowed_domains.some(d => hostname === d || hostname.endsWith(`.${d}`))
     if (!inAllowlist) return { allowed: false, tier: 'not_allowed', reason: 'Domain not in allowlist' }
+  }
+
+  // 5. Method allowed
+  if (config.allowed_methods.length > 0 && !config.allowed_methods.includes(method.toUpperCase())) {
+    return { allowed: false, tier: 'not_allowed', reason: `Method "${method.toUpperCase()}" not in allowed_methods` }
   }
 
   return { allowed: true, tier: 'allowed', reason: 'Allowed' }

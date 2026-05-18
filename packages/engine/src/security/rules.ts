@@ -12,7 +12,7 @@ export const SHELL_ALWAYS_BLOCK: readonly string[] = Object.freeze([
   '> /etc/*',
   'chmod -R 777 *', 'chmod 777 /', 'chown -R * /',
   'wget * | bash', 'curl * | bash', 'curl * | sh',
-  'eval *', 'exec *',
+  'eval', 'eval *', 'exec *',
   'cat /etc/shadow', 'cat /etc/passwd',
   'cat ~/.ssh/*', 'cat ~/.aws/*',
   `cat ${home}/.ssh/*`, `cat ${home}/.aws/*`,

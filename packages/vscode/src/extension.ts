@@ -14,7 +14,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
   vscode.workspace.textDocuments.forEach(doc => handleDocument(doc));
 
-  void registry.initialize(vscode.workspace.workspaceFolders ?? []);
+  registry.initialize(vscode.workspace.workspaceFolders ?? []).catch(() => { /* registry init failure is non-fatal */ });
   registerCompletionProvider(context, registry);
   registerHoverProvider(context, registry);
   registerDefinitionProvider(context, registry);

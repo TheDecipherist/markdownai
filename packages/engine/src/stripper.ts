@@ -10,23 +10,29 @@ export interface StripResult {
   warnings: string[]
 }
 
-function evalConditionForStrip(condition: string, env: Record<string, string>): boolean {
-  try { return Boolean(runInNewContext(condition, { ...env }, { timeout: 200 })) } catch { return false }
+function evalConditionForStrip(condition: string, env: Record<string, string>, warnings: string[]): boolean {
+  try { return Boolean(runInNewContext(condition, { ...env }, { timeout: 200 })) } catch (err) {
+    warnings.push(`strip: condition eval failed — "${condition}": ${String(err)}`)
+    return false
+  }
 }
 
-function resolveInterpolation(expr: string, env: Record<string, string>): string {
+function resolveInterpolation(expr: string, env: Record<string, string>, warnings: string[]): string {
   const trimmed = expr.trim()
   if (/^[A-Z_][A-Z0-9_]*$/.test(trimmed)) return env[trimmed] ?? ''
-  try { return String(runInNewContext(trimmed, { ...env }, { timeout: 200 }) ?? '') } catch { return '' }
+  try { return String(runInNewContext(trimmed, { ...env }, { timeout: 200 }) ?? '') } catch (err) {
+    warnings.push(`strip: interpolation failed — "${trimmed}": ${String(err)}`)
+    return ''
+  }
 }
 
-function stripInterpolations(text: string, spans: InterpolationSpan[], env: Record<string, string>): string {
+function stripInterpolations(text: string, spans: InterpolationSpan[], env: Record<string, string>, warnings: string[]): string {
   if (spans.length === 0) return text
   let result = ''
   let pos = 0
   for (const span of spans) {
     result += text.slice(pos, span.start)
-    result += span.escaped ? `{{${span.expression}}}` : resolveInterpolation(span.expression, env)
+    result += span.escaped ? `{{${span.expression}}}` : resolveInterpolation(span.expression, env, warnings)
     pos = span.end
   }
   return result + text.slice(pos)
@@ -54,9 +60,8 @@ function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[
     case 'pipe': return ''
     case 'note': return ''
     case 'graph': return node.raw
-    case 'interpolation': return ''
     case 'passthrough': return node.raw
-    case 'markdown': return stripInterpolations(node.text, node.interpolations, env)
+    case 'markdown': return stripInterpolations(node.text, node.interpolations, env, warnings)
     case 'phase': {
       const parts = node.body.map(n => stripNode(n, env, warnings)).filter(s => s !== '')
       return parts.join('\n')
@@ -76,7 +81,7 @@ function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[
             warnings.push(`Unset variable in @if: ${v}`)
           }
         }
-        if (evalConditionForStrip(branch.condition, env)) {
+        if (evalConditionForStrip(branch.condition, env, warnings)) {
           const parts = branch.body.map(n => stripNode(n, env, warnings)).filter(s => s !== '')
           return parts.join('\n')
         }

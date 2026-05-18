@@ -6,7 +6,11 @@ export class SqliteAdapter implements DbAdapter {
   private db: InstanceType<typeof Database> | null = null
 
   async connect(uri: string): Promise<void> {
-    // uri for SQLite is a file path (or :memory: for in-memory)
+    // uri for SQLite is a file path (or :memory: for in-memory).
+    // Callers are responsible for jailRoot validation before calling connect.
+    if (uri !== ':memory:' && /\.\.(\/|\\)/.test(uri)) {
+      throw new Error(`@db sqlite: path traversal rejected: "${uri}"`)
+    }
     this.db = new Database(uri)
   }
 
@@ -21,6 +25,7 @@ export class SqliteAdapter implements DbAdapter {
 
   async executeRaw(query: string): Promise<Row[]> {
     if (!this.db) throw new Error('@db sqlite: not connected')
+    // Security: always call through executor.executeRaw() which enforces allow_raw and denied_keywords guards.
     const rows = this.db.prepare(query).all() as Record<string, unknown>[]
     return rows.map(row => normalizeRow(row))
   }

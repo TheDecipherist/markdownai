@@ -253,10 +253,8 @@ describe('Parser — @section directive', () => {
     expect(n.id).toBe('my-section')
   })
 
-  it('coerces unknown priority to medium', () => {
-    const result = parse('@markdownai\n@section priority="extreme"\nBody.\n@end')
-    const n = node<SectionNode>(result.nodes, 1)
-    expect(n.priority).toBe('medium')
+  it('throws on unknown priority', () => {
+    expect(() => parse('@markdownai\n@section priority="extreme"\nBody.\n@end')).toThrow('invalid priority')
   })
 
   it('section body contains child nodes', () => {
@@ -327,10 +325,8 @@ describe('Parser — @constraint directive', () => {
     expect(n.severity).toBe('low')
   })
 
-  it('coerces unknown severity to high', () => {
-    const result = parse('@markdownai\n@constraint id="x" severity="extreme"\nBody.\n@end')
-    const n = node<ConstraintNode>(result.nodes, 1)
-    expect(n.severity).toBe('high')
+  it('throws on unknown severity', () => {
+    expect(() => parse('@markdownai\n@constraint id="x" severity="extreme"\nBody.\n@end')).toThrow('invalid severity')
   })
 
   it('uses positional id when no id= named arg', () => {

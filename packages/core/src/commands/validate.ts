@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs'
-import { resolve, dirname } from 'node:path'
+import { resolve, relative, dirname } from 'node:path'
 import { parse, ParseError } from '@markdownai/parser'
 import type { ASTNode, ConditionalBranch, PhaseNode, GraphNode, ImportNode } from '@markdownai/parser'
 
@@ -33,7 +33,7 @@ export function runValidate(filePath: string, options: ValidateOptions = {}): Va
     if (!ast.isMarkdownAI) {
       errors.push('Not a MarkdownAI document (missing @markdownai header on line 1)')
     } else {
-      const defines = collectDefines(ast.nodes, dirname(resolved), new Set(), warnings)
+      const defines = collectDefines(ast.nodes, dirname(resolved), new Set(), warnings, options.cwd ?? process.cwd())
       checkNodes(ast.nodes, defines, errors, warnings, resolved)
       if (options.verbose) checkGraphPhaseAlignment(ast.nodes, warnings)
     }
@@ -45,26 +45,30 @@ export function runValidate(filePath: string, options: ValidateOptions = {}): Va
   return { errors: effectiveErrors, warnings: options.strict ? [] : warnings, exitCode: effectiveErrors.length > 0 ? 1 : 0 }
 }
 
-function collectDefines(nodes: ASTNode[], dir?: string, seen: Set<string> = new Set(), warnings?: string[]): Set<string> {
+function collectDefines(nodes: ASTNode[], dir?: string, seen: Set<string> = new Set(), warnings?: string[], root?: string): Set<string> {
   const defines = new Set<string>()
   for (const node of nodes) {
     if (node.type === 'define') {
       defines.add(node.name)
-      collectDefines(node.body, dir, seen, warnings).forEach(n => defines.add(n))
+      collectDefines(node.body, dir, seen, warnings, root).forEach(n => defines.add(n))
     } else if (node.type === 'phase') {
-      collectDefines(node.body, dir, seen, warnings).forEach(n => defines.add(n))
+      collectDefines(node.body, dir, seen, warnings, root).forEach(n => defines.add(n))
     } else if (node.type === 'conditional') {
-      node.branches.forEach((b: ConditionalBranch) => collectDefines(b.body, dir, seen, warnings).forEach(n => defines.add(n)))
+      node.branches.forEach((b: ConditionalBranch) => collectDefines(b.body, dir, seen, warnings, root).forEach(n => defines.add(n)))
     } else if (node.type === 'import' && dir) {
       // Resolve @import macros so @call validators don't flag cross-file macro references
       const importNode = node as ImportNode
       const importPath = resolve(dir, importNode.path)
+      if (root && relative(root, importPath).startsWith('..')) {
+        warnings?.push(`@import: path traversal blocked: ${importNode.path}`)
+        continue
+      }
       if (!seen.has(importPath) && existsSync(importPath)) {
         seen.add(importPath)
         try {
           const importSrc = readFileSync(importPath, 'utf8')
           const importAst = parse(importSrc, { filePath: importPath, inImport: true })
-          collectDefines(importAst.nodes, dirname(importPath), seen, warnings).forEach(n => defines.add(n))
+          collectDefines(importAst.nodes, dirname(importPath), seen, warnings, root).forEach(n => defines.add(n))
         } catch (err) {
           warnings?.push(`@import: parse error in ${importPath}: ${err instanceof Error ? err.message : String(err)}`)
         }

@@ -52,6 +52,9 @@ export function securityShellEnable(enable: boolean): SecurityResult {
 }
 
 export function securityShellAdd(pattern: string): SecurityResult {
+  if (!pattern || pattern.length > 200 || /[\x00-\x1f\x7f]/.test(pattern)) {
+    return { success: false, message: `Invalid pattern: must be 1-200 printable chars` }
+  }
   const config = readConfig()
   if (!config.shell.allow_patterns.includes(pattern)) {
     config.shell.allow_patterns.push(pattern)
@@ -80,6 +83,9 @@ export function securityHttpEnable(enable: boolean): SecurityResult {
 }
 
 export function securityHttpAddDomain(domain: string): SecurityResult {
+  if (!domain || domain.length > 253 || !/^[\w.*-]+$/.test(domain)) {
+    return { success: false, message: `Invalid domain: must be a valid hostname or glob pattern` }
+  }
   const config = readConfig()
   if (!config.http.allowed_domains.includes(domain)) {
     config.http.allowed_domains.push(domain)

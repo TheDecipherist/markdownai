@@ -20,7 +20,8 @@ const PHASE_RE = /^@phase\b/;
 const END_RE = /^@end\b/;
 const CALL_RE = /^@call\s+([\w-]+)/;
 
-export function analyzeDiagnostics(text: string, knownMacroNames: string[]): DiagnosticInfo[] {
+export function analyzeDiagnostics(text: string, knownMacroNames: string[] | Set<string>): DiagnosticInfo[] {
+  const macroSet = knownMacroNames instanceof Set ? knownMacroNames : new Set(knownMacroNames)
   const diagnostics: DiagnosticInfo[] = [];
   const lines = text.split('\n');
 
@@ -33,20 +34,48 @@ export function analyzeDiagnostics(text: string, knownMacroNames: string[]): Dia
     if (IF_RE.test(trimmed)) {
       ifStack.push({ directive: 'if', line: i });
     } else if (ELSEIF_RE.test(trimmed) || ELSE_RE.test(trimmed)) {
-      // valid within @if - no stack change
+      if (ifStack.length === 0) {
+        diagnostics.push({
+          line: i,
+          startChar: 0,
+          endChar: trimmed.length,
+          message: `Stray ${trimmed.startsWith('@elseif') ? '@elseif' : '@else'} - no open @if block`,
+          severity: 'error',
+        });
+      }
     } else if (ENDIF_RE.test(trimmed)) {
-      ifStack.pop();
+      if (ifStack.length === 0) {
+        diagnostics.push({
+          line: i,
+          startChar: 0,
+          endChar: trimmed.length,
+          message: '@endif with no matching @if',
+          severity: 'error',
+        });
+      } else {
+        ifStack.pop();
+      }
     } else if (DEFINE_RE.test(trimmed)) {
       blockStack.push({ directive: 'define', line: i });
     } else if (PHASE_RE.test(trimmed)) {
       blockStack.push({ directive: 'phase', line: i });
     } else if (END_RE.test(trimmed)) {
-      blockStack.pop();
+      if (blockStack.length === 0) {
+        diagnostics.push({
+          line: i,
+          startChar: 0,
+          endChar: trimmed.length,
+          message: '@end with no matching @define or @phase',
+          severity: 'error',
+        });
+      } else {
+        blockStack.pop();
+      }
     } else {
       const callMatch = trimmed.match(CALL_RE);
       if (callMatch) {
         const macroName = callMatch[1] ?? '';
-        if (!knownMacroNames.includes(macroName)) {
+        if (!macroSet.has(macroName)) {
           const startChar = '@call '.length;
           diagnostics.push({
             line: i,

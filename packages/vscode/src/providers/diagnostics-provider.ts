@@ -26,25 +26,29 @@ export class DiagnosticsProvider {
 
   private analyzeDocument(doc: vscode.TextDocument): void {
     if (doc.languageId !== 'markdownai') return;
-    const config = vscode.workspace.getConfiguration('markdownai');
-    const settings = readSettings(key => config.get(key));
-    if (!settings.diagnosticsEnabled) {
+    try {
+      const config = vscode.workspace.getConfiguration('markdownai');
+      const settings = readSettings(key => config.get(key));
+      if (!settings.diagnosticsEnabled) {
+        this.collection.delete(doc.uri);
+        return;
+      }
+      const macros = this.registry.getMacros(doc);
+      const knownNames = settings.warnUndefinedMacros ? macros.map(m => m.name) : null;
+      const infos = analyzeDiagnostics(doc.getText(), knownNames ?? []);
+      const filtered = knownNames === null
+        ? infos.filter(d => d.severity === 'error')
+        : infos;
+      const diagnostics = filtered.map(info => {
+        const range = new vscode.Range(info.line, info.startChar, info.line, info.endChar);
+        const sev = info.severity === 'error'
+          ? vscode.DiagnosticSeverity.Error
+          : vscode.DiagnosticSeverity.Warning;
+        return new vscode.Diagnostic(range, info.message, sev);
+      });
+      this.collection.set(doc.uri, diagnostics);
+    } catch {
       this.collection.delete(doc.uri);
-      return;
     }
-    const macros = this.registry.getMacros(doc);
-    const knownNames = settings.warnUndefinedMacros ? macros.map(m => m.name) : null;
-    const infos = analyzeDiagnostics(doc.getText(), knownNames ?? []);
-    const filtered = knownNames === null
-      ? infos.filter(d => d.severity === 'error')
-      : infos;
-    const diagnostics = filtered.map(info => {
-      const range = new vscode.Range(info.line, info.startChar, info.line, info.endChar);
-      const sev = info.severity === 'error'
-        ? vscode.DiagnosticSeverity.Error
-        : vscode.DiagnosticSeverity.Warning;
-      return new vscode.Diagnostic(range, info.message, sev);
-    });
-    this.collection.set(doc.uri, diagnostics);
   }
 }

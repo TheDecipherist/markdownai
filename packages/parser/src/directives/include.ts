@@ -11,6 +11,9 @@ const include: ParseModule = {
     if (path.startsWith('/')) {
       throw new ParseError('@include does not allow absolute paths (filesystem confinement)', ctx.line, ctx.filePath)
     }
+    if (path.split(/[/\\]/).some(seg => seg === '..')) {
+      throw new ParseError('@include does not allow path traversal (..)', ctx.line, ctx.filePath)
+    }
     const node: IncludeNode = {
       type: 'include',
       line: ctx.line,
