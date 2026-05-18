@@ -2,7 +2,7 @@
   "name": "markdownai",
   "displayName": "MarkdownAI",
   "description": "Syntax highlighting, snippets, and autocomplete for MarkdownAI documents",
-  "version": "0.0.9",
+  "version": "0.0.10",
   "publisher": "markdownai",
   "engines": {
     "vscode": "^1.85.0"
