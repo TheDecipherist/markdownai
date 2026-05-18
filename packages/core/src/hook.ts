@@ -1,8 +1,16 @@
 import { readFileSync, existsSync, openSync, readSync, closeSync } from 'node:fs'
+import { isAbsolute, normalize } from 'node:path'
 
 const MAI_HEADER = '@markdownai'
 const PEEK_BYTES = 20
 const FRONTMATTER_PEEK_BYTES = 2048
+const BLOCKED_PATH_PREFIXES = ['/proc/', '/sys/', '/dev/', '/etc/shadow', '/etc/passwd']
+
+function isSafeHookPath(filePath: string): boolean {
+  if (!isAbsolute(filePath)) return true
+  const norm = normalize(filePath)
+  return !BLOCKED_PATH_PREFIXES.some(prefix => norm.startsWith(prefix))
+}
 
 export interface HookDecision {
   route: 'mcp' | 'passthrough'
@@ -24,6 +32,9 @@ function startsWithMarkdownAI(content: string): boolean {
 export function shouldRoute(filePath: string): HookDecision {
   if (!filePath.endsWith('.md')) {
     return { route: 'passthrough', reason: 'Not a markdown file' }
+  }
+  if (!isSafeHookPath(filePath)) {
+    return { route: 'passthrough', reason: 'Path blocked by hook safety rules' }
   }
   if (!existsSync(filePath)) {
     return { route: 'passthrough', reason: 'File does not exist' }
@@ -53,15 +64,20 @@ export function shouldRoute(filePath: string): HookDecision {
     } finally {
       closeSync(fd)
     }
-  } catch {
+  } catch (err) {
+    process.stderr.write(`[markdownai] hook: cannot read file "${filePath}": ${String(err)}\n`)
     return { route: 'passthrough', reason: 'Cannot read file' }
   }
 }
 
 export function isMarkdownAIFile(filePath: string): boolean {
   if (!filePath.endsWith('.md')) return false
+  if (!isSafeHookPath(filePath)) return false
   try {
     const content = readFileSync(filePath, 'utf8')
     return startsWithMarkdownAI(content)
-  } catch { return false }
+  } catch (err) {
+    process.stderr.write(`[markdownai] hook: cannot read file "${filePath}": ${String(err)}\n`)
+    return false
+  }
 }

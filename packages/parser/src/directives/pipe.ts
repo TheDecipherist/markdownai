@@ -66,11 +66,9 @@ const pipe: ParseModule = {
 }
 
 function makeSourceNode(seg: string, ctx: ParseContext): ASTNode {
-  // Inline lazy parse of the source directive to avoid circular import.
-  // We import registry dynamically only when needed.
-  // For now, return a temporary node that the parser will fill in.
-  // The parser calls pipe.parse() after detecting a pipe line; it pre-parses the source.
-  // This stub is replaced by the parser with the real source node.
+  // Stub: the real pipe parsing path is parsePipeLine() in parser.ts (triggered by unquoted | detection).
+  // This module's parse() is only reachable if someone writes an explicit @pipe directive, which is
+  // uncommon. Returning passthrough here is intentional — the engine will skip unknown stage types.
   return { type: 'passthrough', line: ctx.line, raw: seg } as ASTNode
 }
 

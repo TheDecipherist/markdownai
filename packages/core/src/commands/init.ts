@@ -127,7 +127,17 @@ export function runInit(options: InitOptions = {}): InitResult {
   // Update AI client config to register the hook
   let config: Record<string, unknown> = {}
   if (existsSync(configPath)) {
-    try { config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown> } catch { config = {} }
+    try {
+      config = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>
+    } catch (err) {
+      return {
+        success: false,
+        clientDetected: clientType,
+        configPath,
+        alreadyInstalled: false,
+        message: `Cannot parse settings file at ${configPath}: ${String(err)}`,
+      }
+    }
   }
 
   const hooks = (config['hooks'] as Record<string, unknown> | undefined) ?? {}

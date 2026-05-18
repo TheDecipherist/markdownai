@@ -1,6 +1,8 @@
 import { runInNewContext } from 'node:vm'
 import type { ASTNode, ParseResult, InterpolationSpan } from '@markdownai/parser'
 
+const SAFE_ENV_KEY = /^[A-Z_][A-Z0-9_]*$/i
+
 export interface StripOptions {
   env?: Record<string, string>
 }
@@ -88,7 +90,10 @@ function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[
       }
       return ''
     }
-    default: return ''
+    default: {
+      warnings.push(`strip: unknown AST node type "${(node as ASTNode).type}" — node dropped`)
+      return ''
+    }
   }
 }
 
@@ -98,7 +103,7 @@ export function strip(ast: ParseResult, options?: StripOptions): StripResult {
   }
   const env: Record<string, string> = {}
   for (const [k, v] of Object.entries(process.env)) {
-    if (v !== undefined) env[k] = v
+    if (v !== undefined && SAFE_ENV_KEY.test(k)) env[k] = v
   }
   if (options?.env) Object.assign(env, options.env)
 

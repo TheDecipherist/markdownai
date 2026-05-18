@@ -7,6 +7,55 @@ export interface SqlBuild {
   params: unknown[]
 }
 
+function buildWhere(
+  plan: QueryPlan,
+  dialect: SqlDialect,
+  addParam: (v: unknown) => string,
+): string {
+  if (plan.where.length === 0) return ''
+  const hasOr = plan._hasOrFilters === true
+  const clauses = plan.where.map(f => buildWhereExpr(f, addParam(f.value), dialect))
+  return 'WHERE ' + clauses.join(hasOr ? ' OR ' : ' AND ')
+}
+
+function buildSqlBody(
+  plan: QueryPlan,
+  dialect: SqlDialect,
+  where: string,
+): string {
+  switch (plan.operation) {
+    case 'count': {
+      const parts = [`SELECT COUNT(*) as count`, `FROM ${qi(plan.collection, dialect)}`]
+      if (where) parts.push(where)
+      return parts.join(' ')
+    }
+    case 'aggregate': {
+      const groupCol = qi(plan.group!, dialect)
+      const aggCols = plan.aggregations.map(op => buildAggExpr(op, dialect))
+      const parts = [`SELECT ${[groupCol, ...aggCols].join(', ')}`, `FROM ${qi(plan.collection, dialect)}`]
+      if (where) parts.push(where)
+      parts.push(`GROUP BY ${groupCol}`)
+      return parts.join(' ')
+    }
+    case 'one': {
+      const parts = [`SELECT ${mssqlTop(1, dialect)}${buildSelectCols(plan.columns, dialect)}`, `FROM ${qi(plan.collection, dialect)}`]
+      if (where) parts.push(where)
+      if (dialect !== 'mssql') parts.push('LIMIT 1')
+      return parts.join(' ')
+    }
+    default: { // find
+      const topClause = plan.limit !== null && dialect === 'mssql' ? mssqlTop(plan.limit, dialect) : ''
+      const parts = [`SELECT ${topClause}${buildSelectCols(plan.columns, dialect)}`, `FROM ${qi(plan.collection, dialect)}`]
+      if (where) parts.push(where)
+      if (plan.sort.length > 0) {
+        parts.push('ORDER BY ' + plan.sort.map(s => `${qi(s.field, dialect)} ${s.dir.toUpperCase()}`).join(', '))
+      }
+      if (plan.limit !== null && dialect !== 'mssql') parts.push(`LIMIT ${plan.limit}`)
+      return parts.join(' ')
+    }
+  }
+}
+
 export function buildSql(plan: QueryPlan, dialect: SqlDialect): SqlBuild {
   const params: unknown[] = []
   let paramIdx = 1
@@ -14,63 +63,11 @@ export function buildSql(plan: QueryPlan, dialect: SqlDialect): SqlBuild {
   function addParam(value: unknown): string {
     const coerced = dialect === 'sqlite' && typeof value === 'boolean' ? (value ? 1 : 0) : value
     params.push(coerced)
-    const ph = placeholder(dialect, paramIdx++)
-    return ph
+    return placeholder(dialect, paramIdx++)
   }
 
-  const hasOr = plan._hasOrFilters === true
-
-  // WHERE
-  let where = ''
-  if (plan.where.length > 0) {
-    const clauses = plan.where.map(f => {
-      const ph = addParam(f.value)
-      return buildWhereExpr(f, ph, dialect)
-    })
-    where = 'WHERE ' + clauses.join(hasOr ? ' OR ' : ' AND ')
-  }
-
-  let sql: string
-
-  switch (plan.operation) {
-    case 'count': {
-      const parts = [`SELECT COUNT(*) as count`, `FROM ${qi(plan.collection, dialect)}`]
-      if (where) parts.push(where)
-      sql = parts.join(' ')
-      break
-    }
-    case 'aggregate': {
-      const groupCol = qi(plan.group!, dialect)
-      const aggCols = plan.aggregations.map(op => buildAggExpr(op, dialect))
-      const selectCols = [groupCol, ...aggCols].join(', ')
-      const parts = [`SELECT ${selectCols}`, `FROM ${qi(plan.collection, dialect)}`]
-      if (where) parts.push(where)
-      parts.push(`GROUP BY ${groupCol}`)
-      sql = parts.join(' ')
-      break
-    }
-    case 'one': {
-      const selectClause = `SELECT ${mssqlTop(1, dialect)}${buildSelectCols(plan.columns, dialect)}`
-      const parts = [selectClause, `FROM ${qi(plan.collection, dialect)}`]
-      if (where) parts.push(where)
-      if (dialect !== 'mssql') parts.push('LIMIT 1')
-      sql = parts.join(' ')
-      break
-    }
-    default: { // find
-      const topClause = plan.limit !== null && dialect === 'mssql' ? mssqlTop(plan.limit, dialect) : ''
-      const selectClause = `SELECT ${topClause}${buildSelectCols(plan.columns, dialect)}`
-      const parts = [selectClause, `FROM ${qi(plan.collection, dialect)}`]
-      if (where) parts.push(where)
-      if (plan.sort.length > 0) {
-        const terms = plan.sort.map(s => `${qi(s.field, dialect)} ${s.dir.toUpperCase()}`)
-        parts.push('ORDER BY ' + terms.join(', '))
-      }
-      if (plan.limit !== null && dialect !== 'mssql') parts.push(`LIMIT ${plan.limit}`)
-      sql = parts.join(' ')
-    }
-  }
-
+  const where = buildWhere(plan, dialect, addParam)
+  const sql = buildSqlBody(plan, dialect, where)
   return { sql, params }
 }
 

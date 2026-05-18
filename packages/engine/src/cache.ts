@@ -77,9 +77,11 @@ export function clearPersistCache(directiveType?: string): void {
           if (entry.directive !== directiveType) continue
         } catch { continue }
       }
-      try { unlinkSync(path) } catch { /* ignore */ }
+      try { unlinkSync(path) } catch (err) {
+        process.stderr.write(`[markdownai] cache: failed to delete ${path}: ${String(err)}\n`)
+      }
     }
-  } catch { /* ignore — cache dir may not exist */ }
+  } catch { /* cache dir may not exist — not an error */ }
 }
 
 export interface CacheEntry {
@@ -108,9 +110,9 @@ export function showCacheEntries(mode?: 'session' | 'persist'): CacheEntry[] {
           const expired = Date.now() > entry.expires
           const size = statSync(path).size
           entries.push({ key: file.replace('.json', ''), mode: 'persist', expired, size })
-        } catch { /* skip malformed entries */ }
+        } catch { /* skip malformed cache entry */ }
       }
-    } catch { /* cache dir may not exist */ }
+    } catch { /* cache dir may not exist — not an error */ }
   }
   return entries
 }

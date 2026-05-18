@@ -18,7 +18,7 @@ source_files:
   - packages/renderer/src/formats/timeline.ts
   - packages/renderer/src/formats/json.ts
   - packages/renderer/src/renderer.ts
-  - packages/renderer/index.ts
+  - packages/renderer/src/index.ts
 routes: []
 models: []
 test_files: []

@@ -74,6 +74,31 @@ function applyBudget(output: string, budget: number): string {
   return result
 }
 
+function buildSecurityConfig(options: RenderOptions, resolved: string): SecurityConfig {
+  if (options.securityConfig) return options.securityConfig
+  const json = loadSecurityConfig()
+  return {
+    allowShell: json.shell.enabled,
+    allowHttp: json.http.enabled,
+    allowDb: Object.keys(json.db).length > 0,
+    jailRoot: dirname(resolved),
+    filesystemConfig: json.filesystem,
+    shellConfig: json.shell,
+  }
+}
+
+function postProcessOutput(output: string, options: RenderOptions): string {
+  let result = output
+  if (options.budget && options.budget > 0) {
+    result = applyBudget(result, options.budget)
+  } else {
+    result = result.replace(/<!-- mda-section priority="[^"]*"(?:\s+id="[^"]*")?\s*-->\n?/g, '')
+    result = result.replace(/<!-- \/mda-section -->\n?/g, '')
+  }
+  if (options.format === 'ai') result = aiFilter(result)
+  return result
+}
+
 export function runRender(filePath: string, options: RenderOptions = {}): RenderResult {
   const resolved = resolve(options.cwd ?? process.cwd(), filePath)
   let source: string
@@ -91,20 +116,7 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
   }
 
   const envFiles = options.env ? loadEnvFile(options.env) : {}
-  let security: SecurityConfig
-  if (options.securityConfig) {
-    security = options.securityConfig
-  } else {
-    const json = loadSecurityConfig()
-    security = {
-      allowShell: json.shell.enabled,
-      allowHttp: json.http.enabled,
-      allowDb: Object.keys(json.db).length > 0,
-      jailRoot: dirname(resolved),
-      filesystemConfig: json.filesystem,
-      shellConfig: json.shell,
-    }
-  }
+  const security = buildSecurityConfig(options, resolved)
   const result = execute(ast, {
     filePath: resolved,
     ctx: {
@@ -115,22 +127,7 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
     },
   })
 
-  let output = result.output
-
-  // Budget pass (post-render, pre-filter)
-  if (options.budget && options.budget > 0) {
-    output = applyBudget(output, options.budget)
-  } else {
-    // No budget: strip section markers from output
-    output = output.replace(/<!-- mda-section priority="[^"]*"(?:\s+id="[^"]*")?\s*-->\n?/g, '')
-    output = output.replace(/<!-- \/mda-section -->\n?/g, '')
-  }
-
-  // AI format pass
-  if (options.format === 'ai') {
-    output = aiFilter(output)
-  }
-
+  const output = postProcessOutput(result.output, options)
   const allErrors = options.strict ? [...result.errors, ...result.warnings] : result.errors
   const warnings = options.strict ? [] : result.warnings
   const exitCode = allErrors.length > 0 ? 1 : 0

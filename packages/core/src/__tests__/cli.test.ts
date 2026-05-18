@@ -66,7 +66,7 @@ describe('runRender', () => {
     mkdirSync(subDir, { recursive: true })
     writeFileSync(join(subDir, 'beta.ts'), '')
     writeFileSync(join(subDir, 'alpha.ts'), '')
-    const file = write('pipe.md', `@markdownai\n\n@list ${subDir} | sort | @render list\n`)
+    const file = write('pipe.md', `@markdownai\n\n@list ./list-test | sort | @render list\n`)
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     const lines = result.output.split('\n')
@@ -163,7 +163,7 @@ describe('@list source directive', () => {
     writeFileSync(join(dir, 'file.ts'), '')
     writeFileSync(join(dir, 'file.js'), '')
     writeFileSync(join(dir, 'note.md'), '')
-    const file = write('list-match.md', `@markdownai\n\n@list ${dir} match="*.ts" | @render type="list"\n`)
+    const file = write('list-match.md', `@markdownai\n\n@list ./glob-test match="*.ts" | @render type="list"\n`)
     const result = runRender(file)
     expect(result.output).toContain('.ts')
     expect(result.output).not.toContain('.js')
@@ -173,7 +173,7 @@ describe('@list source directive', () => {
   it('@list JSON array path renders each element', () => {
     const jsonFile = join(TMP, 'users.json')
     writeFileSync(jsonFile, JSON.stringify({ users: [{ name: 'Alice' }, { name: 'Bob' }] }))
-    const file = write('list-json.md', `@markdownai\n\n@list ${jsonFile} path="users" | @render type="list"\n`)
+    const file = write('list-json.md', `@markdownai\n\n@list ./users.json path="users" | @render type="list"\n`)
     const result = runRender(file)
     expect(result.output).toContain('Alice')
     expect(result.output).toContain('Bob')
@@ -182,7 +182,7 @@ describe('@list source directive', () => {
   it('@list CSV with where filter', () => {
     const csvFile = join(TMP, 'data.csv')
     writeFileSync(csvFile, 'name,role\nAlice,admin\nBob,user\nCarol,admin\n')
-    const file = write('list-csv.md', `@markdownai\n\n@list ${csvFile} where="role=='admin'" | @render type="list"\n`)
+    const file = write('list-csv.md', `@markdownai\n\n@list ./data.csv where="role=='admin'" | @render type="list"\n`)
     const result = runRender(file)
     expect(result.output).toContain('Alice')
     expect(result.output).toContain('Carol')
@@ -194,7 +194,7 @@ describe('@read source directive', () => {
   it('@read JSON with dot-notation path returns single value', () => {
     const jsonFile = join(TMP, 'config.json')
     writeFileSync(jsonFile, JSON.stringify({ app: { name: 'MarkdownAI' } }))
-    const file = write('read-json.md', `@markdownai\n\n@read ${jsonFile} path="app.name"\n`)
+    const file = write('read-json.md', `@markdownai\n\n@read ./config.json path="app.name"\n`)
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('MarkdownAI')
@@ -203,24 +203,24 @@ describe('@read source directive', () => {
   it('@read JSON with array index path', () => {
     const jsonFile = join(TMP, 'servers.json')
     writeFileSync(jsonFile, JSON.stringify({ servers: [{ host: 'prod.example.com' }, { host: 'dev.example.com' }] }))
-    const file = write('read-json-idx.md', `@markdownai\n\n@read ${jsonFile} path="servers[0].host"\n`)
+    const file = write('read-json-idx.md', `@markdownai\n\n@read ./servers.json path="servers[0].host"\n`)
     const result = runRender(file)
     expect(result.output).toContain('prod.example.com')
   })
 
-  it('@read .env with key= extracts single value', () => {
+  it('@read .env blocked by FILESYSTEM_ALWAYS_BLOCK_PATTERNS', () => {
     const envFile = join(TMP, 'sample.env')
     writeFileSync(envFile, 'APP_NAME=MarkdownAI\nAPP_VERSION=1.0\n')
-    const file = write('read-env.md', `@markdownai\n\n@read ${envFile} key="APP_NAME"\n`)
+    const file = write('read-env.md', `@markdownai\n\n@read ./sample.env key="APP_NAME"\n`)
     const result = runRender(file)
-    expect(result.output).toContain('MarkdownAI')
-    expect(result.output).not.toContain('APP_VERSION')
+    // *.env files match the built-in block pattern — @read returns empty output
+    expect(result.output.trim()).toBe('')
   })
 
   it('@read CSV with column= extracts single column', () => {
     const csvFile = join(TMP, 'products.csv')
     writeFileSync(csvFile, 'name,price\nApple,1.5\nBanana,0.8\n')
-    const file = write('read-csv.md', `@markdownai\n\n@read ${csvFile} column="name" | @render type="list"\n`)
+    const file = write('read-csv.md', `@markdownai\n\n@read ./products.csv column="name" | @render type="list"\n`)
     const result = runRender(file)
     expect(result.output).toContain('Apple')
     expect(result.output).toContain('Banana')
@@ -234,7 +234,7 @@ describe('@tree, @date, @count utility directives', () => {
     mkdirSync(join(dir, 'sub'), { recursive: true })
     writeFileSync(join(dir, 'root.ts'), '')
     writeFileSync(join(dir, 'sub', 'child.ts'), '')
-    const file = write('tree.md', `@markdownai\n\n@tree ${dir}\n`)
+    const file = write('tree.md', `@markdownai\n\n@tree ./tree-test\n`)
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('root.ts')
@@ -260,7 +260,7 @@ describe('@tree, @date, @count utility directives', () => {
     writeFileSync(join(dir, 'a.ts'), '')
     writeFileSync(join(dir, 'b.ts'), '')
     writeFileSync(join(dir, 'c.js'), '')
-    const file = write('count.md', `@markdownai\n\n@count ${dir} match="*.ts"\n`)
+    const file = write('count.md', `@markdownai\n\n@count ./count-test match="*.ts"\n`)
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output.trim()).toBe('2')

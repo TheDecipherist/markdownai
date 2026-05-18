@@ -158,6 +158,7 @@ function parseDirective(raw: string, line: number, state: State, inline = false)
     if (name === 'prompt') return parseTextBlock(state, trimmed, args, line, 'prompt')
     if (name === 'constraint') return parseTextBlock(state, trimmed, args, line, 'constraint')
     if (name === 'note') return parseNoteBlock(state, trimmed, args, line)
+    throw new ParseError(`@${name} is a block directive but has no block parser registered`, line, state.filePath)
   }
   return mod.parse(trimmed, args, ctx)
 }

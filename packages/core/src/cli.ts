@@ -177,12 +177,12 @@ universalOptions(
 
 const cache = program.command('cache').description('manage the MarkdownAI cache')
 
-cache
+universalOptions(cache
   .command('show [file]')
   .description('list cache entries')
   .option('--session', 'show session cache only')
   .option('--persist', 'show persist cache only')
-  .option('--expired', 'show only expired entries')
+  .option('--expired', 'show only expired entries'))
   .action((_file: string | undefined, opts: Record<string, boolean | undefined>) => {
     const mode = opts['session'] ? 'session' as const : opts['persist'] ? 'persist' as const : undefined
     const showOpts: Parameters<typeof runCacheShow>[0] = {}
@@ -199,12 +199,12 @@ cache
     }
   })
 
-cache
+universalOptions(cache
   .command('clear [file]')
   .description('clear cache entries')
   .option('--session', 'clear session cache only')
   .option('--persist', 'clear persist cache only')
-  .option('--directive <type>', 'clear only entries for this directive type')
+  .option('--directive <type>', 'clear only entries for this directive type'))
   .action((_file: string | undefined, opts: Record<string, string | boolean | undefined>) => {
     const clearOpts: Parameters<typeof runCacheClear>[0] = {
       session: Boolean(opts['session']),

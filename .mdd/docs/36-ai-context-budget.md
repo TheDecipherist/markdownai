@@ -6,7 +6,6 @@ depends_on: [01-parser, 03-engine, 04-cli-core]
 source_files:
   - packages/parser/src/directives/section.ts
   - packages/parser/src/directives/chunk-boundary.ts
-  - packages/engine/src/budget.ts
   - packages/core/src/commands/render.ts
   - packages/core/src/commands/build.ts
 routes: []

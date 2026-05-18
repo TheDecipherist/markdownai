@@ -11,7 +11,7 @@ source_files:
   - packages/core/src/commands/validate.ts
   - packages/core/src/commands/parse.ts
   - packages/core/src/commands/eval.ts
-  - packages/core/index.ts
+  - packages/core/src/index.ts
 routes: []
 models: []
 test_files: []
@@ -30,7 +30,7 @@ satisfies_contracts:
   - from: 23-security-filesystem
     function: checkFilePath(resolved, documentRoot, defaultConfig)
     when: before reading files in list-imports recursive resolver
-    status: pending
+    status: done
 known_issues: []
 ---
 

@@ -7,6 +7,7 @@ import { parseQuery, DbParseError } from './db/query.js'
 import { checkHttpUrl } from './security/http.js'
 import { checkFilePath } from './security/filesystem.js'
 import { checkDbOperation } from './security/database.js'
+import { checkShellCommand } from './security/shell.js'
 import type { HttpSecurityConfig } from './security/config.js'
 import { globToRegex, walkDir, listJson, listCsv, readEnvFile } from './sources-file-utils.js'
 
@@ -81,6 +82,14 @@ export function formatDate(date: Date, fmt: string): string {
 }
 
 export function executeCount(node: CountNode, ctx: EngineContext): string[] {
+  const pathCheck = checkFilePath(node.path, ctx.docDir, ctx.security.filesystemConfig)
+  if (pathCheck.level === 'blocked') {
+    ctx.warnings.push(`SECURITY_ALERT: @count path blocked — ${pathCheck.reason}: ${node.path}`)
+    return ['0']
+  }
+  if (pathCheck.level === 'alert') {
+    ctx.warnings.push(`SECURITY_ALERT: @count sensitive path accessed — ${pathCheck.reason}: ${node.path}`)
+  }
   const full = resolve(ctx.docDir, node.path)
   if (!checkJailRoot(full, ctx)) {
     ctx.warnings.push(`SECURITY_ALERT: @count path confined — access denied: ${node.path}`)
@@ -106,18 +115,24 @@ export function executeDate(node: DateNode, ctx?: EngineContext): string[] {
     throw new Error('@date: type="created" is not supported — file creation time is not reliably available across platforms')
   }
   let date = new Date()
-  if (type === 'modified' && filePath) {
-    const jailRoot = ctx?.security.jailRoot
-    if (jailRoot) {
-      const abs = resolve(jailRoot, filePath)
-      if (!abs.startsWith(jailRoot)) {
-        ctx?.warnings.push(`SECURITY_ALERT: @date file= path confined — access denied: ${filePath}`)
+  if (type === 'modified' && filePath && ctx) {
+    const pathCheck = checkFilePath(filePath, ctx.docDir, ctx.security.filesystemConfig)
+    if (pathCheck.level === 'blocked') {
+      ctx.warnings.push(`SECURITY_ALERT: @date file= path blocked — ${pathCheck.reason}: ${filePath}`)
+    } else {
+      if (pathCheck.level === 'alert') {
+        ctx.warnings.push(`SECURITY_ALERT: @date file= sensitive path accessed — ${pathCheck.reason}: ${filePath}`)
+      }
+      const jailRoot = ctx.security.jailRoot
+      const abs = jailRoot ? resolve(jailRoot, filePath) : resolve(ctx.docDir, filePath)
+      if (jailRoot && !abs.startsWith(jailRoot)) {
+        ctx.warnings.push(`SECURITY_ALERT: @date file= path confined — access denied: ${filePath}`)
       } else {
         try { date = new Date(statSync(abs).mtime) } catch { /* fallback to now */ }
       }
-    } else {
-      try { date = new Date(statSync(filePath).mtime) } catch { /* fallback to now */ }
     }
+  } else if (type === 'modified' && filePath) {
+    try { date = new Date(statSync(filePath).mtime) } catch { /* fallback to now */ }
   }
   return [formatDate(date, fmt)]
 }
@@ -169,6 +184,11 @@ export function executeDb(node: DbNode, ctx: EngineContext): string[] {
 
   // Mock cache: serve from file, no real DB needed
   if (node.cache?.mode === 'mock' && node.cache.mockPath) {
+    const mockCheck = checkFilePath(node.cache.mockPath, ctx.docDir, ctx.security.filesystemConfig)
+    if (mockCheck.level === 'blocked') {
+      ctx.warnings.push(`SECURITY_ALERT: @db mock path blocked — ${mockCheck.reason}: ${node.cache.mockPath}`)
+      return []
+    }
     const mockFull = resolve(ctx.docDir, node.cache.mockPath)
     return listCsv(mockFull, node.args)
   }
@@ -235,6 +255,11 @@ export function executeHttp(node: HttpNode, ctx: EngineContext): string[] {
 
   // Mock cache: serve from local file without network
   if (node.cache?.mode === 'mock' && node.cache.mockPath) {
+    const mockCheck = checkFilePath(node.cache.mockPath, ctx.docDir, ctx.security.filesystemConfig)
+    if (mockCheck.level === 'blocked') {
+      ctx.warnings.push(`SECURITY_ALERT: @http mock path blocked — ${mockCheck.reason}: ${node.cache.mockPath}`)
+      return []
+    }
     const mockFull = resolve(ctx.docDir, node.cache.mockPath)
     const ext = node.cache.mockPath.toLowerCase()
     if (ext.endsWith('.csv')) return listCsv(mockFull, node.args)
@@ -250,11 +275,25 @@ export function executeQuery(node: QueryNode, ctx: EngineContext): string[] {
 
   // Mock cache: serve from local file without spawning a process
   if (node.cache?.mode === 'mock' && node.cache.mockPath) {
+    const mockCheck = checkFilePath(node.cache.mockPath, ctx.docDir, ctx.security.filesystemConfig)
+    if (mockCheck.level === 'blocked') {
+      ctx.warnings.push(`SECURITY_ALERT: @query mock path blocked — ${mockCheck.reason}: ${node.cache.mockPath}`)
+      return []
+    }
     try { return readFileSync(resolve(ctx.docDir, node.cache.mockPath), 'utf8').split('\n').filter(l => l !== '') }
     catch { return [] }
   }
 
   if (!node.command) { ctx.warnings.push('@query: empty command — skipped'); return [] }
+
+  if (ctx.security.shellConfig) {
+    const shellCheck = checkShellCommand(node.command, ctx.security.shellConfig)
+    if (!shellCheck.allowed) {
+      const prefix = shellCheck.tier === 'always_block' ? 'SECURITY_ALERT' : 'WARN'
+      ctx.warnings.push(`${prefix}: @query command blocked [${shellCheck.tier}] — ${shellCheck.reason}`)
+      return []
+    }
+  }
 
   try {
     const out = execSync(node.command, { cwd: ctx.cwd, encoding: 'utf8', timeout: 10_000 })
