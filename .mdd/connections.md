@@ -1,8 +1,8 @@
 ---
-generated: 2026-05-17
-doc_count: 74
-connection_count: 129
-overlap_count: 45
+generated: 2026-05-18
+doc_count: 78
+connection_count: 144
+overlap_count: 49
 ---
 
 ## Path Tree
@@ -31,6 +31,8 @@ overlap_count: 45
 │   │   ├── 65-db-aggregate-operation  complete
 │   │   └── 66-db-raw-escape-hatch  complete
 │   └── Security  72-db-security  complete
+├── Distribution/
+│   └── Claude-Native  77-claude-native  complete
 ├── Engine/
 │   ├── Conditions  47-skill-context-variables  complete
 │   └── Security  48-shell-inline  complete
@@ -48,6 +50,7 @@ overlap_count: 45
 │   ├── Include  10-lang-include  complete
 │   ├── Interpolation  06-lang-interpolation  complete
 │   ├── Macros  08-lang-macros  complete
+│   ├── Note  78-lang-note  complete
 │   ├── Phases  21-lang-phases  complete
 │   ├── Pipeline  13-lang-pipeline  complete
 │   └── Sources/
@@ -77,7 +80,10 @@ overlap_count: 45
 │   │   ├── 04-cli-core  complete
 │   │   └── 32-cli-complete  complete
 │   ├── Cache  28-caching  complete
-│   ├── Engine  03-engine  complete
+│   ├── Documentation  76-packages-readmes  complete
+│   ├── Engine/
+│   │   ├── 03-engine  complete
+│   │   └── 75-engine-bug-fixes  complete
 │   ├── Hook  31-hook  complete
 │   ├── MCP  30-mcp-server  complete
 │   ├── Parser  01-parser  complete
@@ -182,6 +188,10 @@ flowchart LR
   n72[72-db-security]:::complete
   n73[73-db-caching]:::complete
   n74[74-db-error-handling]:::complete
+  n75[75-engine-bug-fixes]:::complete
+  n76[76-packages-readmes]:::complete
+  n77[77-claude-native]:::complete
+  n78[78-lang-note]:::complete
   n01 --> n02
   n01 --> n03
   n02 --> n03
@@ -311,6 +321,21 @@ flowchart LR
   n68 --> n73
   n28 --> n73
   n68 --> n74
+  n03 --> n75
+  n08 --> n75
+  n11 --> n75
+  n12 --> n75
+  n20 --> n75
+  n22 --> n75
+  n01 --> n76
+  n02 --> n76
+  n03 --> n76
+  n04 --> n76
+  n30 --> n76
+  n32 --> n77
+  n12 --> n78
+  n29 --> n78
+  n35 --> n78
   classDef complete fill:#00e5cc,color:#000
   classDef draft fill:#888,color:#fff
   classDef in_progress fill:#ffaa00,color:#000
@@ -322,12 +347,12 @@ flowchart LR
 Files referenced by 2 or more docs:
 
 - `packages/core/src/commands/build.ts` - 32-cli-complete, 34-ai-consumer-mode, 36-ai-context-budget, 39-ai-format
-- `packages/core/src/commands/init.ts` - 31-hook, 32-cli-complete
-- `packages/core/src/commands/render.ts` - 04-cli-core, 34-ai-consumer-mode, 36-ai-context-budget, 39-ai-format
+- `packages/core/src/commands/init.ts` - 31-hook, 32-cli-complete, 77-claude-native
+- `packages/core/src/commands/render.ts` - 04-cli-core, 34-ai-consumer-mode, 36-ai-context-budget, 39-ai-format, 75-engine-bug-fixes
 - `packages/core/src/commands/strip.ts` - 29-stripper, 32-cli-complete
 - `packages/engine/src/__tests__/conditions.test.ts` - 47-skill-context-variables, 50-match-operator
 - `packages/engine/src/cache.ts` - 03-engine, 28-caching
-- `packages/engine/src/conditions.ts` - 03-engine, 06-lang-interpolation, 12-lang-conditionals, 34-ai-consumer-mode, 47-skill-context-variables, 50-match-operator
+- `packages/engine/src/conditions.ts` - 03-engine, 06-lang-interpolation, 12-lang-conditionals, 34-ai-consumer-mode, 47-skill-context-variables, 50-match-operator, 75-engine-bug-fixes
 - `packages/engine/src/context.ts` - 03-engine, 07-lang-env, 17-lang-connect, 47-skill-context-variables
 - `packages/engine/src/db/adapters/mongodb.ts` - 65-db-aggregate-operation, 69-db-adapter-interface, 70-db-mongodb-adapter
 - `packages/engine/src/db/adapters/mssql.ts` - 69-db-adapter-interface, 71-db-sql-adapters
@@ -336,10 +361,11 @@ Files referenced by 2 or more docs:
 - `packages/engine/src/db/adapters/sqlite.ts` - 69-db-adapter-interface, 71-db-sql-adapters
 - `packages/engine/src/db/executor.ts` - 66-db-raw-escape-hatch, 68-db-executor, 72-db-security, 73-db-caching, 74-db-error-handling
 - `packages/engine/src/db/query.ts` - 63-db-query-language, 64-db-where-clause, 65-db-aggregate-operation, 67-db-queryplan-types, 68-db-executor, 74-db-error-handling
-- `packages/engine/src/engine.ts` - 03-engine, 09-lang-file-resolution, 10-lang-include, 11-lang-import, 14-lang-sources-list, 15-lang-sources-read, 16-lang-sources-utilities, 18-lang-sources-db, 19-lang-sources-http, 21-lang-phases, 47-skill-context-variables, 48-shell-inline, 49-stdlib
+- `packages/engine/src/engine.ts` - 03-engine, 09-lang-file-resolution, 10-lang-include, 11-lang-import, 14-lang-sources-list, 15-lang-sources-read, 16-lang-sources-utilities, 18-lang-sources-db, 19-lang-sources-http, 21-lang-phases, 47-skill-context-variables, 48-shell-inline, 49-stdlib, 75-engine-bug-fixes, 78-lang-note
 - `packages/engine/src/macros.ts` - 03-engine, 08-lang-macros
 - `packages/engine/src/pipe.ts` - 03-engine, 13-lang-pipeline
 - `packages/engine/src/shell.ts` - 03-engine, 20-lang-sources-query
+- `packages/engine/src/stripper.ts` - 29-stripper, 78-lang-note
 - `packages/mcp/src/server.ts` - 30-mcp-server, 39-ai-format, 47-skill-context-variables
 - `packages/mcp/src/tools/read_file.ts` - 30-mcp-server, 47-skill-context-variables
 - `packages/parser/src/directives/call.ts` - 01-parser, 08-lang-macros
@@ -362,7 +388,10 @@ Files referenced by 2 or more docs:
 - `packages/parser/src/directives/read.ts` - 01-parser, 15-lang-sources-read
 - `packages/parser/src/directives/render.ts` - 01-parser, 13-lang-pipeline
 - `packages/parser/src/directives/tree.ts` - 01-parser, 16-lang-sources-utilities
+- `packages/parser/src/interpolation.ts` - 06-lang-interpolation, 48-shell-inline
 - `packages/parser/src/parser.ts` - 01-parser, 48-shell-inline
+- `packages/parser/src/registry.ts` - 01-parser, 78-lang-note
+- `packages/parser/src/types.ts` - 01-parser, 78-lang-note
 - `packages/renderer/src/renderer.ts` - 02-renderer, 13-lang-pipeline
 - `packages/vscode/package.json` - 51-package-scaffold, 52-language-definition, 53-syntax-highlighting, 54-snippets
 - `packages/vscode/src/extension.ts` - 51-package-scaffold, 52-language-definition, 55-completion-provider
