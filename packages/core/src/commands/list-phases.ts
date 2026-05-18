@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs'
-import { resolve, relative } from 'node:path'
+import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { PhaseNode } from '@markdownai/parser'
 
@@ -18,9 +18,6 @@ export interface ListPhasesResult {
 export function runListPhases(filePath: string, options: { cwd?: string } = {}): ListPhasesResult {
   const cwd = options.cwd ?? process.cwd()
   const resolved = resolve(cwd, filePath)
-  if (relative(cwd, resolved).startsWith('..')) {
-    return { phases: [], errors: [`Path traversal blocked: ${filePath}`], exitCode: 1 }
-  }
   let source: string
   try { source = readFileSync(resolved, 'utf8') } catch {
     return { phases: [], errors: [`Cannot read file: ${filePath}`], exitCode: 1 }

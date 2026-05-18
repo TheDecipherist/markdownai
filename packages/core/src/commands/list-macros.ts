@@ -17,7 +17,8 @@ export interface ListMacrosResult {
 }
 
 export function runListMacros(filePath: string, options: { cwd?: string } = {}): ListMacrosResult {
-  const resolved = resolve(options.cwd ?? process.cwd(), filePath)
+  const cwd = options.cwd ?? process.cwd()
+  const resolved = resolve(cwd, filePath)
   let source: string
   try { source = readFileSync(resolved, 'utf8') } catch {
     return { macros: [], errors: [`Cannot read file: ${filePath}`], exitCode: 1 }

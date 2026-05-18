@@ -93,7 +93,7 @@ packages/
 
 ## Key Reference
 
-The spec at MDs/markdownai-spec-v1.0.md is the authoritative source for:
+The spec at MDs/markdownai-spec-v1.0.md is the mdd initial build document source for:
 - All directive syntax and options
 - AST node types and TypeScript interfaces
 - Security rules and evaluation order
@@ -101,4 +101,6 @@ The spec at MDs/markdownai-spec-v1.0.md is the authoritative source for:
 - File resolution model (circular detection, first-wins)
 - Expression system operators
 
-When in doubt, read the spec.
+Most up to date spec/manual is at .mdd/manual/manual.md
+
+When in doubt, read the manual.
