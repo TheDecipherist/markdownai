@@ -251,7 +251,7 @@ describe('@tree, @date, @count utility directives', () => {
   it('@date format="YYYY" returns 4-digit year', () => {
     const file = write('date-fmt.md', '@markdownai\n\n@date format="YYYY"\n')
     const result = runRender(file)
-    expect(result.output).toMatch(/^\d{4}$/)
+    expect(result.output.trim()).toMatch(/^\d{4}$/)
   })
 
   it('@count counts files in directory', () => {

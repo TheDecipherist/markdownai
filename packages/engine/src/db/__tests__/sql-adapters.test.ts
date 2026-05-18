@@ -73,14 +73,14 @@ describe('buildSql — WHERE', () => {
     const { sql } = buildSql(makePlan({
       where: [{ field: 'active', operator: '==', value: true }, { field: 'role', operator: '==', value: 'admin' }],
     }), 'postgres')
-    expect(sql).toContain('WHERE active = $1 AND role = $2')
+    expect(sql).toContain('WHERE "active" = $1 AND "role" = $2')
   })
 
   it('OR filters produce WHERE a = $1 OR b = $2 (postgres)', () => {
     const { sql } = buildSql(orPlan({
       where: [{ field: 'status', operator: '==', value: 'a' }, { field: 'status', operator: '==', value: 'b' }],
     }), 'postgres')
-    expect(sql).toContain('WHERE status = $1 OR status = $2')
+    expect(sql).toContain('WHERE "status" = $1 OR "status" = $2')
   })
 
   it('postgres uses $1, $2 placeholders', () => {
@@ -94,7 +94,7 @@ describe('buildSql — WHERE', () => {
     const { sql } = buildSql(makePlan({
       where: [{ field: 'id', operator: '==', value: 1 }],
     }), 'mysql')
-    expect(sql).toContain('WHERE id = ?')
+    expect(sql).toContain('WHERE `id` = ?')
   })
 
   it('mssql uses @p1, @p2 placeholders', () => {

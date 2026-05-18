@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { PhaseNode } from '@markdownai/parser'
 import { checkFilePath } from '@markdownai/engine'
+import { validateMcpInput } from '../validate.js'
 
 export interface NextPhaseResult {
   phase: string | null
@@ -11,6 +12,12 @@ export interface NextPhaseResult {
 }
 
 export function nextPhase(filePath: string, currentPhase: string, cwd: string): NextPhaseResult {
+  const validation = validateMcpInput([
+    { field: 'filePath', value: filePath, noPathInjection: true },
+    { field: 'currentPhase', value: currentPhase },
+    { field: 'cwd', value: cwd, noPathInjection: true },
+  ])
+  if (!validation.ok) return { phase: null, found: false, error: validation.errors.map(e => `${e.field}: ${e.reason}`).join('; ') }
   const check = checkFilePath(filePath, cwd)
   if (check.level === 'blocked') {
     return { phase: null, found: false, error: `Path traversal blocked: "${filePath}" — ${check.reason}` }

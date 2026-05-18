@@ -25,7 +25,7 @@ satisfies_contracts:
   - from: 55-completion-provider
     function: MacroRegistry.getMacros(document)
     when: before reporting undefined-macro warnings
-    status: verified: packages/vscode/src/providers/diagnostics-provider.ts:29
+    status: "verified: packages/vscode/src/providers/diagnostics-provider.ts:29"
 known_issues: []
 ---
 

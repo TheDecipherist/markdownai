@@ -1,18 +1,19 @@
 import { applyMasking } from '@markdownai/engine'
+import type { FilesystemSecurityConfig } from '@markdownai/engine'
 
 const SENSITIVE_KEY_PATTERN = /SECRET|PASSWORD|TOKEN|KEY|CREDENTIAL|PRIVATE|AUTH|CERT/i
 
-function maskArgValue(key: string, value: string): string {
+function maskArgValue(key: string, value: string, securityConfig?: FilesystemSecurityConfig): string {
   // Mask by key name first (catches fields that may not contain patterns but are semantically sensitive)
   if (SENSITIVE_KEY_PATTERN.test(key)) return '***MASKED***'
   // Then apply engine content masking to catch embedded secrets in values (URIs, bearer tokens, etc.)
-  const { masked } = applyMasking(value)
+  const { masked } = applyMasking(value, securityConfig)
   return masked
 }
 
-function maskArgs(args: Record<string, string>): Record<string, string> {
+function maskArgs(args: Record<string, string>, securityConfig?: FilesystemSecurityConfig): Record<string, string> {
   const masked: Record<string, string> = {}
-  for (const [k, v] of Object.entries(args)) masked[k] = maskArgValue(k, v)
+  for (const [k, v] of Object.entries(args)) masked[k] = maskArgValue(k, v, securityConfig)
   return masked
 }
 
@@ -41,8 +42,8 @@ export function getConnection(name: string, sessionId = 'default'): ConnectionEn
 }
 
 /** Returns connections with sensitive arg values masked. Never exposes raw credentials. */
-export function listConnections(sessionId = 'default'): Array<ConnectionEntry & { args: Record<string, string> }> {
-  return [...getRegistry(sessionId).values()].map(c => ({ ...c, args: maskArgs(c.args) }))
+export function listConnections(sessionId = 'default', securityConfig?: FilesystemSecurityConfig): Array<ConnectionEntry & { args: Record<string, string> }> {
+  return [...getRegistry(sessionId).values()].map(c => ({ ...c, args: maskArgs(c.args, securityConfig) }))
 }
 
 export function clearConnections(sessionId = 'default'): void {

@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import { execute, checkFilePath } from '@markdownai/engine'
 import { aiFilter } from '@markdownai/renderer'
+import { validateMcpInput, validateEnvRecord } from '../validate.js'
 
 export interface ReadFileArgs {
   path: string
@@ -56,6 +57,20 @@ function postProcessContent(content: string, args: ReadFileArgs): string {
 }
 
 export function readFile(args: ReadFileArgs, cwd: string): ReadFileResult {
+  const validation = validateMcpInput([
+    { field: 'path', value: args.path, noPathInjection: true },
+    { field: 'cwd', value: cwd, noPathInjection: true },
+    { field: 'phase', value: args.phase, optional: true },
+    { field: 'format', value: args.format, optional: true },
+    { field: 'consumer', value: args.consumer, optional: true },
+    { field: 'skillArgs', value: args.skillArgs, optional: true },
+    { field: 'skillDir', value: args.skillDir, optional: true },
+    { field: 'skillSessionId', value: args.skillSessionId, optional: true },
+    { field: 'skillEffort', value: args.skillEffort, optional: true },
+  ])
+  if (!validation.ok) return { content: '', isMarkdownAI: false, warnings: validation.errors.map(e => `${e.field}: ${e.reason}`) }
+  const envErrors = validateEnvRecord(args.env)
+  if (envErrors.length > 0) return { content: '', isMarkdownAI: false, warnings: envErrors.map(e => `${e.field}: ${e.reason}`) }
   const check = checkFilePath(args.path, cwd)
   if (check.level === 'blocked') {
     return { content: '', isMarkdownAI: false, warnings: [`Path traversal blocked: "${args.path}" — ${check.reason}`] }

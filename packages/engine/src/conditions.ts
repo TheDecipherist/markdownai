@@ -1,15 +1,19 @@
 import { runInNewContext } from 'node:vm'
 import { existsSync, statSync } from 'node:fs'
-import { resolve, relative } from 'node:path'
+import { resolve, relative, isAbsolute } from 'node:path'
 import type { EngineContext } from './context.js'
+import { checkFilePath } from './security/filesystem.js'
 
 function makeFileHelpers(jailRoot: string | null) {
   function confined(p: string): string | null {
-    if (!jailRoot) return p
-    const abs = resolve(jailRoot, p)
-    const rel = relative(jailRoot, abs)
-    if (rel.startsWith('..')) return null
-    return abs
+    if (!jailRoot) return resolve(p)
+    if (isAbsolute(p)) {
+      // Absolute path: verify it stays within jailRoot (don't use checkFilePath — it always blocks absolute)
+      return relative(jailRoot, p).startsWith('..') ? null : p
+    }
+    const check = checkFilePath(p, jailRoot)
+    if (check.level === 'blocked') return null
+    return resolve(jailRoot, p)
   }
   return {
     exists: (p: string): boolean => {

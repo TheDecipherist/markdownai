@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { ConstraintNode } from '@markdownai/parser'
 import { checkFilePath } from '@markdownai/engine'
+import { validateMcpInput } from '../validate.js'
 
 export interface ConstraintEntry {
   id: string
@@ -32,6 +33,11 @@ function collectConstraints(nodes: import('@markdownai/parser').ASTNode[]): Cons
 }
 
 export function getConstraints(filePath: string, cwd: string): GetConstraintsResult {
+  const validation = validateMcpInput([
+    { field: 'filePath', value: filePath, noPathInjection: true },
+    { field: 'cwd', value: cwd, noPathInjection: true },
+  ])
+  if (!validation.ok) return { constraints: [], isMarkdownAI: false, blocked: true }
   const check = checkFilePath(filePath, cwd)
   if (check.level === 'blocked') {
     return { constraints: [], isMarkdownAI: false, blocked: true }

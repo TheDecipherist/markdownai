@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { PhaseNode } from '@markdownai/parser'
 import { execute, checkFilePath } from '@markdownai/engine'
+import { validateMcpInput, validateEnvRecord } from '../validate.js'
 
 export interface ResolvePhaseResult {
   content: string
@@ -21,6 +22,14 @@ export function resolvePhase(
   cwd: string,
   env?: Record<string, string>
 ): ResolvePhaseResult {
+  const validation = validateMcpInput([
+    { field: 'filePath', value: filePath, noPathInjection: true },
+    { field: 'phase', value: phase },
+    { field: 'cwd', value: cwd, noPathInjection: true },
+  ])
+  if (!validation.ok) return { content: '', warnings: [], found: false, error: validation.errors.map(e => `${e.field}: ${e.reason}`).join('; ') }
+  const envErrors = validateEnvRecord(env)
+  if (envErrors.length > 0) return { content: '', warnings: [], found: false, error: envErrors.map(e => `${e.field}: ${e.reason}`).join('; ') }
   const check = checkFilePath(filePath, cwd)
   if (check.level === 'blocked') {
     return { content: '', warnings: [], found: false, error: `Path traversal blocked: "${filePath}" — ${check.reason}` }
