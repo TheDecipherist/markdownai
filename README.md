@@ -418,22 +418,30 @@ Generated: {{ @date format="YYYY-MM-DD" }} | TypeScript files: {{ @count ./src "
 
 ### @connect and @db - Database Queries
 
-Register a database connection once, query it anywhere:
+Register a database connection, then query it using MarkdownAI's built-in query language:
 
 ```
-@connect mydb sqlite://./data.db
-@connect prod postgresql://{{ env.DB_HOST }}/{{ env.DB_NAME }}
-@connect mongo mongodb://{{ env.MONGO_URI }}/{{ env.MONGO_DB }}
+@connect primary type="postgres" uri=env.POSTGRES_URI
+@connect analytics type="mongodb" uri=env.MONGO_URI
+@connect local type="sqlite" uri=env.SQLITE_PATH
 ```
 
-Then query it:
+Then query:
 
 ```
-@query mydb SELECT count(*) as total FROM orders WHERE status='active'
-@query prod SELECT id, name, created_at FROM users ORDER BY created_at DESC LIMIT 10
+@db using="primary" find="users" where="active==true" limit=10 columns="name:Name,email:Email"
+@db using="analytics" count="events" where="type==pageview"
+@db using="primary" one="orders" where="id==env.ORDER_ID"
+@db using="analytics" aggregate="sales" group="region" sum="revenue" | @render type="bar"
 ```
 
-Results pipe into `@render` for formatting. Supported databases: SQLite, PostgreSQL, MySQL/MariaDB, MongoDB.
+The query language is database-agnostic - a document querying Postgres looks identical to one querying MongoDB. If you need joins, subqueries, or anything the query language does not cover, use `raw`:
+
+```
+@db using="primary" raw="SELECT u.name, COUNT(o.id) FROM users u JOIN orders o ON u.id = o.user_id GROUP BY u.id"
+```
+
+Results pipe into `@render` for formatting. Supported databases: SQLite, PostgreSQL, MySQL/MariaDB, MSSQL, MongoDB.
 
 All database access is jailed by default - see [Database Query Jail](#database-query-jail).
 
@@ -622,7 +630,7 @@ Add `@cache` to any directive to avoid redundant fetches on repeated renders:
 ```
 @query bash -c "git log --oneline -100" @cache session
 @http GET https://api.example.com/data @cache persist ttl=3600
-@db SELECT count(*) FROM users @cache session ttl=300
+@db using="primary" count="users" @cache session ttl=300
 @import ./shared/macros.md @cache session
 @list ./node_modules/.bin/ @cache persist
 ```
@@ -673,7 +681,7 @@ Use in pipe chains:
 ```
 @list ./src/ | sort | @render type="tree"
 @query bash -c "df -h" | @render type="table"
-@db SELECT name, revenue FROM sales | @render type="bar" label="name" value="revenue"
+@db using="primary" aggregate="sales" group="name" sum="revenue" | @render type="bar"
 ```
 
 ---
@@ -918,8 +926,9 @@ Condition operators: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `\|\|`, `!`, `start
 | `@tree <path>` | Render a directory tree. |
 | `@date format="..."` | Current date/time in any format. |
 | `@count <path> "<pattern>"` | Count files matching a pattern. |
-| `@connect <name> <dsn>` | Register a named database connection. |
-| `@query <name> <sql>` | Execute a database query against a named connection. |
+| `@connect <name> type="<db>" uri=env.VAR` | Register a named database connection. |
+| `@db using="<name>" find="<collection>"` | Query a collection or table using the MarkdownAI query language. |
+| `@db using="<name>" raw="<native query>"` | Run a native query when joins or other raw SQL/MQL is needed. |
 | `@query <command>` | Execute a shell command and use its stdout. |
 | `@query <command> label=name` | Execute and store result in named label for reuse. |
 | `@http <METHOD> <url>` | Make an HTTP request and use the response body. |
