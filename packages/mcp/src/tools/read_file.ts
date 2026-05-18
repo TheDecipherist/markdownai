@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
-import { resolve, relative, isAbsolute } from 'node:path'
+import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
-import { execute } from '@markdownai/engine'
+import { execute, checkFilePath } from '@markdownai/engine'
 import { aiFilter } from '@markdownai/renderer'
 
 export interface ReadFileArgs {
@@ -25,15 +25,10 @@ export interface ReadFileResult {
   warnings: string[]
 }
 
-function isConfined(filePath: string, cwd: string): boolean {
-  if (isAbsolute(filePath)) return false
-  const rel = relative(cwd, resolve(cwd, filePath))
-  return !rel.startsWith('..')
-}
-
 export function readFile(args: ReadFileArgs, cwd: string): ReadFileResult {
-  if (!isConfined(args.path, cwd)) {
-    return { content: '', isMarkdownAI: false, warnings: [`Path traversal blocked: "${args.path}"`] }
+  const check = checkFilePath(args.path, cwd)
+  if (check.level === 'blocked') {
+    return { content: '', isMarkdownAI: false, warnings: [`Path traversal blocked: "${args.path}" — ${check.reason}`] }
   }
   const fullPath = resolve(cwd, args.path)
   let source: string

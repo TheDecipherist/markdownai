@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { resolve, relative, isAbsolute } from 'node:path'
+import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { PhaseNode } from '@markdownai/parser'
+import { checkFilePath } from '@markdownai/engine'
 
 export interface NextPhaseResult {
   phase: string | null
@@ -9,15 +10,10 @@ export interface NextPhaseResult {
   error?: string
 }
 
-function isRelativeAndWithinCwd(filePath: string, cwd: string): boolean {
-  if (isAbsolute(filePath)) return false
-  const rel = relative(cwd, resolve(cwd, filePath))
-  return !rel.startsWith('..')
-}
-
 export function nextPhase(filePath: string, currentPhase: string, cwd: string): NextPhaseResult {
-  if (!isRelativeAndWithinCwd(filePath, cwd)) {
-    return { phase: null, found: false, error: `Path traversal blocked: "${filePath}"` }
+  const check = checkFilePath(filePath, cwd)
+  if (check.level === 'blocked') {
+    return { phase: null, found: false, error: `Path traversal blocked: "${filePath}" — ${check.reason}` }
   }
 
   const full = resolve(cwd, filePath)

@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { resolve, relative, isAbsolute } from 'node:path'
+import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { ConstraintNode } from '@markdownai/parser'
+import { checkFilePath } from '@markdownai/engine'
 
 export interface ConstraintEntry {
   id: string
@@ -17,12 +18,6 @@ export interface GetConstraintsResult {
 
 const SEVERITY_ORDER: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 }
 
-function isConfined(filePath: string, cwd: string): boolean {
-  if (isAbsolute(filePath)) return false
-  const rel = relative(cwd, resolve(cwd, filePath))
-  return !rel.startsWith('..')
-}
-
 function collectConstraints(nodes: import('@markdownai/parser').ASTNode[]): ConstraintEntry[] {
   const result: ConstraintEntry[] = []
   for (const node of nodes) {
@@ -37,7 +32,8 @@ function collectConstraints(nodes: import('@markdownai/parser').ASTNode[]): Cons
 }
 
 export function getConstraints(filePath: string, cwd: string): GetConstraintsResult {
-  if (!isConfined(filePath, cwd)) {
+  const check = checkFilePath(filePath, cwd)
+  if (check.level === 'blocked') {
     return { constraints: [], isMarkdownAI: false, blocked: true }
   }
 

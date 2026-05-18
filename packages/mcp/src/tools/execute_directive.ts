@@ -2,6 +2,7 @@ import { existsSync, statSync } from 'node:fs'
 import { resolve, isAbsolute } from 'node:path'
 import { parse } from '@markdownai/parser'
 import { execute } from '@markdownai/engine'
+import { validateMcpInput, validateEnvRecord } from '../validate.js'
 
 export interface ExecuteDirectiveResult {
   output: string
@@ -33,6 +34,17 @@ export function executeDirective(
   cwd: string,
   env?: Record<string, string>
 ): ExecuteDirectiveResult {
+  // Validate all MCP inputs before any processing
+  const inputValidation = validateMcpInput([
+    { field: 'directive', value: directive, noPathInjection: false },
+    { field: 'cwd', value: cwd, noPathInjection: true },
+  ])
+  const envErrors = validateEnvRecord(env)
+  const allErrors = [...inputValidation.errors, ...envErrors]
+  if (allErrors.length > 0) {
+    return { output: '', warnings: [], errors: allErrors.map(e => `${e.field}: ${e.reason}`) }
+  }
+
   const cwdError = validateCwd(cwd)
   if (cwdError) return { output: '', warnings: [], errors: [cwdError] }
 
