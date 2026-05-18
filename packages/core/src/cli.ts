@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { program } from 'commander'
-import { writeFileSync } from 'node:fs'
+import { writeFileSync, readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { runRender } from './commands/render.js'
 import { runValidate } from './commands/validate.js'
 import { runParse } from './commands/parse.js'
@@ -41,9 +43,10 @@ universalOptions(
   }
   if (result.exitCode !== 0) process.exit(1)
   if (opts['output']) {
-    writeFileSync(String(opts['output']), result.output)
+    const content = result.output.endsWith('\n') ? result.output : result.output + '\n'
+    writeFileSync(String(opts['output']), content)
   } else {
-    process.stdout.write(result.output + '\n')
+    process.stdout.write(result.output.endsWith('\n') ? result.output : result.output + '\n')
   }
 })
 
@@ -103,9 +106,10 @@ universalOptions(
   for (const err of result.errors) process.stderr.write(`ERROR: ${err}\n`)
   if (result.exitCode !== 0) process.exit(1)
   if (opts['output']) {
-    writeFileSync(String(opts['output']), result.output)
+    const content = result.output.endsWith('\n') ? result.output : result.output + '\n'
+    writeFileSync(String(opts['output']), content)
   } else {
-    process.stdout.write(result.output + '\n')
+    process.stdout.write(result.output.endsWith('\n') ? result.output : result.output + '\n')
   }
 })
 
@@ -271,4 +275,6 @@ universalOptions(
     if (result.exitCode !== 0) process.exit(1)
   })
 
-program.name('mai').version('0.0.1').parse()
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const { version } = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf-8')) as { version: string }
+program.name('mai').version(version).parse()

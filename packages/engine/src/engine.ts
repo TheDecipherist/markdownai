@@ -56,7 +56,7 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
   for (const node of ast.nodes) {
     try {
       const out = walkNode(node, base)
-      if (out !== '') parts.push(out)
+      if (out !== '' || (node.type === 'markdown' && node.text.trim() === '')) parts.push(out)
     } catch (err) {
       errors.push(String(err))
     }
@@ -65,8 +65,8 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
     base.resolutionStack.delete(mainFile)
     base.completedSet.add(mainFile)
   }
-  const body = parts.join('\n')
-  const output = base.consumer === 'ai' ? injectAiPrefixes(body, base) : body
+  const joined = parts.join('\n').trimStart()
+  const output = base.consumer === 'ai' ? injectAiPrefixes(joined, base) : joined
   return { output, errors, warnings: base.warnings }
 }
 
@@ -90,7 +90,7 @@ function walkNodes(nodes: ASTNode[], ctx: EngineContext): string[] {
   for (const node of nodes) {
     try {
       const out = walkNode(node, ctx)
-      if (out !== '') parts.push(out)
+      if (out !== '' || (node.type === 'markdown' && node.text.trim() === '')) parts.push(out)
     } catch (err) {
       if (err instanceof FatalError) throw err
       ctx.warnings.push(String(err))
@@ -190,17 +190,17 @@ function handleCall(node: CallNode, ctx: EngineContext): string {
     const paramName = macro.params[i]
     if (paramName !== undefined) namedArgs[paramName] = node.positionalArgs[i] ?? ''
   }
-  return walkNodes(substituteParams(macro.body, namedArgs), ctx).join('\n')
+  return walkNodes(substituteParams(macro.body, namedArgs), ctx).join('\n').trimStart()
 }
 
 function handlePhase(node: PhaseNode, ctx: EngineContext): string {
   if (ctx.phase !== null && ctx.phase !== node.name) return ''
-  return walkNodes(node.body, ctx).join('\n')
+  return walkNodes(node.body, ctx).join('\n').trimStart()
 }
 
 function handleConditional(node: ConditionalNode, ctx: EngineContext): string {
   for (const branch of node.branches) {
-    if (branch.condition === null || evalCondition(branch.condition, ctx)) return walkNodes(branch.body, ctx).join('\n')
+    if (branch.condition === null || evalCondition(branch.condition, ctx)) return walkNodes(branch.body, ctx).join('\n').trimStart()
   }
   return ''
 }
