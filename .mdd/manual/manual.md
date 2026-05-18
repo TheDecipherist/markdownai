@@ -138,7 +138,7 @@ When you run any `mai` command, the parser is the first thing that runs. It read
 
 #### How To Use It
 
-The parser runs automatically whenever you invoke `mai`. You do not call it directly. Any `.md` file must begin with `@markdownai` (optionally followed by a version pin, e.g. `@markdownai v1.0`) on the very first line — if that line is missing, the file is treated as plain Markdown and no further processing occurs.
+The parser runs automatically whenever you invoke `mai`. You do not call it directly. Any `.md` file must begin with `@markdownai` (optionally followed by a version pin, e.g. `@markdownai v1.0`) on the very first line, or as the first line after a YAML frontmatter block (`---` ... `---`) - if that line is missing, the file is treated as plain Markdown and no further processing occurs.
 
 Write your directives one per line. The parser enforces a small set of structural rules:
 
@@ -332,15 +332,17 @@ mai eval "file.exists './src/enterprise/'"
 <!-- mdd-section: 05-lang-header -->
 ### Language — Header Declaration and Runtime Detection
 
-Every MarkdownAI document begins with a single line — `@markdownai` — that tells the `mai` tool this file is live. This opt-in mechanism requires no special file extension, no config file, and no sidecar. The first line is the contract.
+Every MarkdownAI document begins with `@markdownai` — a single directive that tells the `mai` tool this file is live. This opt-in mechanism requires no special file extension, no config file, and no sidecar.
 
 #### What It Does
 
-When you open a `.md` file, `mai` checks whether line 1 starts with `@markdownai`. If it does, the file is treated as a live MarkdownAI document and all its dynamic features — data fetching, pipelines, AI rendering — become active. If that line is absent, `mai` treats the file as plain Markdown and does nothing special. You can also pin a language version (e.g. `@markdownai v1.0`) so the document declares exactly which MarkdownAI features it expects; if your installed version is older, `mai` warns you but continues running.
+When you open a `.md` file, `mai` checks whether the first meaningful line starts with `@markdownai`. If it does, the file is treated as a live MarkdownAI document and all its dynamic features - data fetching, pipelines, AI rendering - become active. If that line is absent, `mai` treats the file as plain Markdown and does nothing special. You can also pin a language version (e.g. `@markdownai v1.0`) so the document declares exactly which MarkdownAI features it expects; if your installed version is older, `mai` warns you but continues running.
 
 #### How To Use It
 
-To make any Markdown file live, add `@markdownai` as the very first line — before any blank lines, headings, or other content. That single addition is all it takes.
+To make any Markdown file live, add `@markdownai` as the very first line - before any blank lines, headings, or other content. That single addition is all it takes.
+
+If your file has YAML frontmatter (a `---` block at the top), place `@markdownai` as the first line after the closing `---`. The parser skips the frontmatter block automatically before looking for the declaration.
 
 To pin a specific version, append the version after the declaration: `@markdownai v1.0`. This is optional but recommended for documents that depend on specific language features.
 
@@ -362,9 +364,19 @@ Enable MarkdownAI and pin to version 1.0:
 # My Document
 ```
 
-Remove MarkdownAI from a document (delete only line 1):
+With YAML frontmatter (compatible with Claude Code skills, Jekyll, Hugo, etc.):
 ```
-# My Document   ← now the first line; file is plain Markdown again
+---
+title: My Document
+---
+@markdownai v1.0
+
+# My Document
+```
+
+Remove MarkdownAI from a document (delete only the `@markdownai` line):
+```
+# My Document   <- now the first line; file is plain Markdown again
 ```
 
 <!-- /mdd-section: 05-lang-header -->
