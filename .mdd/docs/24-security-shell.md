@@ -8,7 +8,7 @@ source_files:
 wave: markdownai-core-wave-3
 wave_status: complete
 initiative: markdownai-core
-last_synced: 2026-05-15
+last_synced: 2026-05-18
 status: complete
 mdd_version: 1
 tags: [security, shell, allowlist, deny-patterns, require-confirmation, audit-log]
@@ -54,7 +54,7 @@ Controls which shell commands @query is permitted to execute. Allowlist-first --
 - `mai security shell add "git log *"`
 - `mai security shell remove "git log *"`
 - `mai security shell list`
-- `mai security shell test "git log --oneline -1"` → ALLOWED/BLOCKED + reason
+- `mai security shell test "git log --oneline -1"` → ALLOWED/BLOCKED + reason (exits code 1 if blocked; scriptable)
 
 ## Known Issues
 (none)
