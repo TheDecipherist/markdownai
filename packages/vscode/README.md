@@ -6,6 +6,20 @@ This extension activates automatically on any `.md` file whose first line is `@m
 
 ## Features
 
+### Live Preview
+
+Open a rendered preview of your MarkdownAI document directly in VS Code. The preview runs the engine on the file and shows the output as formatted Markdown, refreshing automatically every time you save.
+
+**How to open:**
+- Click the preview icon (⊞) in the editor title bar
+- Right-click the editor tab and choose **Open MarkdownAI Preview**
+- Right-click inside the editor and choose **Open MarkdownAI Preview**
+- Open the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and run **MarkdownAI: Open MarkdownAI Preview**
+
+The preview opens to the side so you can write and see the rendered output at the same time. Directives like `@env`, `@date`, `@list`, and `@db` resolve to their live values. If the engine encounters an error the preview shows the error message instead of crashing.
+
+> **Requires `mai` to be installed.** Run `npm install -g @markdownai/core` if the preview shows a "command not found" error.
+
 ### Syntax Highlighting
 
 Directives, `{{ }}` interpolations, and macro names each get their own color scope. The grammar embeds standard Markdown highlighting for prose sections, so the rest of your document looks normal.
@@ -62,7 +76,7 @@ Structural errors show as red squiggles. Undefined macro references show as yell
 ## Requirements
 
 - VS Code 1.85 or later
-- No other extensions required
+- `mai` CLI (`npm install -g @markdownai/core`) — required for Live Preview; all other features work without it
 
 ## How It Activates
 

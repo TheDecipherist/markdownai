@@ -1034,6 +1034,14 @@ The MarkdownAI VS Code extension (`markdownai`) provides full IDE support for `.
 
 **Install from the VS Code marketplace** (search "MarkdownAI") or build from the `packages/vscode` directory.
 
+### Live Preview
+
+The fastest way to learn MarkdownAI syntax is to write a directive and immediately see what it renders to. Open any MarkdownAI file and click the preview icon in the editor title bar, right-click the tab and choose **Open MarkdownAI Preview**, or run **MarkdownAI: Open MarkdownAI Preview** from the Command Palette.
+
+The preview panel opens to the side, runs the engine on the saved file, and shows the rendered output as formatted Markdown. It refreshes automatically every time you save. Directives resolve to live values — `@date` shows today's date, `@list ./src/` shows your actual files, `@env` picks up your current environment. If the engine hits an error the preview shows the message inline rather than crashing.
+
+> Requires the `mai` CLI: `npm install -g @markdownai/core`
+
 ### What it provides
 
 **Language detection** - Any `.md` file whose first line is `@markdownai` is automatically re-tagged as the `markdownai` language type, activating all extension features. Files with YAML frontmatter before `@markdownai` are also detected.
