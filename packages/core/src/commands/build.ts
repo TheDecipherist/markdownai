@@ -33,7 +33,8 @@ export function runBuild(filePath: string, options: BuildOptions = {}): BuildRes
       }
     }
     try {
-      writeFileSync(outputPath, result.output)
+      const content = result.output.endsWith('\n') ? result.output : result.output + '\n'
+      writeFileSync(outputPath, content)
     } catch (err) {
       return { ...result, exitCode: 1, errors: [...result.errors, `@build: write failed — ${String(err)}`] }
     }

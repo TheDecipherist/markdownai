@@ -40,6 +40,15 @@ function stripInterpolations(text: string, spans: InterpolationSpan[], env: Reco
   return result + text.slice(pos)
 }
 
+function collectParts(nodes: ASTNode[], env: Record<string, string>, warnings: string[]): string[] {
+  const parts: string[] = []
+  for (const n of nodes) {
+    const out = stripNode(n, env, warnings)
+    if (out !== '' || (n.type === 'markdown' && n.text.trim() === '')) parts.push(out)
+  }
+  return parts
+}
+
 function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[]): string {
   switch (node.type) {
     case 'header': return ''
@@ -64,29 +73,17 @@ function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[
     case 'graph': return node.raw
     case 'passthrough': return node.raw
     case 'markdown': return stripInterpolations(node.text, node.interpolations, env, warnings)
-    case 'phase': {
-      const parts = node.body.map(n => stripNode(n, env, warnings)).filter(s => s !== '')
-      return parts.join('\n')
-    }
+    case 'phase': return collectParts(node.body, env, warnings).join('\n').trimStart()
     case 'conditional': {
       for (const branch of node.branches) {
-        if (branch.condition === null) {
-          const parts = branch.body.map(n => stripNode(n, env, warnings)).filter(s => s !== '')
-          return parts.join('\n')
-        }
-        // Warn about unset variables in condition
+        if (branch.condition === null) return collectParts(branch.body, env, warnings).join('\n').trimStart()
         const unset = [...branch.condition.matchAll(/\b([A-Z_][A-Z0-9_]*)\b/g)]
           .map(m => m[1]!)
           .filter(v => !(v in env))
         for (const v of unset) {
-          if (!warnings.includes(`Unset variable in @if: ${v}`)) {
-            warnings.push(`Unset variable in @if: ${v}`)
-          }
+          if (!warnings.includes(`Unset variable in @if: ${v}`)) warnings.push(`Unset variable in @if: ${v}`)
         }
-        if (evalConditionForStrip(branch.condition, env, warnings)) {
-          const parts = branch.body.map(n => stripNode(n, env, warnings)).filter(s => s !== '')
-          return parts.join('\n')
-        }
+        if (evalConditionForStrip(branch.condition, env, warnings)) return collectParts(branch.body, env, warnings).join('\n').trimStart()
       }
       return ''
     }
@@ -108,10 +105,7 @@ export function strip(ast: ParseResult, options?: StripOptions): StripResult {
   if (options?.env) Object.assign(env, options.env)
 
   const warnings: string[] = []
-  const parts: string[] = []
-  for (const node of ast.nodes) {
-    const out = stripNode(node, env, warnings)
-    if (out !== '') parts.push(out)
-  }
-  return { output: parts.join('\n'), warnings }
+  const parts = collectParts(ast.nodes, env, warnings)
+  const output = parts.join('\n').trimStart()
+  return { output, warnings }
 }
