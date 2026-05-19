@@ -31,6 +31,9 @@ to the read_file tool.
 | test-basics.md | @env, {{ env.VAR }}, @date, {{ date }}, @define, @call, @if, @constraint, @note, @define-concept, @section |
 | test-include-import.md | @include, @import |
 | test-phases.md | @phase, @on complete, list_phases tool, resolve_phase tool, next_phase tool |
+| test-phase-isolation.md | Phase isolation: sentinel strings must never bleed across phase boundaries |
+| test-phase-amnesia.md | Phase information compartmentalization: passphrases from Phase A must be invisible from Phase B |
+| test-phase-realistic.md | Realistic 6-phase workflow: measures actual token savings per phase |
 | test-rendering.md | @list, @tree, @count, @read, mai-graph, @chunk-boundary, pipe chains |
 | test-http.md | @http syntax, security blocking (cloud metadata), behavior with allowHttp=false |
 
@@ -55,6 +58,11 @@ After reading all test files, confirm:
 - [ ] @phase blocks are navigable via MCP tools
 - [ ] list_phases returns ["setup", "main", "review"] for test-phases.md
 - [ ] next_phase("setup") returns "main"; next_phase("review") returns null
+- [ ] ISOLATION: resolve_phase("alpha") contains ALPHA-SENTINEL and NO other sentinels
+- [ ] ISOLATION: resolve_phase("beta") contains BETA-SENTINEL and NO other sentinels
+- [ ] AMNESIA: resolve_phase("blue") contains AZURE passphrase, NOT CRIMSON or EMERALD
+- [ ] AMNESIA: resolve_phase("red") contains CRIMSON passphrase, NOT AZURE or EMERALD
+- [ ] REALISTIC: 6 phases in test-phase-realistic.md; each resolves to ~20% of full file size
 - [ ] @list outputs file listing; supports match= and depth= args
 - [ ] pipe chains work: @list . | sort | head -n 3
 - [ ] @tree renders ASCII directory tree; depth= limits depth
@@ -78,6 +86,18 @@ Example: read_file({ path: "MDs/tests/test-basics.md" })
 list_phases({ file: "MDs/tests/test-phases.md" })
 resolve_phase({ file: "MDs/tests/test-phases.md", phase: "setup" })
 next_phase({ file: "MDs/tests/test-phases.md", current_phase: "setup" })
+
+# Phase isolation test (sentinels):
+resolve_phase({ file: "MDs/tests/test-phase-isolation.md", phase: "alpha" })
+resolve_phase({ file: "MDs/tests/test-phase-isolation.md", phase: "beta" })
+
+# Phase amnesia test (passphrases):
+resolve_phase({ file: "MDs/tests/test-phase-amnesia.md", phase: "red" })
+resolve_phase({ file: "MDs/tests/test-phase-amnesia.md", phase: "blue" })
+
+# Realistic workflow - measure sizes:
+list_phases({ file: "MDs/tests/test-phase-realistic.md" })
+resolve_phase({ file: "MDs/tests/test-phase-realistic.md", phase: "testing" })
 
 # Via CLI (also valid - some directives behave differently):
 mai render MDs/tests/test-basics.md
