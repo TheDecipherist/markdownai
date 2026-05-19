@@ -13,7 +13,8 @@
     "build": "tsc && cp src/stdlib.md dist/stdlib.md",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "prepublishOnly": "npm --prefix ../.. run test:run-state"
   },
   "dependencies": {
     "@markdownai/parser": "*",

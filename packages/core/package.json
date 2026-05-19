@@ -19,7 +19,8 @@
     "test": "vitest run",
     "test:unit": "vitest run",
     "postinstall": "node scripts/postinstall.js",
-    "preuninstall": "node scripts/preuninstall.js"
+    "preuninstall": "node scripts/preuninstall.js",
+    "prepublishOnly": "npm --prefix ../.. run test:run-state"
   },
   "dependencies": {
     "@markdownai/engine": "*",
