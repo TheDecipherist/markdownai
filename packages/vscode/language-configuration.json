@@ -2,6 +2,24 @@
   "comments": {
     "blockComment": ["<!--", "-->"]
   },
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*@(phase|define|if|note|section|prompt)\\b",
+    "decreaseIndentPattern": "^\\s*@(end|endif|else)\\s*$"
+  },
+  "onEnterRules": [
+    {
+      "beforeText": "^(\\s*)@(phase|define|note|section|prompt)\\b.*$",
+      "action": { "indent": "indent" }
+    },
+    {
+      "beforeText": "^(\\s*)@if\\b.*$",
+      "action": { "indent": "indent" }
+    },
+    {
+      "beforeText": "^(\\s*)@else\\s*$",
+      "action": { "indent": "indent" }
+    }
+  ],
   "brackets": [
     ["{{", "}}"]
   ],

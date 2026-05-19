@@ -106,3 +106,28 @@ The spec at MDs/markdownai-spec-v1.0.md is the mdd initial build document source
 Most up to date spec/manual is at .mdd/manual/manual.md
 
 When in doubt, read the manual.
+
+## MarkdownAI Formatting Style
+
+When writing or generating MarkdownAI files, indent body content inside block directives
+by 2 spaces. `@end` (or `@endif`) closes at the same indent level as the opener.
+
+Block directives that require `@end`: `@phase`, `@define`, `@note`, `@section`, `@prompt`
+Block directive that requires `@endif`: `@if` (also `@else` at the opener level)
+Single-line directives with no closing tag: `@constraint`, `@define-concept`, `@env`,
+`@include`, `@import`, `@call`, `@on complete`, `@read`, `@list`, `@tree`, `@count`,
+`@http`, `@chunk-boundary`
+
+Example:
+```
+@phase setup
+  @constraint[critical] Environment must be validated before proceeding
+  @note visible
+    This phase configures the runtime environment.
+  @end
+  @if env.CI
+    Running in CI mode.
+  @endif
+  @on complete -> @phase main
+@end
+```
