@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createInterface } from 'node:readline'
+import { fileURLToPath } from 'node:url'
 import { readFile } from './tools/read_file.js'
 import { listPhases } from './tools/list_phases.js'
 import { resolvePhase } from './tools/resolve_phase.js'
@@ -148,4 +149,8 @@ export function startServer(options: ServerOptions = {}): void {
     }
   })
   rl.on('close', () => process.exit(0))
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  startServer()
 }

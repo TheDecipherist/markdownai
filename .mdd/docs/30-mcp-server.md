@@ -47,7 +47,10 @@ satisfies_contracts:
     function: Object.freeze() on all rule arrays at definition
     when: in security/rules.ts — all exported arrays
     status: done
-known_issues: []
+known_issues:
+  - fixed: mai-serve binary never called startServer() — the server only started
+      when invoked via `mai serve`. Fixed 2026-05-18 by adding an ESM entry-point
+      guard at the bottom of server.ts. Both `mai serve` and `mai-serve` now work.
 ---
 
 # 30 — MCP Server — AI Integration
