@@ -2,6 +2,7 @@
   "name": "markdownai",
   "private": true,
   "version": "0.0.13",
+  "license": "MIT",
   "type": "module",
   "workspaces": [
     "packages/*",

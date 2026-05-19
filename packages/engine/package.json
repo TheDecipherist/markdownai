@@ -1,6 +1,7 @@
 {
   "name": "@markdownai/engine",
   "version": "0.0.13",
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": "./dist/index.js"
