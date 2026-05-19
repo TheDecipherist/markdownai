@@ -3,6 +3,7 @@
   "displayName": "MarkdownAI",
   "description": "Syntax highlighting, snippets, and autocomplete for MarkdownAI documents",
   "version": "0.0.13",
+  "license": "MIT",
   "publisher": "markdownai",
   "engines": {
     "vscode": "^1.85.0"
