@@ -13,7 +13,8 @@
     "dev": "npm run dev --workspaces",
     "test:e2e": "npm run test:unit --workspace=e2e",
     "test:run-state": "vitest run e2e/run-state-*.test.ts",
-    "version": "node scripts/sync-version.mjs && git add packages/*/package.json"
+    "version": "node scripts/sync-version.mjs && git add packages/*/package.json",
+    "release:vscode": "npm run build --workspace packages/vscode && npm run package --workspace packages/vscode && echo \"\n✓ Upload packages/vscode/markdownai-$(node -e \"process.stdout.write(require('./packages/vscode/package.json').version)\").vsix to https://marketplace.visualstudio.com/manage\""
   },
   "engines": {
     "node": ">=18"
