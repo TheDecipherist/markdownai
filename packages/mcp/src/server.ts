@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { createInterface } from 'node:readline'
+import { realpathSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { readFile } from './tools/read_file.js'
 import { listPhases } from './tools/list_phases.js'
@@ -151,6 +152,9 @@ export function startServer(options: ServerOptions = {}): void {
   rl.on('close', () => process.exit(0))
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const _thisFile = fileURLToPath(import.meta.url)
+const _argv1 = process.argv[1] ?? ''
+const _argv1Real = (() => { try { return realpathSync(_argv1) } catch { return _argv1 } })()
+if (_argv1 === _thisFile || _argv1Real === _thisFile) {
   startServer()
 }
