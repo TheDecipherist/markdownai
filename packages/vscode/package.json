@@ -41,6 +41,8 @@
           "MarkdownAI",
           "markdownai"
         ],
+        "extensions": [".mai"],
+        "firstLine": "^@markdownai",
         "configuration": "./language-configuration.json"
       }
     ],
