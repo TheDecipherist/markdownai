@@ -97,9 +97,9 @@ describe('@markdownai/mcp — run state', () => {
     expect(typeof mod.startServer).toBe('function')
   })
 
-  it('mai serve starts and responds to a JSON-RPC tools/list request', async () => {
+  it('mai-serve binary starts and responds to a JSON-RPC tools/list request', async () => {
     await new Promise<void>((resolve, reject) => {
-      const proc = spawnAsync(process.execPath, [dist('core', 'cli.js'), 'serve'], {
+      const proc = spawnAsync(process.execPath, [dist('mcp', 'server.js')], {
         stdio: ['pipe', 'pipe', 'pipe'],
       })
 

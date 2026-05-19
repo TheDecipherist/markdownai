@@ -81,11 +81,13 @@ npm publish --workspace=packages/parser
 - Assert: no exception thrown
 
 ### @markdownai/mcp
-- Import: `import { createServer } from 'packages/mcp/dist/index.js'`
-- Assert: `createServer` is a function
-- CLI: `spawnSync('node', ['packages/mcp/dist/server.js', '--help'])`
-- Assert: exit code 0
-- Assert: stdout contains `'mai-serve'` or `'serve'`
+- Import: `import { startServer } from 'packages/mcp/dist/index.js'`
+- Assert: `startServer` is a function
+- Binary: spawn `packages/mcp/dist/server.js` directly (the `mai-serve` entry point)
+- Send: `{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}`
+- Assert: response is valid JSON-RPC 2.0 with `id: 1`
+- Note: this test caught that `mai-serve` binary never called `startServer()` --
+  fixed 2026-05-18 by adding an ESM entry-point guard in server.ts
 
 ### @markdownai/core
 - CLI — version: `spawnSync('node', ['packages/core/dist/cli.js', '--version'])`
