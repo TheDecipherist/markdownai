@@ -161,6 +161,7 @@ universalOptions(
     .description('install the MarkdownAI hook in your AI client config')
     .option('--client <type>', 'client type: claude-code, cursor (auto-detects if omitted)')
     .option('--global-claude-md', 'add MarkdownAI instructions to ~/.claude/CLAUDE.md')
+    .option('--update', 'replace an existing MarkdownAI section with the current version')
 ).action((opts: Record<string, string | undefined>) => {
     const clientOpt = opts['client'] as import('./commands/init.js').ClientType | undefined
     const result = runInit(clientOpt ? { client: clientOpt } : {})
@@ -169,10 +170,12 @@ universalOptions(
     } else {
       process.stdout.write(`✓ ${result.message}\n`)
     }
-    if (opts['globalClaudeMd']) {
-      const claudeMdResult = runInitClaudeMd()
-      if (claudeMdResult.alreadyPresent) {
-        process.stdout.write('ℹ MarkdownAI instructions already in ' + claudeMdResult.claudeMdPath + '\n')
+    if (opts['globalClaudeMd'] || opts['update']) {
+      const claudeMdResult = runInitClaudeMd({ update: !!opts['update'] })
+      if (claudeMdResult.updated && claudeMdResult.alreadyPresent) {
+        process.stdout.write('✓ MarkdownAI instructions updated in ' + claudeMdResult.claudeMdPath + '\n')
+      } else if (claudeMdResult.alreadyPresent) {
+        process.stdout.write('ℹ MarkdownAI instructions already in ' + claudeMdResult.claudeMdPath + ' (use --update to refresh)\n')
       } else if (claudeMdResult.updated) {
         process.stdout.write('✓ MarkdownAI instructions added to ' + claudeMdResult.claudeMdPath + '\n')
       }

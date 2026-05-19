@@ -56,6 +56,7 @@ function detectClient(): { type: ClientType; configPath: string } {
 
 export interface InitClaudeMdOptions {
   claudeMdPath?: string
+  update?: boolean
 }
 
 export interface InitClaudeMdResult {
@@ -96,7 +97,11 @@ export function runInitClaudeMd(options: InitClaudeMdOptions = {}): InitClaudeMd
   if (existsSync(claudeMdPath)) {
     const existing = readFileSync(claudeMdPath, 'utf8')
     if (existing.includes(SECTION_START_MARKER)) {
-      return { updated: false, alreadyPresent: true, claudeMdPath }
+      if (!options.update) return { updated: false, alreadyPresent: true, claudeMdPath }
+      const stripped = stripClaudeMdSection(existing)
+      const separator = stripped.endsWith('\n') ? '\n' : '\n\n'
+      writeFileSync(claudeMdPath, stripped + separator + CLAUDE_MD_SECTION + '\n', 'utf8')
+      return { updated: true, alreadyPresent: true, claudeMdPath }
     }
     const separator = existing.endsWith('\n') ? '\n' : '\n\n'
     writeFileSync(claudeMdPath, existing + separator + CLAUDE_MD_SECTION + '\n', 'utf8')
