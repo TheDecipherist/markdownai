@@ -23,9 +23,11 @@ Start any new .md file with:
 
 Then add directives where they genuinely help. Plain paragraphs and headings work exactly as in regular markdown.
 
+If the file has YAML frontmatter (e.g. Claude Code skill files, Jekyll/Hugo docs), place \`@markdownai\` as the first line after the closing \`---\` block - the parser recognizes it there.
+
 ### Reading MarkdownAI documents
 
-When you open a .md file that starts with \`@markdownai\`:
+When you open a .md file that starts with \`@markdownai\` (or has \`@markdownai\` as the first line after frontmatter):
 
 - If \`@markdownai/mcp\` is configured in your MCP settings - reads are handled automatically. The MCP server renders directives and returns live output. No extra steps needed.
 - If only the \`mai\` CLI is installed - run \`mai render <file>\` via the Bash tool before reading it. The raw file contains directive syntax, not rendered output.
@@ -33,5 +35,29 @@ When you open a .md file that starts with \`@markdownai\`:
 For automatic read integration, add \`@markdownai/mcp\` to your Claude Code MCP configuration.
 
 Do not convert existing .md files that are not already MarkdownAI documents.
+
+### MarkdownAI formatting style
+
+When writing or generating MarkdownAI files, indent body content inside block directives by 2 spaces. \`@end\` (or \`@endif\`) closes at the same indent level as the opener.
+
+Block directives that require \`@end\`: \`@phase\`, \`@define\`, \`@note\`, \`@section\`, \`@prompt\`
+Block directive that requires \`@endif\`: \`@if\` (and \`@else\` at the opener level)
+Single-line directives with no closing tag: \`@constraint\`, \`@define-concept\`, \`@env\`,
+\`@include\`, \`@import\`, \`@call\`, \`@on complete\`, \`@read\`, \`@list\`, \`@tree\`, \`@count\`,
+\`@http\`, \`@chunk-boundary\`
+
+Example:
+\`\`\`
+@phase setup
+  @constraint[critical] Environment must be validated before proceeding
+  @note visible
+    This phase configures the runtime environment.
+  @end
+  @if env.CI
+    Running in CI mode.
+  @endif
+  @on complete -> @phase main
+@end
+\`\`\`
 
 ${SECTION_END_MARKER}`
