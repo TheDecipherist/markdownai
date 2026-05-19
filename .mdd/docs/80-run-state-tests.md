@@ -4,11 +4,19 @@ title: Run-State Tests — All npm Packages
 edition: Both
 depends_on: [33-e2e-test-suite, 04-cli-core, 51-package-scaffold]
 source_files:
-  - e2e/run-state.test.ts
+  - e2e/run-state-parser.test.ts
+  - e2e/run-state-renderer.test.ts
+  - e2e/run-state-engine.test.ts
+  - e2e/run-state-mcp.test.ts
+  - e2e/run-state-core.test.ts
 routes: []
 models: []
 test_files:
-  - e2e/run-state.test.ts
+  - e2e/run-state-parser.test.ts
+  - e2e/run-state-renderer.test.ts
+  - e2e/run-state-engine.test.ts
+  - e2e/run-state-mcp.test.ts
+  - e2e/run-state-core.test.ts
 data_flow: greenfield
 last_synced: 2026-05-18
 status: complete
