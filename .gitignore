@@ -1,4 +1,7 @@
-./MDs
+# MDs working files - kept on disk but not in repo
+MDs/markdownai-*.md
+MDs/mdd-*.md
+MDs/mddv2-*.md
 node_modules/
 dist/
 .vite/
