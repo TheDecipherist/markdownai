@@ -16,7 +16,8 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "prepublishOnly": "npm --prefix ../.. run test:run-state"
   },
   "dependencies": {
     "@markdownai/engine": "*",
