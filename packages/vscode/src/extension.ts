@@ -31,8 +31,8 @@ export function activate(context: vscode.ExtensionContext): void {
         const doc = event.document;
         const lineText = doc.lineAt(sourceLineNum).text.trimEnd();
 
-        // Only auto-close when Enter was pressed at or near end of directive line
-        if (change.range.start.character < lineText.trimEnd().length - 1) continue;
+        // Only auto-close when Enter was pressed at the end of the directive line
+        if (change.range.start.character < lineText.length) continue;
 
         const blockMatch = BLOCK_OPENERS.exec(lineText);
         const ifMatch = !blockMatch ? IF_OPENER.exec(lineText) : null;
@@ -40,23 +40,23 @@ export function activate(context: vscode.ExtensionContext): void {
 
         const indent = (blockMatch ?? ifMatch)![1] ?? '';
         const closer = blockMatch ? '@end' : '@endif';
-
-        // Don't insert if closer already exists on the next line
         const cursorLine = sourceLineNum + 1;
+
+        // Don't insert if closer already exists immediately after the body line
         if (cursorLine + 1 < doc.lineCount) {
-          const nextLineText = doc.lineAt(cursorLine + 1).text.trim();
-          if (nextLineText === closer || nextLineText === '@end' || nextLineText === '@endif') continue;
+          const nextText = doc.lineAt(cursorLine + 1).text.trim();
+          if (nextText === closer) continue;
         }
 
-        const savedSelection = editor.selection;
         void editor.edit(eb => {
-          const endOfCursorLine = new vscode.Position(
-            cursorLine,
-            doc.lineAt(Math.min(cursorLine, doc.lineCount - 1)).text.length,
-          );
-          eb.insert(endOfCursorLine, `\n${indent}${closer}`);
-        }, { undoStopBefore: false, undoStopAfter: false }).then(() => {
-          editor.selection = savedSelection;
+          const bodyLineLen = doc.lineAt(Math.min(cursorLine, doc.lineCount - 1)).text.length;
+          eb.insert(new vscode.Position(cursorLine, bodyLineLen), `\n${indent}${closer}`);
+        }, { undoStopBefore: false, undoStopAfter: false }).then(success => {
+          if (!success) return;
+          // Keep cursor on the body line (between directive and @end)
+          const bodyLen = editor.document.lineAt(cursorLine).text.length;
+          const bodyPos = new vscode.Position(cursorLine, bodyLen);
+          editor.selection = new vscode.Selection(bodyPos, bodyPos);
         });
       }
     }),

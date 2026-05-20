@@ -2,7 +2,7 @@
   "name": "markdownai",
   "displayName": "MarkdownAI",
   "description": "Syntax highlighting, snippets, and autocomplete for MarkdownAI documents",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "license": "MIT",
   "publisher": "markdownai",
   "engines": {
