@@ -86,6 +86,16 @@ The stripper (`mai strip`) is in `packages/engine/src/stripper.ts`, not a separa
 - Shell-dependent commands (awk, sed, jq etc) spawn child processes -- Unix/WSL only
 - Engine detects platform at startup for shell command availability
 
+## Deployment
+
+The docs site (`docs/`) is served as a static nginx container on markdownai.dev.
+
+- **Docker image:** `timcarterclausen/markdownai_website:latest` (underscore, not hyphen)
+- **Dokploy webhook:** stored in `.env` as `DOKPLOY_WEBHOOK_URL`
+- Always build and tag to the correct image name: `docker build -t timcarterclausen/markdownai_website:latest .`
+- Test locally before pushing, then `docker push timcarterclausen/markdownai_website:latest`
+- Trigger redeploy: `source .env && curl -s -X POST "$DOKPLOY_WEBHOOK_URL"`
+
 ## Git Workflow
 
 - Never commit to main
