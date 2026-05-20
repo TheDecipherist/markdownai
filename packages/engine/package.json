@@ -1,6 +1,7 @@
 {
   "name": "@markdownai/engine",
   "version": "0.0.21",
+  "description": "Execution engine for MarkdownAI - directive evaluation, macro expansion, pipe runner, caching, and security enforcement",
   "license": "MIT",
   "type": "module",
   "exports": {
