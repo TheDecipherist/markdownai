@@ -1,7 +1,5 @@
 # @markdownai/core
 
-The `mai` CLI. Render, validate, and manage live MarkdownAI documents from the terminal.
-
 <p align="center">
   <a href="https://markdownai.dev">
     <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-0891b2?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />

@@ -83,3 +83,43 @@ export function checkFilePath(
 
   return { level: 'allowed', reason: '' }
 }
+
+/**
+ * Check an absolute path against built-in always_block rules only.
+ * Use this for paths that are legitimately absolute (e.g. CLI entry-point args)
+ * where blocking all absolute paths would break normal usage, but sensitive
+ * system paths must still be rejected.
+ */
+export function checkAbsolutePath(
+  filePath: string,
+  config?: FilesystemSecurityConfig
+): FilesystemCheckResult {
+  const expandedFull = expandHome(filePath)
+  const name = basename(filePath)
+
+  for (const pattern of FILESYSTEM_ALWAYS_BLOCK_PATHS) {
+    if (matchGlob(expandHome(pattern), expandedFull)) {
+      return { level: 'blocked', reason: `Built-in blocked path: ${pattern}` }
+    }
+  }
+  for (const pattern of FILESYSTEM_ALWAYS_BLOCK_PATTERNS) {
+    if (matchGlob(pattern, name)) {
+      return { level: 'blocked', reason: `Built-in blocked file pattern: ${pattern}` }
+    }
+  }
+  if (config?.additional_block_paths?.length) {
+    for (const pattern of config.additional_block_paths) {
+      if (matchGlob(expandHome(pattern), expandedFull)) {
+        return { level: 'blocked', reason: `User blocked path: ${pattern}` }
+      }
+    }
+  }
+  if (config?.additional_block_patterns?.length) {
+    for (const pattern of config.additional_block_patterns) {
+      if (matchGlob(pattern, name)) {
+        return { level: 'blocked', reason: `User blocked file pattern: ${pattern}` }
+      }
+    }
+  }
+  return { level: 'allowed', reason: '' }
+}

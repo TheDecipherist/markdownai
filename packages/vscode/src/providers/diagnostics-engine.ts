@@ -17,6 +17,9 @@ const ELSEIF_RE = /^@elseif\b/;
 const ELSE_RE = /^@else\b/;
 const DEFINE_RE = /^@define\b/;
 const PHASE_RE = /^@phase\b/;
+const NOTE_RE = /^@note\b/;
+const SECTION_RE = /^@section\b/;
+const PROMPT_RE = /^@prompt\b/;
 const END_RE = /^@end\b/;
 const CALL_RE = /^@call\s+([\w-]+)/;
 
@@ -61,9 +64,15 @@ function processLine(
     blockStack.push({ directive: 'define', line: lineNum });
   } else if (PHASE_RE.test(trimmed)) {
     blockStack.push({ directive: 'phase', line: lineNum });
+  } else if (NOTE_RE.test(trimmed)) {
+    blockStack.push({ directive: 'note', line: lineNum });
+  } else if (SECTION_RE.test(trimmed)) {
+    blockStack.push({ directive: 'section', line: lineNum });
+  } else if (PROMPT_RE.test(trimmed)) {
+    blockStack.push({ directive: 'prompt', line: lineNum });
   } else if (END_RE.test(trimmed)) {
     if (blockStack.length === 0) {
-      diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: '@end with no matching @define or @phase', severity: 'error' });
+      diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: '@end with no matching block directive', severity: 'error' });
     } else {
       blockStack.pop();
     }

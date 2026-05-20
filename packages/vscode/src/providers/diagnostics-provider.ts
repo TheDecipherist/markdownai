@@ -48,7 +48,7 @@ export class DiagnosticsProvider {
       });
       this.collection.set(doc.uri, diagnostics);
     } catch (err) {
-      console.error('[markdownai] diagnostics analysis failed for', doc.uri.toString(), ':', err)
+      void vscode.window.showErrorMessage(`[markdownai] diagnostics analysis failed for ${doc.uri.toString()}: ${String(err)}`)
       this.collection.delete(doc.uri);
     }
   }

@@ -78,7 +78,7 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     phase: null,
     cwd,
     docDir: cwd,
-    security: { allowShell: false, allowHttp: false, allowDb: false, jailRoot: null },
+    security: { allowShell: false, allowHttp: false, allowDb: false, jailRoot: cwd },
     mcp: null,
     warnings: [],
     resolutionStack: new Set<string>(),

@@ -141,6 +141,7 @@ universalOptions(
   if (opts['cwd']) watchOpts.cwd = String(opts['cwd'])
   if (opts['verbose']) watchOpts.verbose = true
   if (opts['strict']) watchOpts.strict = true
+  if (opts['silent']) watchOpts.silent = true
   if (opts['output']) watchOpts.output = String(opts['output'])
   runWatch(file, watchOpts)
 })

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve, isAbsolute } from 'node:path'
 import { parse, ParseError } from '@markdownai/parser'
-import { checkFilePath } from '@markdownai/engine'
+import { checkFilePath, checkAbsolutePath } from '@markdownai/engine'
 
 export interface ParseCmdOptions {
   cwd?: string
@@ -17,10 +17,8 @@ export interface ParseCmdResult {
 
 export function runParse(filePath: string, options: ParseCmdOptions = {}): ParseCmdResult {
   const cwd = options.cwd ?? process.cwd()
-  if (!isAbsolute(filePath)) {
-    const check = checkFilePath(filePath, cwd)
-    if (check.level === 'blocked') return { output: '', errors: [`Path blocked: ${check.reason}`], exitCode: 1 }
-  }
+  const check = isAbsolute(filePath) ? checkAbsolutePath(filePath) : checkFilePath(filePath, cwd)
+  if (check.level === 'blocked') return { output: '', errors: [`Path blocked: ${check.reason}`], exitCode: 1 }
   const resolved = resolve(cwd, filePath)
   let source: string
   try {

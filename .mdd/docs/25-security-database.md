@@ -15,7 +15,7 @@ tags: [security, database, readonly, allowed-operations, denied-keywords]
 path: Security
 integration_contracts:
   - caller_feature: 03-engine
-    function: checkDatabaseOperation(connection, operation, ctx.security)
+    function: checkDbOperation(connection, operation, ctx.security)
     when: before executing any @db or @query node
     mandatory: true
 satisfies_contracts: []

@@ -1,6 +1,6 @@
 import { readFileSync, existsSync, openSync, readSync, closeSync } from 'node:fs'
 import { isAbsolute, normalize } from 'node:path'
-import { FILESYSTEM_ALWAYS_BLOCK_PATHS, matchGlob } from '@markdownai/engine'
+import { checkAbsolutePath } from '@markdownai/engine'
 
 const MAI_HEADER = '@markdownai'
 const PEEK_BYTES = 20
@@ -8,8 +8,7 @@ const FRONTMATTER_PEEK_BYTES = 2048
 
 function isSafeHookPath(filePath: string): boolean {
   if (!isAbsolute(filePath)) return true
-  const norm = normalize(filePath)
-  return !FILESYSTEM_ALWAYS_BLOCK_PATHS.some(pattern => matchGlob(pattern, norm))
+  return checkAbsolutePath(normalize(filePath)).level !== 'blocked'
 }
 
 export interface HookDecision {

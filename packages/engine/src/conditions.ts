@@ -6,9 +6,8 @@ import { checkFilePath } from './security/filesystem.js'
 
 function makeFileHelpers(jailRoot: string | null) {
   function confined(p: string): string | null {
-    if (!jailRoot) return resolve(p)
+    if (!jailRoot) return null
     if (isAbsolute(p)) {
-      // Absolute path: verify it stays within jailRoot (don't use checkFilePath — it always blocks absolute)
       return relative(jailRoot, p).startsWith('..') ? null : p
     }
     const check = checkFilePath(p, jailRoot)

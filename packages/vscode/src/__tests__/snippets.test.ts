@@ -26,11 +26,11 @@ describe('MarkdownAI Snippets', () => {
     expect(headers.length).toBeGreaterThan(0);
   });
 
-  it('should include snippets for @define and @enddefine', () => {
+  it('should include snippets for @define and @end', () => {
     const s = JSON.parse(readFileSync(snippetsPath, 'utf8')) as SnippetsFile;
     const body = Object.values(s).map(v => v.body.join('\n')).join('\n');
     expect(body).toContain('@define');
-    expect(body).toContain('@enddefine');
+    expect(body).toContain('@end');
   });
 
   it('should include a snippet for @if / @endif', () => {

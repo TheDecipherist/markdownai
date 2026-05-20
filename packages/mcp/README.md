@@ -1,7 +1,5 @@
 # @markdownai/mcp
 
-MCP server for MarkdownAI. Bridges AI assistants and live documents - intercepts file reads, resolves directives, and serves phase-aware content through 8 tools AI tools can call directly.
-
 <p align="center">
   <a href="https://markdownai.dev">
     <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-0891b2?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />
