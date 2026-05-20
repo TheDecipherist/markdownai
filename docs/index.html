@@ -275,6 +275,29 @@
           Each stop costs context and interrupts the actual work. With MarkdownAI, those
           interruptions don't happen. The document arrives pre-resolved.
         </p>
+        <p>
+          Something nobody talks about: every time Claude stops to check an environment variable,
+          verify a file exists, confirm a port is open -- that's roughly 2 seconds gone. Tool call
+          out, wait, result back, Claude re-orients, continues.
+        </p>
+        <p>
+          In a real workflow that's not 1 check. It's 15. That's 30 seconds of dead time and 15
+          context interruptions where Claude has to re-establish where it was.
+        </p>
+        <p>
+          MarkdownAI's MCP layer does all of that before Claude touches the session. Environment is
+          pre-validated, state is pre-loaded, constraints are already in context. Claude reads phase
+          1 and immediately works.
+        </p>
+        <p>
+          No stops. No re-orientation. No context bloat from housekeeping that a script could handle
+          in milliseconds.
+        </p>
+        <div class="callout">
+          The difference between a prompt engineer's workflow and a production workflow is exactly
+          this. Prompt people write the instructions. Production people eliminate every unnecessary
+          thing Claude has to do before writing the instructions.
+        </div>
 
         <h3>Phases are not template partials</h3>
         <p>

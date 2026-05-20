@@ -56,6 +56,16 @@ MarkdownAI is different in every dimension that matters:
 
 Without MarkdownAI, Claude hits a doc and has to figure out what's true. It stops to run a shell command. It stops again to check an env var. It stops again to verify a condition. Each stop costs context and interrupts the actual work. With MarkdownAI, those interruptions don't happen. The document arrives pre-resolved.
 
+Something nobody talks about: every time Claude stops to check an environment variable, verify a file exists, confirm a port is open -- that's roughly 2 seconds gone. Tool call out, wait, result back, Claude re-orients, continues.
+
+In a real workflow that's not 1 check. It's 15. That's 30 seconds of dead time and 15 context interruptions where Claude has to re-establish where it was.
+
+MarkdownAI's MCP layer does all of that before Claude touches the session. Environment is pre-validated, state is pre-loaded, constraints are already in context. Claude reads phase 1 and immediately works.
+
+No stops. No re-orientation. No context bloat from housekeeping that a script could handle in milliseconds.
+
+The difference between a prompt engineer's workflow and a production workflow is exactly this. Prompt people write the instructions. Production people eliminate every unnecessary thing Claude has to do before writing the instructions.
+
 **Phases are not template partials.** The `@phase` directive is where the comparison to template engines fully breaks down.
 
 A MarkdownAI phase is a named, lazy-loaded chunk of a workflow document. A 20-phase runbook doesn't load all 20 phases into Claude's context at once - the MCP server serves one phase at a time. Claude reads phase 1, works through it, then calls `next_phase` to advance. The server returns phase 2. Claude never holds the full workflow in context. The document manages state. Claude follows steps.
