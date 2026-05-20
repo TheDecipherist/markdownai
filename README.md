@@ -21,6 +21,7 @@
 </p>
 
 [![npm](https://img.shields.io/badge/npm-%40markdownai%2Fmarkdownai-red)](https://www.npmjs.com/package/@markdownai/markdownai)
+[![VS Code](https://img.shields.io/badge/VS_Code-Marketplace-007ACC?logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=markdownai.markdownai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js >=18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
 [![Tests: 754](https://img.shields.io/badge/tests-754_passing-brightgreen)](./packages)
@@ -1030,9 +1031,9 @@ The philosophical payoff: MDD enforces "document first." MarkdownAI enforces "do
 
 ## VS Code Extension
 
-The MarkdownAI VS Code extension (`markdownai`) provides full IDE support for `.md` files that begin with `@markdownai`.
+The MarkdownAI VS Code extension provides full IDE support for `.md` files that begin with `@markdownai`.
 
-**Install from the VS Code marketplace** (search "MarkdownAI") or build from the `packages/vscode` directory.
+**Install it directly in VS Code** - open the Extensions panel (`Ctrl+Shift+X` / `Cmd+Shift+X`), search for **MarkdownAI**, and click Install. Or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=markdownai.markdownai).
 
 ### Live Preview
 
@@ -1086,6 +1087,8 @@ Verify:
 mai --version
 mai validate --help
 ```
+
+**VS Code extension** - open Extensions (`Ctrl+Shift+X`), search **MarkdownAI**, click Install. Gets you syntax highlighting, snippets, completions, hover, diagnostics, and auto-indentation for MarkdownAI documents.
 
 Install the PreToolUse hook for your AI client:
 
