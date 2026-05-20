@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, dirname } from 'node:path'
 import { CLAUDE_MD_SECTION, SECTION_START_MARKER, SECTION_END_MARKER } from '../templates/claude-section.js'
-import { FILESYSTEM_ALWAYS_BLOCK_PATHS, matchGlob } from '@markdownai/engine'
+import { checkAbsolutePath } from '@markdownai/engine'
 
 export type ClientType = 'claude-code' | 'cursor' | 'auto'
 
@@ -83,14 +83,10 @@ export function stripClaudeMdSection(content: string): string {
   return before + '\n\n' + after
 }
 
-function isClaudeMdPathSafe(p: string): boolean {
-  return !FILESYSTEM_ALWAYS_BLOCK_PATHS.some(pattern => matchGlob(pattern, p))
-}
-
 export function runInitClaudeMd(options: InitClaudeMdOptions = {}): InitClaudeMdResult {
   const claudeMdPath = options.claudeMdPath ?? join(homedir(), '.claude', 'CLAUDE.md')
 
-  if (!isClaudeMdPathSafe(claudeMdPath)) {
+  if (checkAbsolutePath(claudeMdPath).level === 'blocked') {
     return { updated: false, alreadyPresent: false, claudeMdPath }
   }
 
@@ -158,6 +154,10 @@ export function runInit(options: InitOptions = {}): InitResult {
   const configPath = clientType === 'cursor'
     ? join(homedir(), '.cursor', 'settings.json')
     : join(homedir(), '.claude', 'settings.json')
+
+  if (checkAbsolutePath(configPath).level === 'blocked') {
+    return { success: false, clientDetected: clientType, configPath, alreadyInstalled: false, message: `Config path blocked: ${configPath}` }
+  }
 
   const hookDir = join(homedir(), '.markdownai', 'hooks')
   const hookPath = join(hookDir, 'preToolUse.mjs')

@@ -48,34 +48,28 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
   const jailRoot = ctx.security.jailRoot ?? ctx.docDir ?? null
   const fileHelper = {
     exists: (p: string): boolean => {
-      if (jailRoot) {
-        if (isAbsolute(p)) return !relative(jailRoot, p).startsWith('..') && existsSync(p)
-        if (checkFilePath(p, jailRoot).level === 'blocked') return false
-        return existsSync(resolve(jailRoot, p))
-      }
-      return existsSync(p)
+      if (!jailRoot) return false
+      if (isAbsolute(p)) return !relative(jailRoot, p).startsWith('..') && existsSync(p)
+      if (checkFilePath(p, jailRoot).level === 'blocked') return false
+      return existsSync(resolve(jailRoot, p))
     },
     isFile: (p: string): boolean => {
-      if (jailRoot) {
-        if (isAbsolute(p)) {
-          if (relative(jailRoot, p).startsWith('..')) return false
-          try { return statSync(p).isFile() } catch { return false }
-        }
-        if (checkFilePath(p, jailRoot).level === 'blocked') return false
-        try { return statSync(resolve(jailRoot, p)).isFile() } catch { return false }
+      if (!jailRoot) return false
+      if (isAbsolute(p)) {
+        if (relative(jailRoot, p).startsWith('..')) return false
+        try { return statSync(p).isFile() } catch { return false }
       }
-      try { return statSync(p).isFile() } catch { return false }
+      if (checkFilePath(p, jailRoot).level === 'blocked') return false
+      try { return statSync(resolve(jailRoot, p)).isFile() } catch { return false }
     },
     isDir: (p: string): boolean => {
-      if (jailRoot) {
-        if (isAbsolute(p)) {
-          if (relative(jailRoot, p).startsWith('..')) return false
-          try { return statSync(p).isDirectory() } catch { return false }
-        }
-        if (checkFilePath(p, jailRoot).level === 'blocked') return false
-        try { return statSync(resolve(jailRoot, p)).isDirectory() } catch { return false }
+      if (!jailRoot) return false
+      if (isAbsolute(p)) {
+        if (relative(jailRoot, p).startsWith('..')) return false
+        try { return statSync(p).isDirectory() } catch { return false }
       }
-      try { return statSync(p).isDirectory() } catch { return false }
+      if (checkFilePath(p, jailRoot).level === 'blocked') return false
+      try { return statSync(resolve(jailRoot, p)).isDirectory() } catch { return false }
     },
   }
   try {

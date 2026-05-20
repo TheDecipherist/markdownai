@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve, isAbsolute } from 'node:path'
 import { parse } from '@markdownai/parser'
-import { strip, checkFilePath } from '@markdownai/engine'
+import { strip, checkFilePath, checkAbsolutePath } from '@markdownai/engine'
 import { loadEnvFile } from '../env-loader.js'
 
 export interface StripCmdOptions {
@@ -22,12 +22,10 @@ export interface StripCmdResult {
 
 export function runStrip(filePath: string, options: StripCmdOptions = {}): StripCmdResult {
   const cwd = options.cwd ?? process.cwd()
-  if (!isAbsolute(filePath)) {
-    const check = checkFilePath(filePath, cwd)
-    if (check.level === 'blocked') return { output: '', errors: [`Path blocked: ${check.reason}`], warnings: [], exitCode: 1 }
-  }
-  if (options.output && !isAbsolute(options.output)) {
-    const outCheck = checkFilePath(options.output, cwd)
+  const check = isAbsolute(filePath) ? checkAbsolutePath(filePath) : checkFilePath(filePath, cwd)
+  if (check.level === 'blocked') return { output: '', errors: [`Path blocked: ${check.reason}`], warnings: [], exitCode: 1 }
+  if (options.output) {
+    const outCheck = isAbsolute(options.output) ? checkAbsolutePath(options.output) : checkFilePath(options.output, cwd)
     if (outCheck.level === 'blocked') return { output: '', errors: [`Output path blocked: ${outCheck.reason}`], warnings: [], exitCode: 1 }
   }
   const resolved = resolve(cwd, filePath)

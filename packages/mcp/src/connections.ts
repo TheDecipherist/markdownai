@@ -23,9 +23,10 @@ export interface ConnectionEntry {
   args: Record<string, string>
 }
 
-// Per-session registry — keyed by sessionId so sessions don't share connections
-// Raw (unmasked) args are stored only in the internal Map and never exposed by listConnections
+// Per-session registry stores pre-masked connections — safe for display/enumeration.
+// Raw credentials live only in credentialVault and are never surfaced externally.
 const sessionRegistries = new Map<string, Map<string, ConnectionEntry>>()
+const credentialVault = new Map<string, Map<string, Record<string, string>>>()
 
 function getRegistry(sessionId: string): Map<string, ConnectionEntry> {
   let reg = sessionRegistries.get(sessionId)
@@ -33,23 +34,40 @@ function getRegistry(sessionId: string): Map<string, ConnectionEntry> {
   return reg
 }
 
-export function registerConnection(name: string, type: string, args: Record<string, string>, sessionId = 'default'): void {
-  getRegistry(sessionId).set(name, { name, type, args })
+function getVault(sessionId: string): Map<string, Record<string, string>> {
+  let v = credentialVault.get(sessionId)
+  if (!v) { v = new Map(); credentialVault.set(sessionId, v) }
+  return v
 }
 
+export function registerConnection(name: string, type: string, args: Record<string, string>, sessionId = 'default', securityConfig?: FilesystemSecurityConfig): void {
+  // Mask before storing in the connections singleton (contract: applyMasking before storage)
+  const masked = maskArgs(args, securityConfig)
+  getRegistry(sessionId).set(name, { name, type, args: masked })
+  // Raw credentials stored separately for actual connection use — never exposed externally
+  getVault(sessionId).set(name, args)
+}
+
+/** Returns raw connection credentials for internal engine use. Never pass this result to user-facing output. */
 export function getConnection(name: string, sessionId = 'default'): ConnectionEntry | null {
-  return getRegistry(sessionId).get(name) ?? null
+  const raw = getVault(sessionId).get(name)
+  if (!raw) return null
+  const entry = getRegistry(sessionId).get(name)
+  if (!entry) return null
+  return { name: entry.name, type: entry.type, args: raw }
 }
 
-/** Returns connections with sensitive arg values masked. Never exposes raw credentials. */
-export function listConnections(sessionId = 'default', securityConfig?: FilesystemSecurityConfig): Array<ConnectionEntry & { args: Record<string, string> }> {
-  return [...getRegistry(sessionId).values()].map(c => ({ ...c, args: maskArgs(c.args, securityConfig) }))
+/** Returns connections with sensitive arg values masked. Safe for display. */
+export function listConnections(sessionId = 'default', _securityConfig?: FilesystemSecurityConfig): Array<ConnectionEntry> {
+  return [...getRegistry(sessionId).values()]
 }
 
 export function clearConnections(sessionId = 'default'): void {
   sessionRegistries.delete(sessionId)
+  credentialVault.delete(sessionId)
 }
 
 export function clearAllSessions(): void {
   sessionRegistries.clear()
+  credentialVault.clear()
 }

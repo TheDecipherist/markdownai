@@ -18,6 +18,13 @@ e2e/benchmarks/
 
 # VS Code extension build artifacts
 *.vsix
+packages/vscode/packages/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Playwright MCP
+.playwright-mcp/
 
 # Temporary AI research files
 _ai_temp/

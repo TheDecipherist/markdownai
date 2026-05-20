@@ -10,7 +10,7 @@ function render(source: string, allowShell = false, allowPatterns: string[] = ['
         allowShell,
         allowHttp: false,
         allowDb: false,
-        jailRoot: null,
+        jailRoot: process.cwd(),
         shellConfig: {
           enabled: true,
           allow_patterns: allowPatterns,
@@ -32,7 +32,7 @@ function getWarnings(source: string, allowShell = false, allowPatterns: string[]
         allowShell,
         allowHttp: false,
         allowDb: false,
-        jailRoot: null,
+        jailRoot: process.cwd(),
         shellConfig: {
           enabled: true,
           allow_patterns: allowPatterns,
@@ -152,7 +152,7 @@ describe('shell-inline: deny patterns block allowed shell commands', () => {
           allowShell: true,
           allowHttp: false,
           allowDb: false,
-          jailRoot: null,
+          jailRoot: process.cwd(),
           shellConfig: {
             enabled: true,
             allow_patterns: ['*'],

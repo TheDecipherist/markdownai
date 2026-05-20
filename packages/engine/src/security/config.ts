@@ -82,13 +82,18 @@ export function loadSecurityConfig(filePath?: string): SecurityJsonConfig {
   let raw: string
   try { raw = readFileSync(path, 'utf8') } catch { return defaultSecurityConfig() }
   try {
-    const loaded = JSON.parse(raw) as Partial<SecurityJsonConfig>
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      process.stderr.write(`[markdownai] security config invalid (${path}): expected object\n`)
+      return defaultSecurityConfig()
+    }
+    const loaded = parsed as Record<string, unknown>
     const defaults = defaultSecurityConfig()
     return {
-      shell: { ...defaults.shell, ...(loaded.shell ?? {}) },
-      http: { ...defaults.http, ...(loaded.http ?? {}) },
-      db: { ...(loaded.db ?? {}) },
-      filesystem: { ...defaults.filesystem, ...(loaded.filesystem ?? {}) },
+      shell: { ...defaults.shell, ...(typeof loaded['shell'] === 'object' && loaded['shell'] !== null && !Array.isArray(loaded['shell']) ? loaded['shell'] as Partial<ShellSecurityConfig> : {}) },
+      http: { ...defaults.http, ...(typeof loaded['http'] === 'object' && loaded['http'] !== null && !Array.isArray(loaded['http']) ? loaded['http'] as Partial<HttpSecurityConfig> : {}) },
+      db: (typeof loaded['db'] === 'object' && loaded['db'] !== null && !Array.isArray(loaded['db']) ? loaded['db'] as DbSecurityConfig : {}),
+      filesystem: { ...defaults.filesystem, ...(typeof loaded['filesystem'] === 'object' && loaded['filesystem'] !== null && !Array.isArray(loaded['filesystem']) ? loaded['filesystem'] as Partial<FilesystemSecurityConfig> : {}) },
     }
   } catch (err) {
     process.stderr.write(`[markdownai] security config parse error (${path}): ${String(err)}\n`)

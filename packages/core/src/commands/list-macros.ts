@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { resolve, isAbsolute } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { DefineNode } from '@markdownai/parser'
+import { checkFilePath, checkAbsolutePath } from '@markdownai/engine'
 
 export interface MacroEntry {
   name: string
@@ -18,6 +19,8 @@ export interface ListMacrosResult {
 
 export function runListMacros(filePath: string, options: { cwd?: string } = {}): ListMacrosResult {
   const cwd = options.cwd ?? process.cwd()
+  const check = isAbsolute(filePath) ? checkAbsolutePath(filePath) : checkFilePath(filePath, cwd)
+  if (check.level === 'blocked') return { macros: [], errors: [`Path blocked: ${check.reason}`], exitCode: 1 }
   const resolved = resolve(cwd, filePath)
   let source: string
   try { source = readFileSync(resolved, 'utf8') } catch {

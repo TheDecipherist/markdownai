@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { resolve, isAbsolute } from 'node:path'
 import { parse } from '@markdownai/parser'
 import type { PhaseNode } from '@markdownai/parser'
+import { checkFilePath, checkAbsolutePath } from '@markdownai/engine'
 
 export interface PhaseEntry {
   name: string
@@ -17,6 +18,8 @@ export interface ListPhasesResult {
 
 export function runListPhases(filePath: string, options: { cwd?: string } = {}): ListPhasesResult {
   const cwd = options.cwd ?? process.cwd()
+  const check = isAbsolute(filePath) ? checkAbsolutePath(filePath) : checkFilePath(filePath, cwd)
+  if (check.level === 'blocked') return { phases: [], errors: [`Path blocked: ${check.reason}`], exitCode: 1 }
   const resolved = resolve(cwd, filePath)
   let source: string
   try { source = readFileSync(resolved, 'utf8') } catch {

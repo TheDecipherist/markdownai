@@ -1,5 +1,6 @@
 import { watch, writeFileSync } from 'node:fs'
-import { resolve, relative, dirname } from 'node:path'
+import { resolve, dirname, isAbsolute } from 'node:path'
+import { checkFilePath, checkAbsolutePath } from '@markdownai/engine'
 import { runRender } from './render.js'
 
 export interface WatchOptions {
@@ -20,9 +21,9 @@ export function runWatch(filePath: string, options: WatchOptions = {}): WatchHan
   const resolved = resolve(cwd, filePath)
 
   if (options.output) {
-    const outputPath = resolve(cwd, options.output)
-    if (relative(cwd, outputPath).startsWith('..')) {
-      process.stderr.write(`ERROR: watch --output path confined — access denied: ${options.output}\n`)
+    const outCheck = isAbsolute(options.output) ? checkAbsolutePath(options.output) : checkFilePath(options.output, cwd)
+    if (outCheck.level === 'blocked') {
+      process.stderr.write(`ERROR: watch --output path blocked — ${outCheck.reason}: ${options.output}\n`)
       return { stop: () => {} }
     }
   }

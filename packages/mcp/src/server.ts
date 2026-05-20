@@ -50,6 +50,8 @@ function respondError(id: string | number | null, code: number, message: string)
 function dispatchTool(method: string, p: Record<string, unknown>, id: string | number | null, cwd: string): void {
   switch (method) {
     case 'read_file': {
+      const v = validateMcpInput([{ field: 'path', value: p['path'], noPathInjection: true }])
+      if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
       const rfArgs: Parameters<typeof readFile>[0] = { path: String(p['path'] ?? '') }
       if (p['phase'] != null) rfArgs.phase = String(p['phase'])
       if (p['format'] === 'standard' || p['format'] === 'ai') rfArgs.format = p['format']
@@ -65,10 +67,24 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
       respond(id, readFile(rfArgs, cwd))
       break
     }
-    case 'list_phases': respond(id, listPhases(String(p['file'] ?? ''), cwd)); break
-    case 'resolve_phase': respond(id, resolvePhase(String(p['file'] ?? ''), String(p['phase'] ?? ''), cwd)); break
-    case 'next_phase': respond(id, nextPhase(String(p['file'] ?? ''), String(p['current_phase'] ?? ''), cwd)); break
+    case 'list_phases': {
+      const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }])
+      if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
+      respond(id, listPhases(String(p['file'] ?? ''), cwd)); break
+    }
+    case 'resolve_phase': {
+      const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'phase', value: p['phase'] }])
+      if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
+      respond(id, resolvePhase(String(p['file'] ?? ''), String(p['phase'] ?? ''), cwd)); break
+    }
+    case 'next_phase': {
+      const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'current_phase', value: p['current_phase'] }])
+      if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
+      respond(id, nextPhase(String(p['file'] ?? ''), String(p['current_phase'] ?? ''), cwd)); break
+    }
     case 'call_macro': {
+      const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'macro', value: p['macro'] }])
+      if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
       const rawArgs = p['args']
       const macroArgs: Record<string, string> = (typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs))
         ? Object.fromEntries(Object.entries(rawArgs).map(([k, v]) => [k, String(v)]))
@@ -76,10 +92,22 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
       respond(id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), macroArgs, cwd))
       break
     }
-    case 'get_env': respond(id, getEnv(String(p['key'] ?? ''), p['fallback'] != null ? String(p['fallback']) : undefined)); break
-    case 'execute_directive': respond(id, executeDirective(String(p['directive'] ?? ''), cwd)); break
+    case 'get_env': {
+      const v = validateMcpInput([{ field: 'key', value: p['key'], isEnvKey: true }])
+      if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
+      respond(id, getEnv(String(p['key'] ?? ''), p['fallback'] != null ? String(p['fallback']) : undefined)); break
+    }
+    case 'execute_directive': {
+      const v = validateMcpInput([{ field: 'directive', value: p['directive'] }])
+      if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
+      respond(id, executeDirective(String(p['directive'] ?? ''), cwd)); break
+    }
     case 'invalidate_cache': respond(id, invalidateCache(p['directive'] != null ? String(p['directive']) : undefined)); break
-    case 'get_constraints': respond(id, getConstraints(String(p['file'] ?? ''), cwd)); break
+    case 'get_constraints': {
+      const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }])
+      if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
+      respond(id, getConstraints(String(p['file'] ?? ''), cwd)); break
+    }
     default: respondError(id, -32601, `Unknown tool: "${method}"`)
   }
 }

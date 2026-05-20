@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { resolve, isAbsolute } from 'node:path'
 import { parse } from '@markdownai/parser'
-import { execute, checkFilePath } from '@markdownai/engine'
+import { execute, checkFilePath, checkAbsolutePath, loadSecurityConfig } from '@markdownai/engine'
 import { aiFilter } from '@markdownai/renderer'
 import { validateMcpInput, validateEnvRecord } from '../validate.js'
 
@@ -71,7 +71,8 @@ export function readFile(args: ReadFileArgs, cwd: string): ReadFileResult {
   if (!validation.ok) return { content: '', isMarkdownAI: false, warnings: validation.errors.map(e => `${e.field}: ${e.reason}`) }
   const envErrors = validateEnvRecord(args.env)
   if (envErrors.length > 0) return { content: '', isMarkdownAI: false, warnings: envErrors.map(e => `${e.field}: ${e.reason}`) }
-  const check = checkFilePath(args.path, cwd)
+  const fsConfig = loadSecurityConfig().filesystem
+  const check = isAbsolute(args.path) ? checkAbsolutePath(args.path, fsConfig) : checkFilePath(args.path, cwd, fsConfig)
   if (check.level === 'blocked') {
     return { content: '', isMarkdownAI: false, warnings: [`Path traversal blocked: "${args.path}" — ${check.reason}`] }
   }

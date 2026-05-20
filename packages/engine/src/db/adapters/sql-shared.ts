@@ -43,7 +43,7 @@ function buildSqlBody(
       if (dialect !== 'mssql') parts.push('LIMIT 1')
       return parts.join(' ')
     }
-    default: { // find
+    case 'find': {
       const topClause = plan.limit !== null && dialect === 'mssql' ? mssqlTop(plan.limit, dialect) : ''
       const parts = [`SELECT ${topClause}${buildSelectCols(plan.columns, dialect)}`, `FROM ${qi(plan.collection, dialect)}`]
       if (where) parts.push(where)
@@ -52,6 +52,10 @@ function buildSqlBody(
       }
       if (plan.limit !== null && dialect !== 'mssql') parts.push(`LIMIT ${plan.limit}`)
       return parts.join(' ')
+    }
+    default: {
+      const _: never = plan.operation
+      throw new Error(`buildSqlBody: unhandled operation "${_}"`)
     }
   }
 }

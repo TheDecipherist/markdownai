@@ -1,7 +1,5 @@
 # @markdownai/engine
 
-The execution core of MarkdownAI. Takes a parsed AST and evaluates all directives - shell queries, HTTP requests, database connections, environment resolution, caching, security enforcement, and output assembly.
-
 <p align="center">
   <a href="https://markdownai.dev">
     <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-0891b2?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />

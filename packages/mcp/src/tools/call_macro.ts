@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parse } from '@markdownai/parser'
-import { execute, checkFilePath } from '@markdownai/engine'
+import { execute, checkFilePath, loadSecurityConfig } from '@markdownai/engine'
 import { validateMcpInput, validateEnvRecord } from '../validate.js'
 
 export interface CallMacroResult {
@@ -72,6 +72,15 @@ export function callMacro(
   const ast = parse(callDoc)
   if (!ast.isMarkdownAI) return { output: '', warnings: [], found: false }
 
-  const result = execute(ast, { ctx: { envFiles: env ?? {}, cwd, docDir: resolve(cwd) } })
+  const securityConfig = loadSecurityConfig()
+  const security = {
+    allowShell: securityConfig.shell.enabled,
+    allowHttp: securityConfig.http.enabled,
+    allowDb: Object.keys(securityConfig.db).length > 0,
+    jailRoot: resolve(cwd),
+    filesystemConfig: securityConfig.filesystem,
+    shellConfig: securityConfig.shell,
+  }
+  const result = execute(ast, { ctx: { envFiles: env ?? {}, cwd, docDir: resolve(cwd), security } })
   return { output: result.output, warnings: result.warnings, found: true }
 }
