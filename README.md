@@ -7,6 +7,16 @@
 > **documentation that cannot lie.**
 
 <p align="center">
+  <a href="https://markdownai.dev">
+    <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-00e5cc?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />
+  </a>
+  &nbsp;
+  <a href="https://markdownai.dev/user-guide.html">
+    <img src="https://img.shields.io/badge/📚_User_Guide-Full_Reference-00ff88?style=for-the-badge&labelColor=08090f" alt="User Guide" />
+  </a>
+</p>
+
+<p align="center">
   <a href="#quick-start">
     <img src="https://img.shields.io/badge/Quick_Start-Get_running_in_60s-0891b2?style=for-the-badge&labelColor=1e293b" alt="Quick Start" />
   </a>

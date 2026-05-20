@@ -1,5 +1,15 @@
 # @markdownai/core
 
+<p align="center">
+  <a href="https://markdownai.dev">
+    <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-00e5cc?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />
+  </a>
+  &nbsp;
+  <a href="https://markdownai.dev/user-guide.html">
+    <img src="https://img.shields.io/badge/📚_User_Guide-Full_Reference-00ff88?style=for-the-badge&labelColor=08090f" alt="User Guide" />
+  </a>
+</p>
+
 The `mai` CLI. Everything you need to render, validate, strip, serve, and inspect MarkdownAI live documents from the terminal.
 
 **All packages:**

@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>if(location.hostname==="thedecipherist.github.io")location.replace("https://markdownai.dev"+location.pathname.replace("/markdownai","")+location.search+location.hash);</script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MarkdownAI - documentation that cannot lie.</title>
+
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="MarkdownAI - documentation that cannot lie. Add @markdownai to any .md file and it becomes a live document that fetches real values every time it renders." />
+  <meta name="keywords" content="MarkdownAI, live documentation, markdown directives, mai, Claude Code, MCP server, documentation as code, dynamic markdown" />
+  <meta name="author" content="TheDecipherist" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://markdownai.dev" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://markdownai.dev" />
+  <meta property="og:title" content="MarkdownAI - documentation that cannot lie." />
+  <meta property="og:description" content="Add @markdownai to any .md file and it becomes a live document. Directives fetch real values every time it renders. Documentation that cannot lie." />
+  <meta property="og:image" content="https://markdownai.dev/markdownAI_hero.webp" />
+  <meta property="og:site_name" content="MarkdownAI" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="MarkdownAI - documentation that cannot lie." />
+  <meta name="twitter:description" content="Add @markdownai to any .md file and it becomes a live document. Directives fetch real values every time it renders." />
+  <meta name="twitter:image" content="https://markdownai.dev/markdownAI_hero.webp" />
+
+  <!-- Schema.org JSON-LD -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "MarkdownAI",
+    "alternateName": "mai",
+    "description": "Add @markdownai to any .md file and it becomes a live document. Directives fetch real values every time it renders. Documentation that cannot lie.",
+    "url": "https://markdownai.dev",
+    "downloadUrl": "https://www.npmjs.com/package/@markdownai/core",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Any",
+    "softwareVersion": "1.0.0",
+    "license": "https://opensource.org/licenses/MIT",
+    "author": {
+      "@type": "Person",
+      "name": "TheDecipherist",
+      "url": "https://thedecipherist.com"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+
+  <!-- Favicon: data URI SVG - letter "M" in teal on dark background -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308090f'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='system-ui%2C sans-serif' font-size='18' font-weight='800' fill='%2300e5cc'%3EM%3C/text%3E%3C/svg%3E" />
+
+  <!-- Rybbit Analytics -->
+  <script async src="https://app.rybbit.io/api/script.js" data-site-id="cb10a4ff07c7"></script>
+
+  <!-- Prism.js CSS -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+
+  <!-- Site Styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ===================== -->
+  <!-- Fixed Glassmorphism Header -->
+  <!-- ===================== -->
+  <header>
+    <nav class="container">
+      <ul>
+        <li>
+          <button
+            class="menu-toggle"
+            id="menu-toggle"
+            aria-label="Toggle navigation menu"
+            aria-expanded="false"
+            aria-controls="mobile-menu"
+          >
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+            <span class="hamburger-line"></span>
+          </button>
+        </li>
+        <li>
+          <div class="brand">
+            <span class="brand-text">
+              <span class="brand-title">MarkdownAI</span>
+              <span class="brand-author">by <a href="https://thedecipherist.com" target="_blank" rel="noopener">TheDecipherist</a></span>
+            </span>
+          </div>
+        </li>
+      </ul>
+      <ul>
+        <li>
+          <a href="https://github.com/TheDecipherist/markdownai" target="_blank" rel="noopener">GitHub</a>
+        </li>
+        <li>
+          <a href="https://www.npmjs.com/package/@markdownai/core" target="_blank" rel="noopener">npm</a>
+        </li>
+        <li>
+          <a href="https://marketplace.visualstudio.com/items?itemName=markdownai.markdownai" target="_blank" rel="noopener">VS Code</a>
+        </li>
+        <li>
+          <a href="user-guide.html">User Guide</a>
+        </li>
+        <li class="dropdown">
+          <button class="dropdown-toggle" aria-haspopup="true" aria-expanded="false">
+            Projects
+            <svg class="dropdown-arrow" width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div class="dropdown-menu" role="menu">
+            <a href="https://github.com/TheDecipherist/markdownai" target="_blank" rel="noopener" role="menuitem">
+              <span class="dropdown-item-text">
+                <span class="dropdown-item-title">MarkdownAI</span>
+                <span class="dropdown-item-desc">Live markdown documents</span>
+              </span>
+            </a>
+            <a href="https://mddai.dev" target="_blank" rel="noopener" role="menuitem">
+              <span class="dropdown-item-text">
+                <span class="dropdown-item-title">MDD</span>
+                <span class="dropdown-item-desc">Manual-Driven Development</span>
+              </span>
+            </a>
+          </div>
+        </li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- ===================== -->
+  <!-- Mobile Menu Overlay   -->
+  <!-- ===================== -->
+  <div class="mobile-menu-overlay" id="mobile-menu-overlay" aria-hidden="true"></div>
+
+  <!-- Mobile Menu Drawer -->
+  <nav class="mobile-menu" id="mobile-menu" aria-label="Mobile navigation">
+    <div class="mobile-toc">
+      <p class="toc-header">On this page</p>
+      <a href="#why">The Problem</a>
+      <a href="#how">How It Works</a>
+      <a href="#quickstart">Quick Start</a>
+      <a href="#language">Language Features</a>
+      <a href="#data">Data Sources</a>
+      <a href="#security">Security</a>
+      <a href="#caching">Caching</a>
+      <a href="#formats">Output Formats</a>
+      <a href="#ai">AI Integration</a>
+      <a href="#cli">CLI Reference</a>
+      <a href="#directives">Directive Reference</a>
+      <a href="#vscode">VS Code Extension</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#install">Installation</a>
+    </div>
+    <div class="mobile-projects">
+      <p class="toc-header">Links</p>
+      <a href="user-guide.html">User Guide</a>
+      <a href="https://github.com/TheDecipherist/markdownai" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://www.npmjs.com/package/@markdownai/core" target="_blank" rel="noopener">npm</a>
+      <a href="https://marketplace.visualstudio.com/items?itemName=markdownai.markdownai" target="_blank" rel="noopener">VS Code</a>
+      <a href="https://mddai.dev" target="_blank" rel="noopener">MDD</a>
+    </div>
+  </nav>
+
+  <!-- ===================== -->
+  <!-- Hero Section          -->
+  <!-- ===================== -->
+  <section class="hero">
+    <div class="hero-glow" aria-hidden="true"></div>
+    <div class="hero-content container">
+      <div class="hero-badge">npm install -g @markdownai/core</div>
+      <h1>MarkdownAI</h1>
+      <p class="hero-subtitle">
+        documentation that cannot lie.
+      </p>
+      <div class="hero-actions">
+        <a href="user-guide.html" class="btn btn-primary">Read the Guide &rarr;</a>
+        <a href="https://github.com/TheDecipherist/markdownai" target="_blank" rel="noopener" class="btn btn-secondary">View on GitHub</a>
+      </div>
+    </div>
+    <div class="hero-banner">
+      <img
+        src="markdownAI_hero.webp"
+        alt="MarkdownAI hero image - documentation that cannot lie"
+        width="1400"
+        loading="eager"
+      />
+    </div>
+  </section>
+
+  <!-- ===================== -->
+  <!-- Main Layout           -->
+  <!-- ===================== -->
+  <div class="main-layout container">
+
+    <!-- Sidebar TOC -->
+    <aside id="sidebar" aria-label="Table of contents">
+      <p class="toc-header">On this page</p>
+      <nav id="toc">
+        <a href="#why">The Problem</a>
+        <a href="#how">How It Works</a>
+        <a href="#quickstart">Quick Start</a>
+        <a href="#language">Language Features</a>
+        <a href="#data">Data Sources</a>
+        <a href="#security">Security</a>
+        <a href="#caching">Caching</a>
+        <a href="#formats">Output Formats</a>
+        <a href="#ai">AI Integration</a>
+        <a href="#cli">CLI Reference</a>
+        <a href="#directives">Directive Reference</a>
+        <a href="#vscode">VS Code Extension</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#install">Installation</a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main id="content">
+
+      <!-- ============================== -->
+      <!-- Section: The Problem With Docs -->
+      <!-- ============================== -->
+      <section id="why">
+        <h2>The Problem With Documentation</h2>
+
+        <p>
+          Here is something that happens at every company: someone writes great documentation.
+          It is accurate. It is detailed. It is helpful.
+        </p>
+        <p>
+          Then the code changes.
+        </p>
+        <p>
+          The database schema gets a new field. The API endpoint moves. The environment variable
+          gets renamed. The service goes from port 3000 to 8080. But the docs stay exactly as they
+          were - frozen at the moment someone last had time to update them. Within weeks, the
+          documentation is wrong. Within months, it actively misleads. People stop trusting it.
+          Eventually, they stop reading it.
+        </p>
+
+        <div class="callout">
+          <p>
+            <strong>This is not a process failure. This is physics.</strong> Static text cannot
+            track a moving system.
+          </p>
+        </div>
+
+        <p>
+          Add <code>@markdownai</code> to the first line of any <code>.md</code> file and it becomes
+          a live document. Instead of writing values that will go stale, you write directives that
+          fetch the current value every time the document is rendered. Your database record count is
+          queried when someone reads the doc, not when you wrote it. Your API response is real. Your
+          environment variables are live. Your file tree reflects what is actually on disk right now.
+        </p>
+
+        <p>
+          Run <code>mai render</code>. The document executes. The output is clean, standard Markdown
+          with everything resolved. The result is documentation that cannot lie - because it does not
+          store facts, it fetches them.
+        </p>
+      </section>
+
+      <!-- ===================== -->
+      <!-- Section: How It Works -->
+      <!-- ===================== -->
+      <section id="how">
+        <h2>How It Works</h2>
+
+        <p>
+          One line changes everything. Add <code>@markdownai</code> to the top of any
+          <code>.md</code> file and the <code>mai</code> tool treats it as a live document.
+          Everything after that line is standard Markdown, extended with directives. Directives
+          become their results. Conditions are evaluated. Macros expand. Data sources are queried.
+        </p>
+
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-number">754</div>
+            <div class="stat-label">Tests passing</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">78</div>
+            <div class="stat-label">Features documented</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">11</div>
+            <div class="stat-label">Output formats</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">6</div>
+            <div class="stat-label">Packages</div>
+          </div>
+        </div>
+
+        <h3>The Six Packages</h3>
+        <p>
+          MarkdownAI is a six-package monorepo. Each layer has a single, well-defined job:
+        </p>
+
+        <table class="scale-table">
+          <thead>
+            <tr>
+              <th>Package</th>
+              <th>Name</th>
+              <th>Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>parser/</code></td>
+              <td><code>@markdownai/parser</code></td>
+              <td>Converts <code>.md</code> files to an AST - inert, no execution</td>
+            </tr>
+            <tr>
+              <td><code>engine/</code></td>
+              <td><code>@markdownai/engine</code></td>
+              <td>Walks the AST, runs directives, assembles output</td>
+            </tr>
+            <tr>
+              <td><code>renderer/</code></td>
+              <td><code>@markdownai/renderer</code></td>
+              <td>Formats data into 11 output styles (table, bar chart, flow, etc.)</td>
+            </tr>
+            <tr>
+              <td><code>mcp/</code></td>
+              <td><code>@markdownai/mcp</code></td>
+              <td>MCP server - serves live document execution to Claude and other AI tools</td>
+            </tr>
+            <tr>
+              <td><code>core/</code></td>
+              <td><code>@markdownai/core</code></td>
+              <td>The <code>mai</code> binary and all CLI commands</td>
+            </tr>
+            <tr>
+              <td><code>vscode/</code></td>
+              <td><code>markdownai</code> (VS Code)</td>
+              <td>Language detection, syntax highlighting, snippets, completions, hover, diagnostics</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout green">
+          <p>
+            The parser is intentionally inert - it never executes anything. Security enforcement
+            lives in the engine, not in individual directives. This means security gates apply
+            regardless of which directive triggers the operation.
+          </p>
+        </div>
+      </section>
+
+      <!-- ===================== -->
+      <!-- Section: Quick Start  -->
+      <!-- ===================== -->
+      <section id="quickstart">
+        <h2>Quick Start</h2>
+
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Install</h3>
+            <pre><code class="language-bash">npm install -g @markdownai/core</code></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Create a live document</h3>
+            <p>Save this as <code>status.md</code>:</p>
+            <pre><code class="language-markdown">@markdownai
+
+# Project Status
+
+**Branch:** {{ @query git branch --show-current }}
+**Tests:** {{ @query pnpm test 2>&1 | tail -1 }}
+**Last commit:** {{ @query git log --oneline -1 }}
+
+## Source Files
+
+@list ./src/ match="**/*.ts" | sort | @render type="table" columns="name,size"
+
+## Environment
+
+@if env.NODE_ENV == "production"
+Running in **production** mode.
+@else
+Running in **{{ env.NODE_ENV }}** mode.
+@endif</code></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Render it</h3>
+            <pre><code class="language-bash">mai render status.md</code></pre>
+            <p>
+              Every directive runs. The output is clean Markdown with real data from your system -
+              not values someone typed in last month.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================= -->
+      <!-- Section: Language Features -->
+      <!-- ========================= -->
+      <section id="language">
+        <h2>Language Features</h2>
+
+        <p>
+          MarkdownAI extends standard Markdown with a small set of directives. They compose naturally
+          - you can pipe data through transforms, embed expressions in prose, define reusable blocks,
+          and conditionally show sections based on any runtime value.
+        </p>
+
+        <div class="feature-grid">
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-cyan">&#123;&#123; &#125;&#125;</div>
+            <h3>Inline Interpolation</h3>
+            <p>
+              Embed live values directly in prose. Works in paragraphs, headings, and table cells.
+              Use <code>{{ env.VAR }}</code>, <code>{{ @query git branch --show-current }}</code>,
+              or <code>{{ @date format="YYYY-MM-DD" }}</code> anywhere in your document.
+              Unset variables evaluate to empty string rather than an error.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-green">@env</div>
+            <h3>Environment Variables</h3>
+            <p>
+              Declare the variables your document depends on. <code>required</code> causes
+              <code>mai validate</code> to fail if the variable is unset. <code>masked</code>
+              prevents the value from appearing in rendered output. <code>fallback=value</code>
+              provides a default when the variable is absent.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-amber">@define</div>
+            <h3>Macros</h3>
+            <p>
+              Define reusable blocks once with <code>@define</code> and call them anywhere with
+              <code>@call</code>. Macros can accept named parameters, contain any directives,
+              and be shared across documents by importing them from a shared file.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-purple">@include</div>
+            <h3>Includes and Imports</h3>
+            <p>
+              Pull in file content with <code>@include</code> - supports a line range for embedding
+              source code in docs. Use <code>@import</code> to import only definitions (macros,
+              connections, env defaults) from a shared file without rendering its content.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-pink">@if</div>
+            <h3>Conditionals</h3>
+            <p>
+              Full conditional system. Check env vars, file existence, string comparisons, and
+              compound logic with <code>&amp;&amp;</code> and <code>||</code>. The same expression
+              operators work in <code>@if</code> conditions, data query <code>where</code> filters,
+              and <code>{{ }}</code> interpolations.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-cyan">| @render</div>
+            <h3>Pipe and Render</h3>
+            <p>
+              Chain transforms before rendering: <code>sort</code>, <code>grep</code>,
+              <code>head</code>, <code>tail</code>, <code>uniq</code>, <code>wc -l</code>. All
+              built-in transforms are cross-platform pure Node.js. Feed the result into any of 11
+              output formats via <code>@render</code>.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ======================== -->
+      <!-- Section: Data Sources    -->
+      <!-- ======================== -->
+      <section id="data">
+        <h2>Data Sources</h2>
+
+        <p>
+          MarkdownAI can pull from the filesystem, structured files, databases, HTTP APIs, and shell
+          commands. Every data source is jailed by default - see the <a href="#security">Security</a>
+          section for how the gates work.
+        </p>
+
+        <div class="feature-grid">
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-green">@list</div>
+            <h3>@list</h3>
+            <p>
+              List filesystem entries, or pull structured data from JSON, YAML, and CSV files.
+              Filter with glob patterns, <code>where</code> clauses, and depth limits. Specify
+              columns, sort order, and output format inline.
+            </p>
+            <pre><code class="language-markdown">@list ./src/ match="**/*.ts"
+@list ./config.yaml path=$.services
+@list ./data.csv where="status == active"</code></pre>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-amber">@read</div>
+            <h3>@read</h3>
+            <p>
+              Extract a specific value from a structured file using dot-notation paths.
+              Supports JSON, YAML, TOML, and CSV. Useful for pulling a single config
+              value, a version number, or a record field into prose.
+            </p>
+            <pre><code class="language-markdown">@read ./package.json path=$.version
+@read ./config.yaml path=$.server.port
+@read ./data.csv column=email where="active == true"</code></pre>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-purple">@query</div>
+            <h3>@query</h3>
+            <p>
+              Run a shell command and use its output. Supports a <code>label=</code> option to
+              store the result for reuse in conditions and interpolations. Disabled by default -
+              requires an explicit allowlist in your security config.
+            </p>
+            <pre><code class="language-markdown">@query git branch --show-current
+@query bash -c "find src -name '*.ts' | wc -l"
+@query bash -c "git status --porcelain" label=dirty</code></pre>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-cyan">@http</div>
+            <h3>@http</h3>
+            <p>
+              Make HTTP requests and embed the response. Assert status codes with
+              <code>expected=</code>, pass headers and bodies, and cache responses to avoid
+              hammering external APIs. All <code>@http</code> calls are blocked by default
+              until you add domains to the allowlist.
+            </p>
+            <pre><code class="language-markdown">@http GET https://api.example.com/status
+@http GET {{ env.API_ENDPOINT }}/health expected=200
+@http GET https://api.example.com/data @cache persist ttl=3600</code></pre>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-pink">@db</div>
+            <h3>@db and @connect</h3>
+            <p>
+              Register a database connection with <code>@connect</code>, then query it using
+              MarkdownAI's database-agnostic query language. A document querying Postgres looks
+              identical to one querying MongoDB. Supports SQLite, PostgreSQL, MySQL, MSSQL, and
+              MongoDB.
+            </p>
+            <pre><code class="language-markdown">@connect primary type="postgres" uri=env.POSTGRES_URI
+@db using="primary" find="users" where="active==true"
+@db using="primary" aggregate="sales" group="region" sum="revenue" | @render type="bar"</code></pre>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-green">@phase</div>
+            <h3>@phase and @graph</h3>
+            <p>
+              Structure a document as a sequential workflow with named phases and
+              <code>@on complete</code> transitions. The MCP server exposes
+              <code>list_phases</code>, <code>resolve_phase</code>, and <code>next_phase</code>
+              tools so AI tools can navigate the workflow programmatically. Use
+              <code>@graph</code> to build a dependency graph from document relationships.
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ======================== -->
+      <!-- Section: Security        -->
+      <!-- ======================== -->
+      <section id="security">
+        <h2>Security</h2>
+
+        <p>
+          Security is a first-class concern in MarkdownAI, not an afterthought. Every external
+          operation is jailed by default and must be explicitly enabled. The security layer lives
+          in the engine - it applies regardless of which directive triggers the operation.
+        </p>
+
+        <div class="concept-grid">
+
+          <div class="concept-card">
+            <h3>&#128193; Filesystem Confinement</h3>
+            <p>
+              All file access (<code>@include</code>, <code>@read</code>, <code>@list</code>,
+              <code>@tree</code>) is confined to the document root - by default, the directory
+              containing the document being rendered. No directive can read files above this root
+              using path traversal. Content masking runs before any output is written, so sensitive
+              values matching your configured patterns are replaced with <code>[MASKED]</code>.
+            </p>
+          </div>
+
+          <div class="concept-card">
+            <h3>&#128274; Shell Execution Jail</h3>
+            <p>
+              <code>@query</code> shell execution is disabled by default (<code>allowShell: false</code>).
+              Enable it with an explicit allowlist:
+              <code>mai security shell add "git *"</code>. All executions are subject to deny
+              patterns, <code>jailRoot</code> confinement, and optional audit logging. Commands
+              not matching the allowlist are blocked even with the master switch on.
+            </p>
+          </div>
+
+          <div class="concept-card">
+            <h3>&#128451; Database Query Jail</h3>
+            <p>
+              Database access is read-only by default. Write operations, DDL statements, and
+              full-table scans on large collections are blocked unless explicitly permitted.
+              Configure allowed operations, blocked SQL keywords, and maximum result sizes via
+              <code>mai security db</code> commands.
+            </p>
+          </div>
+
+          <div class="concept-card">
+            <h3>&#127760; HTTP Request Jail</h3>
+            <p>
+              All <code>@http</code> calls are blocked by default. Enable HTTP and add specific
+              domains to the allowlist:
+              <code>mai security http enable</code>, then
+              <code>mai security http add-domain api.example.com</code>. Wildcard subdomains
+              are supported. Requests to non-allowlisted domains fail regardless of configuration.
+            </p>
+          </div>
+
+        </div>
+
+        <div class="callout amber">
+          <p>
+            <strong>Immutable built-in rules.</strong> Some rules are hardcoded and cannot be
+            disabled by any configuration - not by security policy, not by environment variables,
+            not by document directives. Cloud metadata endpoints are always blocked
+            (169.254.169.254, metadata.google.internal, and all similar credential-theft
+            endpoints). Path traversal sequences are always blocked in jailed contexts. Content
+            masking always runs before caching - credentials can never be stored in plain text.
+            These rules are implemented as frozen, readonly arrays in the engine code.
+          </p>
+        </div>
+      </section>
+
+      <!-- ======================== -->
+      <!-- Section: Caching         -->
+      <!-- ======================== -->
+      <section id="caching">
+        <h2>Caching</h2>
+
+        <p>
+          Add <code>@cache</code> to any directive to avoid redundant fetches on repeated renders.
+          Cache modes range from in-memory session caching to persistent disk storage with expiry.
+          The mock mode is particularly useful for testing - your document runs with real directives
+          but against predictable fixture data.
+        </p>
+
+        <table class="scale-table">
+          <thead>
+            <tr>
+              <th>Mode</th>
+              <th>Behavior</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>@cache session</code></td>
+              <td>Store in memory for the current <code>mai</code> run. Gone when the process exits.</td>
+            </tr>
+            <tr>
+              <td><code>@cache session ttl=N</code></td>
+              <td>Session cache that expires after N seconds within the run.</td>
+            </tr>
+            <tr>
+              <td><code>@cache persist</code></td>
+              <td>Write to disk. Survives process restarts and re-renders.</td>
+            </tr>
+            <tr>
+              <td><code>@cache persist ttl=N</code></td>
+              <td>Disk cache with expiry. Stale entries are refetched automatically.</td>
+            </tr>
+            <tr>
+              <td><code>@cache mock=./fixture.json</code></td>
+              <td>Always return data from a local file - never call the live source. For testing.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Cache Management</h3>
+
+        <pre><code class="language-bash">mai cache clear              # clear all cached entries
+mai cache clear my-doc.md    # clear for one document
+mai cache show               # inspect what is currently cached
+mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time</code></pre>
+
+        <div class="callout">
+          <p>
+            Content masking always runs before caching. Sensitive values that match your configured
+            secret patterns are replaced with <code>[MASKED]</code> before anything is written to
+            the cache. Credentials can never be stored in plain text, even in session memory.
+          </p>
+        </div>
+      </section>
+
+      <!-- ======================== -->
+      <!-- Section: Output Formats  -->
+      <!-- ======================== -->
+      <section id="formats">
+        <h2>Output Formats</h2>
+
+        <p>
+          The renderer supports 11 output formats. All are plain ASCII that renders correctly
+          everywhere - in terminals, GitHub, VS Code preview, and AI context windows.
+        </p>
+
+        <table class="scale-table">
+          <thead>
+            <tr>
+              <th>Format</th>
+              <th>Output</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>list</code></td><td>Unordered bullet list</td></tr>
+            <tr><td><code>numbered</code></td><td>Ordered numbered list</td></tr>
+            <tr><td><code>links</code></td><td>Clickable markdown links</td></tr>
+            <tr><td><code>table</code></td><td>Grid table with headers</td></tr>
+            <tr><td><code>code</code></td><td>Fenced code block</td></tr>
+            <tr><td><code>inline</code></td><td>Embedded scalar value</td></tr>
+            <tr><td><code>bar</code></td><td>Horizontal ASCII bar chart</td></tr>
+            <tr><td><code>flow</code></td><td>ASCII flow diagram with arrows</td></tr>
+            <tr><td><code>tree</code></td><td>Indented ASCII tree</td></tr>
+            <tr><td><code>timeline</code></td><td>Left-to-right ASCII timeline</td></tr>
+            <tr><td><code>json</code></td><td>Pretty-printed JSON</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Pipe Chains</h3>
+
+        <p>
+          Formats become most useful when combined with the pipe operator. A data fetch, a few
+          transforms, and a render sink - all on one line:
+        </p>
+
+        <pre><code class="language-markdown">@list ./src/ | sort | @render type="tree"
+@query bash -c "df -h" | @render type="table"
+@db using="primary" aggregate="sales" group="name" sum="revenue" | @render type="bar"
+@query bash -c "git log --oneline -20" | grep "feat" | @render type="numbered"</code></pre>
+      </section>
+
+      <!-- ======================== -->
+      <!-- Section: AI Integration  -->
+      <!-- ======================== -->
+      <section id="ai">
+        <h2>AI Integration</h2>
+
+        <p>
+          MarkdownAI was designed with AI-native workflows in mind. Every feature is built to serve
+          both humans reading rendered output and AI tools consuming live document context. There are
+          three distinct integration points.
+        </p>
+
+        <div class="concept-grid">
+
+          <div class="concept-card">
+            <h3>&#128187; MCP Server (9 tools)</h3>
+            <p>
+              Run <code>mai serve</code> to start an MCP server. Claude, Cursor, and any
+              MCP-compatible tool can query documents, execute directives, navigate phases, and get
+              live data - without reading raw source files. The 9 exposed tools cover the full
+              document lifecycle: <code>read_file</code>, <code>list_phases</code>,
+              <code>resolve_phase</code>, <code>next_phase</code>, <code>call_macro</code>,
+              <code>get_env</code>, <code>execute_directive</code>, <code>get_constraints</code>,
+              and <code>invalidate_cache</code>.
+            </p>
+          </div>
+
+          <div class="concept-card">
+            <h3>&#128268; PreToolUse Hook</h3>
+            <p>
+              Run <code>mai init</code> to install a PreToolUse hook into your AI client. When the
+              AI reads a <code>.md</code> file starting with <code>@markdownai</code>, the hook
+              intercepts the read and routes it through <code>mai render</code> first. The AI always
+              receives the rendered, executed output - live data, not the last time someone manually
+              updated the file.
+            </p>
+          </div>
+
+          <div class="concept-card">
+            <h3>&#129302; AI-Native Features</h3>
+            <p>
+              <code>@prompt</code> embeds instructions for AI consumers that never appear in human
+              output. <code>@constraint</code> expresses rules as structured, machine-readable blocks.
+              <code>@consumer=ai</code> targets sections to AI readers only - token-efficient format
+              mode strips narrative prose, reducing consumption by up to 35% compared to the same
+              document in human mode.
+            </p>
+          </div>
+
+        </div>
+
+        <h3>Skill Context Variables</h3>
+
+        <p>
+          When a MarkdownAI document is used as a Claude Code skill file, the full slash command
+          invocation context is available inside the document. This enables genuine engine-evaluated
+          dispatch - the engine routes to the correct section before Claude even sees the file.
+        </p>
+
+        <table class="scale-table">
+          <thead>
+            <tr>
+              <th>Variable</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>ARGUMENTS</code> / <code>args</code></td><td>Full raw <code>$ARGUMENTS</code> string</td></tr>
+            <tr><td><code>argsList</code></td><td>Positional args, shell-style parsed</td></tr>
+            <tr><td><code>arg0</code> <code>arg1</code> <code>arg2</code> <code>arg3</code></td><td>Shorthand positionals</td></tr>
+            <tr><td><code>CLAUDE_EFFORT</code></td><td><code>low</code>, <code>medium</code>, <code>high</code>, <code>xhigh</code>, or <code>max</code></td></tr>
+            <tr><td><code>CLAUDE_SESSION_ID</code></td><td>Current Claude Code session ID</td></tr>
+            <tr><td><code>CLAUDE_SKILL_DIR</code></td><td>Directory containing the skill file</td></tr>
+          </tbody>
+        </table>
+
+        <pre><code class="language-markdown">@markdownai
+
+@if ARGUMENTS.startsWith("audit")
+  @include ./audit-mode.md
+@elseif ARGUMENTS.startsWith("build")
+  @include ./build-mode.md
+@elseif ARGUMENTS.startsWith("plan")
+  @include ./plan-mode.md
+@endif</code></pre>
+      </section>
+
+      <!-- ======================== -->
+      <!-- Section: CLI Reference   -->
+      <!-- ======================== -->
+      <section id="cli">
+        <h2>CLI Reference</h2>
+
+        <p>
+          All commands share these universal flags:
+        </p>
+
+        <table class="scale-table">
+          <thead>
+            <tr>
+              <th>Flag</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>--env &lt;file&gt;</code></td><td>Load a <code>.env</code> file for environment variables</td></tr>
+            <tr><td><code>--cwd &lt;path&gt;</code></td><td>Run as if in a different directory</td></tr>
+            <tr><td><code>--verbose</code></td><td>Show warnings in output</td></tr>
+            <tr><td><code>--strict</code></td><td>Treat warnings as errors</td></tr>
+            <tr><td><code>--silent</code></td><td>Suppress all output except fatal errors and security alerts</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Commands</h3>
+
+        <table class="mode-ref-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>mai render &lt;file&gt;</code></td><td>Execute and print rendered markdown to stdout</td></tr>
+            <tr><td><code>mai render &lt;file&gt; -o &lt;path&gt;</code></td><td>Execute and write result to a file</td></tr>
+            <tr><td><code>mai validate &lt;file&gt;</code></td><td>Check for errors and warnings; exits 1 on error</td></tr>
+            <tr><td><code>mai parse &lt;file&gt;</code></td><td>Output the document AST as JSON</td></tr>
+            <tr><td><code>mai eval "&lt;expression&gt;"</code></td><td>Evaluate a single expression against the environment</td></tr>
+            <tr><td><code>mai strip &lt;file&gt;</code></td><td>Remove all directives; output plain Markdown</td></tr>
+            <tr><td><code>mai serve</code></td><td>Start the MCP server</td></tr>
+            <tr><td><code>mai init</code></td><td>Install the PreToolUse hook into your AI client</td></tr>
+            <tr><td><code>mai build &lt;file&gt; -o &lt;output&gt;</code></td><td>Render and write to disk (alias for render -o)</td></tr>
+            <tr><td><code>mai watch &lt;file&gt; -o &lt;output&gt;</code></td><td>Watch for changes and re-render automatically</td></tr>
+            <tr><td><code>mai cache clear [file]</code></td><td>Clear cache for one document or all</td></tr>
+            <tr><td><code>mai cache show [file]</code></td><td>Inspect cache entries</td></tr>
+            <tr><td><code>mai cache seed &lt;file&gt;</code></td><td>Pre-populate cache by running all fetches</td></tr>
+            <tr><td><code>mai security init</code></td><td>Create or import a security policy</td></tr>
+            <tr><td><code>mai security show</code></td><td>Display the active security policy</td></tr>
+            <tr><td><code>mai security shell enable</code></td><td>Enable shell command execution</td></tr>
+            <tr><td><code>mai security shell add &lt;pattern&gt;</code></td><td>Add a command pattern to the allowlist</td></tr>
+            <tr><td><code>mai security http enable</code></td><td>Enable HTTP requests</td></tr>
+            <tr><td><code>mai security http add-domain &lt;domain&gt;</code></td><td>Add a domain to the allowlist</td></tr>
+            <tr><td><code>mai security db add &lt;connection&gt;</code></td><td>Register a database connection</td></tr>
+            <tr><td><code>mai security db test "&lt;query&gt;"</code></td><td>Test whether a query would be permitted</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ========================== -->
+      <!-- Section: Directive Reference -->
+      <!-- ========================== -->
+      <section id="directives">
+        <h2>Directive Reference</h2>
+
+        <p>
+          Every directive supported by MarkdownAI, grouped by category.
+        </p>
+
+        <h3>Header and Activation</h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@markdownai</code></td><td>Activate MarkdownAI processing. Must be on line 1 (or first line after YAML frontmatter).</td></tr>
+            <tr><td><code>@markdownai v1.0</code></td><td>Pin to a specific specification version.</td></tr>
+            <tr><td><code>@markdownai shell-inline="passthrough"</code></td><td>Let Claude Code's <code>!`cmd`</code> syntax pass through unintercepted.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Environment and Variables</h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@env VAR required</code></td><td>Declare a required variable. <code>mai validate</code> fails if unset.</td></tr>
+            <tr><td><code>@env VAR required masked</code></td><td>Required and suppress from output.</td></tr>
+            <tr><td><code>@env VAR fallback=value</code></td><td>Declare a default when variable is not set.</td></tr>
+            <tr><td><code>{{ env.VAR }}</code></td><td>Inline interpolation of any environment variable.</td></tr>
+            <tr><td><code>{{ var ?? "default" }}</code></td><td>Interpolation with explicit fallback.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Macros and Composition</h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@define name</code> ... <code>@end</code></td><td>Define a reusable macro block.</td></tr>
+            <tr><td><code>@call name</code></td><td>Expand a macro at this location.</td></tr>
+            <tr><td><code>@call name param=value</code></td><td>Expand a macro with named parameters.</td></tr>
+            <tr><td><code>@include ./path.md</code></td><td>Include another file's content verbatim.</td></tr>
+            <tr><td><code>@include ./file.ts lines=N-M</code></td><td>Include specific line range.</td></tr>
+            <tr><td><code>@import ./path.md</code></td><td>Import definitions (macros, connections, env defaults) from another file.</td></tr>
+            <tr><td><code>@import ./path.md @cache session</code></td><td>Import with session caching.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Conditionals</h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@if &lt;expr&gt;</code></td><td>Include content if expression is true.</td></tr>
+            <tr><td><code>@elseif &lt;expr&gt;</code></td><td>Alternate branch.</td></tr>
+            <tr><td><code>@else</code></td><td>Fallback branch.</td></tr>
+            <tr><td><code>@endif</code></td><td>Close conditional block.</td></tr>
+          </tbody>
+        </table>
+        <p>
+          Operators: <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>,
+          <code>&lt;=</code>, <code>&gt;=</code>, <code>&amp;&amp;</code>, <code>||</code>,
+          <code>!</code>, <code>startsWith</code>, <code>endsWith</code>, <code>includes</code>,
+          <code>file.exists</code>, <code>file.isFile</code>, <code>file.isDir</code>
+        </p>
+
+        <h3>Data Sources</h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@list &lt;path&gt;</code></td><td>List filesystem entries or structured data from JSON/YAML/CSV.</td></tr>
+            <tr><td><code>@read &lt;path&gt;</code></td><td>Read and extract a value from a structured file.</td></tr>
+            <tr><td><code>@tree &lt;path&gt;</code></td><td>Render a directory tree.</td></tr>
+            <tr><td><code>@date format="..."</code></td><td>Current date/time in any format.</td></tr>
+            <tr><td><code>@count &lt;path&gt; "&lt;pattern&gt;"</code></td><td>Count files matching a pattern.</td></tr>
+            <tr><td><code>@connect &lt;name&gt; type="&lt;db&gt;" uri=env.VAR</code></td><td>Register a named database connection.</td></tr>
+            <tr><td><code>@db using="&lt;name&gt;" find="&lt;collection&gt;"</code></td><td>Query a collection or table.</td></tr>
+            <tr><td><code>@db using="&lt;name&gt;" raw="&lt;query&gt;"</code></td><td>Run a native query.</td></tr>
+            <tr><td><code>@query &lt;command&gt;</code></td><td>Execute a shell command and use its stdout.</td></tr>
+            <tr><td><code>@query &lt;command&gt; label=name</code></td><td>Execute and store result in named label.</td></tr>
+            <tr><td><code>@http &lt;METHOD&gt; &lt;url&gt;</code></td><td>Make an HTTP request and use the response body.</td></tr>
+            <tr><td><code>@http &lt;METHOD&gt; &lt;url&gt; expected=&lt;code&gt;</code></td><td>Assert response status code.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Pipeline and Rendering</h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>| sort</code> / <code>sort -n</code> / <code>sort -r</code></td><td>Sort alphabetically, numerically, or in reverse.</td></tr>
+            <tr><td><code>| grep &lt;pattern&gt;</code> / <code>grep -v</code> / <code>grep -i</code></td><td>Include, exclude, or case-insensitive match.</td></tr>
+            <tr><td><code>| head -N</code> / <code>tail -N</code></td><td>Keep first or last N lines.</td></tr>
+            <tr><td><code>| uniq</code></td><td>Deduplicate consecutive lines.</td></tr>
+            <tr><td><code>| wc -l</code></td><td>Count lines.</td></tr>
+            <tr><td><code>@render type="&lt;format&gt;"</code></td><td>Render accumulated pipeline result in the specified format.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Phases and Graphs</h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@phase &lt;name&gt;</code></td><td>Open a named phase block.</td></tr>
+            <tr><td><code>@on complete</code> ... <code>@end</code></td><td>Actions to take when a phase completes.</td></tr>
+            <tr><td><code>@graph</code></td><td>Build a dependency graph from document relationships.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Caching</h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@cache session</code></td><td>Cache in memory for the current run.</td></tr>
+            <tr><td><code>@cache session ttl=N</code></td><td>Session cache, expires after N seconds.</td></tr>
+            <tr><td><code>@cache persist</code></td><td>Cache to disk across runs.</td></tr>
+            <tr><td><code>@cache persist ttl=N</code></td><td>Disk cache with expiry.</td></tr>
+            <tr><td><code>@cache mock=./file.json</code></td><td>Always use fixture file, never call live source.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>AI-Native</h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@consumer=ai</code></td><td>Tag a block for AI consumers only.</td></tr>
+            <tr><td><code>@consumer=human</code></td><td>Tag a block for human readers only.</td></tr>
+            <tr><td><code>@prompt</code> ... <code>@end</code></td><td>Embed instructions for AI consumers (not in human output).</td></tr>
+            <tr><td><code>@constraint &lt;name&gt;</code> ... <code>@end</code></td><td>Declare a machine-readable rule.</td></tr>
+            <tr><td><code>@note</code> ... <code>@end</code></td><td>Human-readable source comment, always stripped. Add <code>visible</code> to render as a blockquote.</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ========================== -->
+      <!-- Section: VS Code Extension -->
+      <!-- ========================== -->
+      <section id="vscode">
+        <h2>VS Code Extension</h2>
+
+        <p>
+          The MarkdownAI VS Code extension provides full IDE support for <code>.md</code> files
+          that begin with <code>@markdownai</code>. Open the Extensions panel
+          (<kbd>Ctrl+Shift+X</kbd> / <kbd>Cmd+Shift+X</kbd>), search for
+          <strong>MarkdownAI</strong>, and click Install. Or install from the
+          <a href="https://marketplace.visualstudio.com/items?itemName=markdownai.markdownai" target="_blank" rel="noopener">VS Code Marketplace</a>.
+        </p>
+
+        <div class="feature-grid">
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-cyan">&#128065;</div>
+            <h3>Live Preview</h3>
+            <p>
+              Open any MarkdownAI file and click the preview icon in the editor title bar, or
+              run <strong>MarkdownAI: Open MarkdownAI Preview</strong> from the Command Palette.
+              The panel opens to the side, runs the engine on the saved file, and shows rendered
+              output. It refreshes automatically every time you save.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-green">&#127970;</div>
+            <h3>Language Detection</h3>
+            <p>
+              Any <code>.md</code> file whose first line is <code>@markdownai</code> is
+              automatically re-tagged as the <code>markdownai</code> language type, activating all
+              extension features. Files with YAML frontmatter before <code>@markdownai</code> are
+              also detected.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-amber">&#127775;</div>
+            <h3>Syntax Highlighting</h3>
+            <p>
+              TextMate grammar covers all MarkdownAI directives: <code>@markdownai</code>,
+              <code>@define</code>, <code>@phase</code>, <code>@if</code>, <code>@include</code>,
+              <code>@import</code>, <code>@env</code>, <code>@call</code>, <code>@list</code>,
+              <code>@read</code>, <code>@db</code>, <code>@http</code>, <code>@query</code>,
+              <code>@render</code>, <code>@prompt</code>, <code>@constraint</code>,
+              <code>@cache</code>, and <code>{{ }}</code> interpolations.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-purple">&#9889;</div>
+            <h3>Snippets and Completion</h3>
+            <p>
+              15+ tab-triggered snippets for all directives. Type <code>@def</code> and expand
+              to a complete <code>@define</code>/<code>@end</code> block, <code>@if</code> to
+              a full conditional, <code>@phase</code> to a phase skeleton. As you type
+              <code>@</code>, completions show all valid directives with descriptions.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-pink">&#128269;</div>
+            <h3>Navigation</h3>
+            <p>
+              Hover over any <code>@define</code> name or <code>@call</code> to see the macro
+              definition inline. Press <kbd>F12</kbd> on any <code>@call</code> name to jump to
+              the <code>@define</code> that declares it, even across files linked by
+              <code>@import</code>. Right-click any <code>@define</code> name for Find All References.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-cyan">&#128308;</div>
+            <h3>Diagnostics</h3>
+            <p>
+              The extension checks documents as you type and reports:
+              <code>@call</code> to undefined macros (error),
+              <code>@include</code>/<code>@import</code> pointing to missing files (error),
+              <code>@env</code> variables without a fallback (warning, configurable),
+              and undefined macros in <code>@call</code> positions (warning, configurable).
+            </p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ======================== -->
+      <!-- Section: Architecture    -->
+      <!-- ======================== -->
+      <section id="architecture">
+        <h2>Architecture</h2>
+
+        <p>
+          MarkdownAI is a six-package npm workspaces monorepo, all TypeScript with strict mode
+          throughout. Each package has a single, well-bounded responsibility.
+        </p>
+
+        <table class="scale-table">
+          <thead>
+            <tr>
+              <th>Package</th>
+              <th>Role</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>@markdownai/parser</code></td>
+              <td>AST production only. Parses <code>.md</code> files to a typed node tree. Intentionally inert - no execution, no I/O.</td>
+            </tr>
+            <tr>
+              <td><code>@markdownai/engine</code></td>
+              <td>Walks the AST, runs directives, resolves env variables, manages the pipe chain, applies caching, and enforces security gates.</td>
+            </tr>
+            <tr>
+              <td><code>@markdownai/renderer</code></td>
+              <td>Formats data into 11 output styles. Accepts structured data from the engine and produces ASCII-safe Markdown.</td>
+            </tr>
+            <tr>
+              <td><code>@markdownai/mcp</code></td>
+              <td>MCP server with 9 tools. Serves live document execution, phase navigation, and constraint access to AI tools.</td>
+            </tr>
+            <tr>
+              <td><code>@markdownai/core</code></td>
+              <td>The <code>mai</code> binary. Wires the other packages together and exposes all CLI commands.</td>
+            </tr>
+            <tr>
+              <td><code>markdownai</code> (VS Code)</td>
+              <td>Language detection, TextMate grammar, snippets, completions, hover, go-to-definition, find references, diagnostics, live preview.</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="callout">
+          <p>
+            The separation between parser and engine is intentional. The parser never executes
+            anything - you can safely parse any document in any environment. Security enforcement
+            sits in the engine, between the directive runner and every external system. 754 tests
+            across all packages, including unit tests for every directive, E2E CLI pipeline tests,
+            MCP protocol conformance tests, and a dedicated AI-native feature test suite.
+          </p>
+        </div>
+      </section>
+
+      <!-- ======================== -->
+      <!-- Section: Installation    -->
+      <!-- ======================== -->
+      <section id="install">
+        <h2>Installation</h2>
+
+        <p>
+          MarkdownAI installs globally via npm. One command puts <code>mai</code> on your path.
+          Node.js 18 or higher required.
+        </p>
+
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Install the CLI</h3>
+            <pre><code class="language-bash">npm install -g @markdownai/core
+mai --version</code></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Install the VS Code extension</h3>
+            <p>
+              Open Extensions (<kbd>Ctrl+Shift+X</kbd>), search <strong>MarkdownAI</strong>,
+              click Install. Gives you syntax highlighting, snippets, completions, hover,
+              diagnostics, and live preview.
+            </p>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Install the PreToolUse hook</h3>
+            <p>
+              Lets your AI client (Claude Code, Cursor) automatically render MarkdownAI documents
+              before reading them. Claude always sees live data, not stale source files.
+            </p>
+            <pre><code class="language-bash">mai init</code></pre>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3>Initialize a security policy</h3>
+            <p>
+              Before using data sources that touch external systems, set up a security policy for
+              your project. This creates <code>.markdownai/security.json</code> and walks you
+              through enabling the gates you actually need.
+            </p>
+            <pre><code class="language-bash">cd your-project
+mai security init</code></pre>
+          </div>
+        </div>
+
+        <div class="callout amber">
+          <p>
+            <strong>Platform note:</strong> Works on macOS, Linux, and Windows. WSL is recommended
+            on Windows for the shell command features (<code>@query</code> with shell execution
+            enabled). Built-in pipe transforms (sort, grep, head, tail, uniq, wc -l) are
+            cross-platform pure Node.js - no shell required.
+          </p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ===================== -->
+  <!-- Footer                -->
+  <!-- ===================== -->
+  <footer>
+    <div class="container">
+      <div class="footer-projects">
+        <span class="footer-label">documentation that cannot lie.</span>
+      </div>
+      <div class="footer-projects">
+        <span class="footer-label">Links:</span>
+        <a href="https://github.com/TheDecipherist/markdownai" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://www.npmjs.com/package/@markdownai/core" target="_blank" rel="noopener">npm</a>
+        <a href="https://marketplace.visualstudio.com/items?itemName=markdownai.markdownai" target="_blank" rel="noopener">VS Code</a>
+        <a href="https://mddai.dev" target="_blank" rel="noopener">MDD</a>
+      </div>
+      <p>
+        MarkdownAI - MIT License - by
+        <a href="https://thedecipherist.com" target="_blank" rel="noopener">TheDecipherist</a>
+      </p>
+    </div>
+  </footer>
+
+  <!-- Prism.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markdown.min.js"></script>
+
+  <!-- App -->
+  <script src="app.js"></script>
+</body>
+</html>

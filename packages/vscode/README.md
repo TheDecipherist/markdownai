@@ -1,5 +1,15 @@
 # MarkdownAI for VS Code
 
+<p align="center">
+  <a href="https://markdownai.dev">
+    <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-00e5cc?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />
+  </a>
+  &nbsp;
+  <a href="https://markdownai.dev/user-guide.html">
+    <img src="https://img.shields.io/badge/📚_User_Guide-Full_Reference-00ff88?style=for-the-badge&labelColor=08090f" alt="User Guide" />
+  </a>
+</p>
+
 MarkdownAI is a superset of Markdown that makes documents live. Directives like `@call`, `@if`, and `@define` turn static docs into documents that run queries, resolve environment values, and render conditionally.
 
 This extension activates automatically on any `.md` file whose first line is `@markdownai`. No configuration needed.

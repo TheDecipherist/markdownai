@@ -1,5 +1,15 @@
 # @markdownai/mcp
 
+<p align="center">
+  <a href="https://markdownai.dev">
+    <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-00e5cc?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />
+  </a>
+  &nbsp;
+  <a href="https://markdownai.dev/user-guide.html">
+    <img src="https://img.shields.io/badge/📚_User_Guide-Full_Reference-00ff88?style=for-the-badge&labelColor=08090f" alt="User Guide" />
+  </a>
+</p>
+
 MCP (Model Context Protocol) server for MarkdownAI. Bridges AI assistants and live documents - intercepts file reads, resolves directives, and serves phase-aware content through 8 tools AI tools can call directly.
 
 **All packages:**
