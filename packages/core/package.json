@@ -1,6 +1,7 @@
 {
   "name": "@markdownai/core",
   "version": "0.0.21",
+  "description": "CLI binary and programmatic API for MarkdownAI - render, validate, strip, and watch live markdown documents",
   "license": "MIT",
   "type": "module",
   "bin": {
