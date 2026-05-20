@@ -38,6 +38,36 @@
 
 ---
 
+## What is MarkdownAI
+
+A Reddit commenter looked at this and said: "I mean I get it but you've basically made jinja/handlebars/eex with a lil flava."
+
+This is a reasonable first impression and a completely wrong conclusion.
+
+Jinja, Handlebars, and EEx are template engines. You write a template with `{{ user.name }}`, run a build step, and get an HTML file. The template is gone. The output goes to a browser. That's the whole job.
+
+MarkdownAI is different in every dimension that matters:
+
+**The consumer is an AI, not a browser.** Jinja renders for browsers that display HTML. MarkdownAI renders for Claude, which reads Markdown. The design decisions follow from that. A browser needs bytes fast. Claude needs accurate facts and focused context - it doesn't benefit from stale data delivered quickly.
+
+**It runs at read time, not build time.** Template engines run when you deploy. MarkdownAI runs when Claude opens the file. That means every `@query`, `@env`, `@http`, and `@db` directive resolves against the real current state of your system - not the state from your last build. The document doesn't store values. It fetches them.
+
+**The MCP server does the computation so Claude doesn't have to.** This is the part that actually matters. When Claude reads a MarkdownAI document through the MCP integration, every directive resolves in the server layer before Claude sees any content. The `@if` conditions have already been evaluated. The database queries have already run. The environment variables have already been substituted. Claude receives resolved facts - not a list of conditions it needs to think through. It can immediately focus on what it's actually there to do: write code, answer questions, follow a workflow.
+
+Without MarkdownAI, Claude hits a doc and has to figure out what's true. It stops to run a shell command. It stops again to check an env var. It stops again to verify a condition. Each stop costs context and interrupts the actual work. With MarkdownAI, those interruptions don't happen. The document arrives pre-resolved.
+
+**Phases are not template partials.** The `@phase` directive is where the comparison to template engines fully breaks down.
+
+A MarkdownAI phase is a named, lazy-loaded chunk of a workflow document. A 20-phase runbook doesn't load all 20 phases into Claude's context at once - the MCP server serves one phase at a time. Claude reads phase 1, works through it, then calls `next_phase` to advance. The server returns phase 2. Claude never holds the full workflow in context. The document manages state. Claude follows steps.
+
+This means a complex deployment runbook, a multi-step debugging workflow, or a long onboarding sequence can be arbitrarily large without ever flooding the AI's context window. Each phase is self-contained, each transition is explicit, and Claude never has to juggle what's relevant now versus what comes later.
+
+Template engines have no concept of this because browsers don't have context windows.
+
+**The actual difference:** Template engines make static output. MarkdownAI makes live context - context where the computation already happened, where the workflow is managed for you, and where the AI can work instead of gather.
+
+---
+
 ## The Problem With Documentation
 
 Here is something that happens at every company, every team, every project: someone writes great documentation. It is accurate. It is detailed. It is helpful.
