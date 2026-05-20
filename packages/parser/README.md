@@ -1,5 +1,7 @@
 # @markdownai/parser
 
+Pure AST production for MarkdownAI documents. No execution, no IO - just parsing.
+
 <p align="center">
   <a href="https://markdownai.dev">
     <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-0891b2?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />
