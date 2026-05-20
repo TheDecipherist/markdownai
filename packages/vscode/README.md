@@ -24,6 +24,12 @@ The preview opens to the side so you can write and see the rendered output at th
 
 Directives, `{{ }}` interpolations, and macro names each get their own color scope. The grammar embeds standard Markdown highlighting for prose sections, so the rest of your document looks normal.
 
+### Auto-indentation and Auto-close
+
+Block directives indent automatically. Press Enter after `@phase`, `@define`, `@if`, `@note`, `@section`, or `@prompt` and the next line is indented by 2 spaces - matching the MarkdownAI formatting style. Type `@end` or `@endif` and VS Code de-dents it to the correct level automatically.
+
+Directives also close themselves: type `@phase name` and press Enter and the extension inserts the indented body and the closing `@end` for you. Same for `@define`, `@if` (with `@endif`), `@note`, `@section`, and `@prompt`.
+
 ### Snippets
 
 Type a directive prefix and press Tab. Every directive has a snippet with placeholder fields:
