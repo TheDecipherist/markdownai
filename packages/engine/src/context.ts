@@ -1,6 +1,17 @@
 import type { ASTNode } from '@markdownai/parser'
 import type { FilesystemSecurityConfig, ShellSecurityConfig, HttpSecurityConfig, DbSecurityConfig, EventSecurityConfig } from './security/config.js'
 
+export interface EventMeta {
+  datetime: string
+  line: number
+  runId: string
+  sessionId: string | null
+  model: string | null
+  tokenUsage: number | null
+  git: { hash: string; short: string } | null
+  callstack: string[]
+}
+
 export interface EngineEvent {
   name: string
   data: string
@@ -8,6 +19,7 @@ export interface EngineEvent {
   document: string
   phase: string | null
   timestamp: number
+  meta: EventMeta
 }
 
 export interface Connection {
@@ -71,6 +83,11 @@ export interface EngineContext {
   constraints: ConstraintEntry[]
   skillContext: SkillContext | null
   events: EngineEvent[]
+  runId: string
+  gitMeta: { hash: string; short: string } | null
+  model: string | null
+  tokenUsage: number | null
+  callstack: string[]
 }
 
 export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
@@ -99,9 +116,14 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     constraints: [],
     skillContext: null,
     events: [],
+    runId: '',
+    gitMeta: null,
+    model: null,
+    tokenUsage: null,
+    callstack: [],
   }
   if (!overrides) return base
-  const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, events, ...rest } = overrides
+  const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, events, callstack, ...rest } = overrides
   return {
     ...base,
     ...rest,
@@ -112,6 +134,7 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     glossary: glossary ?? base.glossary,
     constraints: constraints ?? base.constraints,
     events: events ?? base.events,
+    callstack: callstack ?? base.callstack,
   }
 }
 

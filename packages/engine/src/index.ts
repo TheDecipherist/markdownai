@@ -1,4 +1,4 @@
-export type { EngineContext, Connection, SecurityConfig, MCPContext, MacroDefinition, EngineEvent } from './context.js'
+export type { EngineContext, Connection, SecurityConfig, MCPContext, MacroDefinition, EngineEvent, EventMeta } from './context.js'
 export { defaultSecurityConfig, loadSecurityConfig } from './security/config.js'
 export type { SecurityJsonConfig, ShellSecurityConfig, HttpSecurityConfig, DbSecurityConfig, FilesystemSecurityConfig, DbConnectionSecurityConfig, EventSecurityConfig, EventTransportConfig } from './security/config.js'
 export { makeContext, resolveEnv } from './context.js'

@@ -58,6 +58,16 @@ function makeEvent(overrides: Partial<EngineEvent> = {}): EngineEvent {
     document: '/project/doc.md',
     phase: null,
     timestamp: 1000000,
+    meta: {
+      datetime: new Date(1000000).toISOString(),
+      line: 1,
+      runId: 'test-run-id',
+      sessionId: null,
+      model: null,
+      tokenUsage: null,
+      git: null,
+      callstack: [],
+    },
     ...overrides,
   }
 }

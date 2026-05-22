@@ -1,5 +1,5 @@
 import type { EventNode } from '@markdownai/parser'
-import type { EngineContext, EngineEvent } from './context.js'
+import type { EngineContext, EngineEvent, EventMeta } from './context.js'
 import { applyMasking } from './security/masking.js'
 import { writeAuditEntry } from './security/audit.js'
 import { fireMcp } from './transports/mcp.js'
@@ -37,7 +37,17 @@ export function executeEvent(node: EventNode, ctx: EngineContext, filePath: stri
     ? (ctx.warnings.push(`@event data truncated to ${maxLen} chars: name=${node.name}`), masked.slice(0, maxLen))
     : masked
 
-  const sessionId = ctx.mcp?.sessionId ?? 'default'
+  const timestamp = Date.now()
+  const meta: EventMeta = {
+    datetime: new Date(timestamp).toISOString(),
+    line: node.line,
+    runId: ctx.runId,
+    sessionId: ctx.mcp?.sessionId ?? null,
+    model: ctx.model,
+    tokenUsage: ctx.tokenUsage,
+    git: ctx.gitMeta,
+    callstack: [...ctx.callstack],
+  }
 
   for (const transport of node.transports) {
     // Allowlist check — synchronous, can throw for onError: 'fail'
@@ -48,7 +58,7 @@ export function executeEvent(node: EventNode, ctx: EngineContext, filePath: stri
 
     const event: EngineEvent = {
       name: node.name, data, transport,
-      document: filePath, phase: ctx.phase, timestamp: Date.now(),
+      document: filePath, phase: ctx.phase, timestamp, meta,
     }
 
     const kind = resolveTransportType(transport, eventCfg)

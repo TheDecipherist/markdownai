@@ -260,3 +260,115 @@ describe('@event — context and accumulation', () => {
     expect(result.events[0]?.phase).toBeNull()
   })
 })
+
+// ---------------------------------------------------------------------------
+// Metadata
+// ---------------------------------------------------------------------------
+
+describe('@event — metadata (meta field)', () => {
+  it('meta.datetime is a valid ISO 8601 string', () => {
+    const result = run(`${DOC}@event name='x' data='v' transport='mcp'`, mcpOnly)
+    const datetime = result.events[0]?.meta.datetime
+    expect(typeof datetime).toBe('string')
+    expect(() => new Date(datetime!).toISOString()).not.toThrow()
+    expect(new Date(datetime!).toISOString()).toBe(datetime)
+  })
+
+  it('meta.line is a positive integer matching the source line', () => {
+    const result = run(`${DOC}@event name='x' data='v' transport='mcp'`, mcpOnly)
+    const line = result.events[0]?.meta.line
+    expect(typeof line).toBe('number')
+    expect(line).toBeGreaterThan(0)
+  })
+
+  it('meta.runId is a non-empty string — same for all events in one execute() call', () => {
+    const result = run(
+      `${DOC}@event name='first' data='a' transport='mcp'\n@event name='second' data='b' transport='mcp'`,
+      mcpOnly,
+    )
+    expect(result.events).toHaveLength(2)
+    const id0 = result.events[0]?.meta.runId
+    const id1 = result.events[1]?.meta.runId
+    expect(typeof id0).toBe('string')
+    expect(id0!.length).toBeGreaterThan(0)
+    expect(id0).toBe(id1)
+  })
+
+  it('meta.sessionId is null when no MCP context is provided', () => {
+    const result = run(`${DOC}@event name='x' data='v' transport='mcp'`, mcpOnly)
+    expect(result.events[0]?.meta.sessionId).toBeNull()
+  })
+
+  it('meta.sessionId matches ctx.mcp.sessionId when an MCP context is present', () => {
+    const result = run(`${DOC}@event name='x' data='v' transport='mcp'`, {
+      ctx: {
+        mcp: { sessionId: 'sess-abc' },
+        security: {
+          allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
+          eventConfig: { allowed_transports: ['mcp'], allow_env_interpolation: false, max_value_length: 500, onError: 'silence' },
+        },
+      },
+    })
+    expect(result.events[0]?.meta.sessionId).toBe('sess-abc')
+  })
+
+  it('meta.model reflects ctx.model when set', () => {
+    const result = run(`${DOC}@event name='x' data='v' transport='mcp'`, {
+      ctx: {
+        model: 'claude-opus-4-7',
+        security: {
+          allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
+          eventConfig: { allowed_transports: ['mcp'], allow_env_interpolation: false, max_value_length: 500, onError: 'silence' },
+        },
+      },
+    })
+    expect(result.events[0]?.meta.model).toBe('claude-opus-4-7')
+  })
+
+  it('meta.tokenUsage reflects ctx.tokenUsage when set', () => {
+    const result = run(`${DOC}@event name='x' data='v' transport='mcp'`, {
+      ctx: {
+        tokenUsage: 4096,
+        security: {
+          allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
+          eventConfig: { allowed_transports: ['mcp'], allow_env_interpolation: false, max_value_length: 500, onError: 'silence' },
+        },
+      },
+    })
+    expect(result.events[0]?.meta.tokenUsage).toBe(4096)
+  })
+
+  it('meta.callstack is empty when @event is at the document top level', () => {
+    const result = run(`${DOC}@event name='x' data='v' transport='mcp'`, mcpOnly)
+    expect(result.events[0]?.meta.callstack).toEqual([])
+  })
+
+  it('meta.callstack contains "phase:<name>" when @event is inside a @phase block', () => {
+    const result = run(
+      `${DOC}@phase setup\n  @event name='ping' data='ok' transport='mcp'\n@end`,
+      {
+        ctx: {
+          phase: 'setup',
+          security: {
+            allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
+            eventConfig: { allowed_transports: ['mcp'], allow_env_interpolation: false, max_value_length: 500, onError: 'silence' },
+          },
+        },
+      },
+    )
+    expect(result.events[0]?.meta.callstack).toEqual(['phase:setup'])
+  })
+
+  it('meta.git is null or has string hash and short fields', () => {
+    const result = run(`${DOC}@event name='x' data='v' transport='mcp'`, mcpOnly)
+    const git = result.events[0]?.meta?.git
+    if (git != null) {
+      expect(typeof git.hash).toBe('string')
+      expect(typeof git.short).toBe('string')
+      expect(git.hash.length).toBeGreaterThan(0)
+      expect(git.short.length).toBeGreaterThan(0)
+    } else {
+      expect(git ?? null).toBeNull()
+    }
+  })
+})
