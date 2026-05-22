@@ -73,7 +73,7 @@ describe('engine tracing — stderr sink', () => {
     })
     run(`${DOC}@env FOO fallback="bar"`, noSecurityCtx())
     const spans = writes.flatMap(w => w.split('\n').filter(Boolean)).map(l => JSON.parse(l))
-    const startSpan = spans.find((s: Record<string, unknown>) => s['status'] === 'start' && s['type'] === 'env')
+    const startSpan = spans.find((s: Record<string, unknown>) => s['status'] === 'start' && s['directive'] === 'env')
     expect(startSpan).toBeDefined()
   })
 
@@ -85,8 +85,8 @@ describe('engine tracing — stderr sink', () => {
     })
     run(`${DOC}@env FOO fallback="bar"`, noSecurityCtx())
     const spans = writes.flatMap(w => w.split('\n').filter(Boolean)).map(l => JSON.parse(l))
-    const startSpan = spans.find((s: Record<string, unknown>) => s['status'] === 'start' && s['type'] === 'env')
-    const endSpan = spans.find((s: Record<string, unknown>) => s['status'] === 'end' && s['type'] === 'env')
+    const startSpan = spans.find((s: Record<string, unknown>) => s['status'] === 'start' && s['directive'] === 'env')
+    const endSpan = spans.find((s: Record<string, unknown>) => s['status'] === 'end' && s['directive'] === 'env')
     expect(startSpan).toBeDefined()
     expect(endSpan).toBeDefined()
     expect(startSpan!['id']).toBe(endSpan!['id'])
@@ -100,7 +100,7 @@ describe('engine tracing — stderr sink', () => {
     })
     run(`${DOC}@env FOO fallback="bar"`, noSecurityCtx())
     const spans = writes.flatMap(w => w.split('\n').filter(Boolean)).map(l => JSON.parse(l))
-    const endSpan = spans.find((s: Record<string, unknown>) => s['status'] === 'end' && s['type'] === 'env')
+    const endSpan = spans.find((s: Record<string, unknown>) => s['status'] === 'end' && s['directive'] === 'env')
     expect(endSpan).toBeDefined()
     expect(typeof endSpan!['duration']).toBe('number')
     expect(typeof endSpan!['outputSize']).toBe('number')
@@ -114,7 +114,7 @@ describe('engine tracing — stderr sink', () => {
     })
     run(`${DOC}@env FOO fallback="bar"`, noSecurityCtx())
     const spans = writes.flatMap(w => w.split('\n').filter(Boolean)).map(l => JSON.parse(l))
-    const span = spans.find((s: Record<string, unknown>) => s['type'] === 'env')
+    const span = spans.find((s: Record<string, unknown>) => s['directive'] === 'env')
     expect(span).toBeDefined()
     expect(typeof span!['runId']).toBe('string')
     expect(span!['runId']).not.toBe('')
@@ -205,7 +205,7 @@ describe('engine tracing — invalid MARKDOWNAI_TRACE value', () => {
     const combined = writes.join('')
     expect(combined).toMatch(/MARKDOWNAI_TRACE|trace|warning/i)
     const spanLines = writes.flatMap(w => w.split('\n').filter(Boolean)).filter(l => {
-      try { const p = JSON.parse(l); return 'status' in p && 'type' in p } catch { return false }
+      try { const p = JSON.parse(l); return 'status' in p && ('directive' in p || 'ast' in p) } catch { return false }
     })
     expect(spanLines).toHaveLength(0)
   })
@@ -337,7 +337,7 @@ describe('engine tracing — phase and callstack in spans', () => {
     process.env['MARKDOWNAI_TRACE'] = 'stderr'
     run(`${DOC}@env FOO fallback="bar"`, noSecurityCtx())
     const spans = writes.flatMap(w => w.split('\n').filter(Boolean)).map(l => JSON.parse(l))
-    const startSpan = spans.find((s: Record<string, unknown>) => s['status'] === 'start' && s['type'] === 'env')
+    const startSpan = spans.find((s: Record<string, unknown>) => s['status'] === 'start' && s['directive'] === 'env')
     expect(startSpan!['callstack']).toEqual([])
   })
 
@@ -350,7 +350,7 @@ describe('engine tracing — phase and callstack in spans', () => {
     process.env['MARKDOWNAI_TRACE'] = 'stderr'
     run(`${DOC}@phase setup\n@env FOO fallback="bar"\n@end`, noSecurityCtx())
     const spans = writes.flatMap(w => w.split('\n').filter(Boolean)).map(l => JSON.parse(l))
-    const envSpan = spans.find((s: Record<string, unknown>) => s['type'] === 'env')
+    const envSpan = spans.find((s: Record<string, unknown>) => s['directive'] === 'env')
     expect(envSpan).toBeDefined()
     expect(envSpan!['callstack']).toContain('phase:setup')
   })
@@ -375,7 +375,7 @@ describe('engine tracing — multiple directive types', () => {
     process.env['MARKDOWNAI_TRACE'] = 'stderr'
     run(`${DOC}@env A fallback="1"\n@env B fallback="2"`, noSecurityCtx())
     const spans = writes.flatMap(w => w.split('\n').filter(Boolean)).map(l => JSON.parse(l))
-    const envSpans = spans.filter((s: Record<string, unknown>) => s['type'] === 'env' && s['status'] === 'start')
+    const envSpans = spans.filter((s: Record<string, unknown>) => s['directive'] === 'env' && s['status'] === 'start')
     expect(envSpans.length).toBeGreaterThanOrEqual(2)
   })
 })

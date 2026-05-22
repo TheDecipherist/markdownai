@@ -178,10 +178,12 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
   for (const [k, v] of Object.entries(rawArgs)) {
     maskedArgs[k] = applyMasking(v).masked
   }
+  const isStructural = node.type === 'markdown' || node.type === 'header'
   const base = {
     id,
     runId: ctx.runId,
-    type: node.type,
+    ast: isStructural ? node.type as 'markdown' | 'header' : 'markdownai' as const,
+    ...(isStructural ? {} : { directive: node.type }),
     document: ctx.docDir,
     line: (nodeRecord['line'] as number | undefined) ?? 0,
     phase: ctx.phase,

@@ -1,7 +1,8 @@
 export interface TraceSpan {
   id: string
   runId: string
-  type: string
+  ast: 'markdownai' | 'markdown' | 'header'
+  directive?: string
   status: 'start' | 'end' | 'error'
   timestamp: number
   startedAt: number
