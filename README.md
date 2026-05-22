@@ -117,6 +117,7 @@ The result is documentation that cannot lie - because it doesn't store facts, it
   - [@http - HTTP Requests](#http---http-requests)
   - [@query - Shell Commands](#query---shell-commands)
   - [@phase, @on complete, and @graph](#phase-on-complete-and-graph)
+  - [@event - Event Broadcast](#event---event-broadcast)
 - [Security](#security)
   - [Security Config and Runtime Modes](#security-config-and-runtime-modes)
   - [Filesystem Confinement](#filesystem-confinement)
@@ -612,11 +613,30 @@ Fire a named signal with a payload to one or more transports while a document re
 @event name='build-complete' data='{"status": "ok", "elapsed": "4s"}' transport='mcp' visible
 ```
 
-Transports are comma-separated. Multiple transports fire simultaneously. The `mcp` transport is synchronous - events appear in `EngineResult.events` before `execute()` returns. All other transports (log, vscode, websocket, file, http, db) are fire-and-forget via a worker thread, so network latency and file I/O never slow down rendering.
+**Parameters:**
 
-The `visible` flag renders a blockquote in the document output alongside dispatching to transports - useful during development to see what events are firing.
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `name` | yes | Event name - identifies what happened (e.g. `phase-complete`, `progress`) |
+| `data` | yes | The payload. Plain string or JSON object string. JSON is recommended for multiple fields. |
+| `transport` | no | Comma-separated transport names. Defaults to `log` if omitted. |
+| `visible` | no | Flag (no value). Renders a blockquote in document output alongside the transport dispatch. |
 
-**Security model:** all transports are blocked by default. Enable specific ones in the security config:
+**Built-in transports:**
+
+| Transport | Delivery | Output |
+|-----------|----------|--------|
+| `mcp` | Synchronous | Pushed to `EngineResult.events[]` before `execute()` returns |
+| `log` | Fire-and-forget | Structured line to stderr: `[event] name=... data=... ts=...` |
+| `vscode` | Fire-and-forget | JSON-Lines to `/tmp/markdownai-events-<sessionId>.json` - VS Code extension reads this for status bar display |
+| `websocket` | Fire-and-forget | JSON payload broadcast to all connected WebSocket clients |
+| `file` | Fire-and-forget | JSON-Lines appended to a configured file path |
+| `http` | Fire-and-forget | JSON POST to a configured URL (domain must be in the allowlist) |
+| `db` | Fire-and-forget | Insert into a configured collection (security jailed) |
+
+All non-`mcp` transports run in a worker thread. Network latency, file I/O, and database writes are invisible to rendering time.
+
+**Security:** all transports are blocked by default. Enable specific ones in `.markdownai/security.json`:
 
 ```json
 {
@@ -629,9 +649,46 @@ The `visible` flag renders a blockquote in the document output alongside dispatc
 }
 ```
 
-Masking runs unconditionally on `data` before any dispatch - a secret embedded in a JSON value is caught and replaced with `***MASKED***` just as it would be in any other directive. `{{ expression }}` in `data` is only evaluated when `allow_env_interpolation: true` - off by default.
+| Option | Default | Description |
+|--------|---------|-------------|
+| `allowed_transports` | `[]` | Transports that are permitted. Empty means all events are silently dropped. |
+| `allow_env_interpolation` | `false` | When false, `{{ env.VAR }}` in `data` is dispatched literally. |
+| `max_value_length` | `500` | Data is truncated to this length (hard cap, never configurable above 500). |
+| `onError` | `"silence"` | `"silence"` drops blocked events silently, `"warn"` adds to warnings, `"fail"` surfaces an error. |
 
-Every event carries an automatic `meta` object: ISO datetime, source line number, a per-run UUID, MCP session ID, git commit hash, the active `@phase`/`@call` callstack, and optional model/token-usage fields the calling layer can inject. This makes `@event` a first-class debugging tool for document development - and lets MarkdownAI use it internally for performance tracing.
+Masking runs unconditionally on `data` before any dispatch - a secret in a JSON value is caught and replaced with `***MASKED***`. `{{ expression }}` in `data` is only evaluated when `allow_env_interpolation: true`.
+
+**Automatic debug metadata:** every event carries an automatic `meta` object with no author configuration needed:
+
+```typescript
+interface EventMeta {
+  datetime: string          // ISO 8601 timestamp
+  line: number              // line number of @event in the source file
+  runId: string             // UUID for this execute() call
+  sessionId: string | null  // MCP session ID, or null
+  model: string | null      // AI model name (injected by the calling layer)
+  tokenUsage: number | null // token count at dispatch time
+  git: { hash: string; short: string } | null  // git commit at execute() start
+  callstack: string[]       // active @phase and @call context
+}
+```
+
+**Consuming events** (for the `mcp` transport):
+
+```typescript
+const result = await execute(ast, ctx)
+for (const event of result.events) {
+  console.log(event.name, event.data, event.meta.datetime)
+}
+```
+
+**Rules:**
+- All transports are blocked by default - add them to `allowed_transports` to enable.
+- Masking is unconditional - runs on every event regardless of other settings.
+- Data is hard-capped at 500 characters after masking.
+- Multiple transports in a single `@event` fire simultaneously.
+- `@event` inside `@phase` blocks fires at the point in execution where it appears.
+- `mai strip` removes `@event` lines from output entirely.
 
 ---
 

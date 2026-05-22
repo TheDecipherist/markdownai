@@ -440,6 +440,60 @@ If the header is missing, `mai` treats the file as plain Markdown and skips all 
 
 ---
 
+## @event - Event Broadcast
+
+Fire a named signal with a payload to one or more transports during document rendering. Use it for progress indicators, live status updates, and debugging document execution.
+
+```markdown
+@markdownai v1.0
+
+@event name='phase-start' data='setup' transport='log'
+@event name='progress' data='{"step": 2, "total": 5}' transport='vscode,log'
+@event name='build-done' data='{"status": "ok"}' transport='mcp' visible
+```
+
+**Parameters:**
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `name` | yes | Event name identifying what happened (e.g. `phase-complete`, `progress`) |
+| `data` | yes | Payload as a plain string or JSON object string |
+| `transport` | no | Comma-separated transport names. Defaults to `log` if omitted. |
+| `visible` | no | Flag (no value). Renders a blockquote in document output alongside dispatching. |
+
+**Built-in transports:**
+
+| Transport | Delivery | What it does |
+|-----------|----------|--------------|
+| `mcp` | Synchronous | Pushed to `EngineResult.events[]` before `execute()` returns |
+| `log` | Fire-and-forget | Structured line to stderr |
+| `vscode` | Fire-and-forget | JSON-Lines to a temp file - VS Code extension reads this for status bar |
+| `websocket` | Fire-and-forget | JSON payload to connected WebSocket clients |
+| `file` | Fire-and-forget | JSON-Lines appended to a configured file |
+| `http` | Fire-and-forget | JSON POST to a configured URL (domain jailed) |
+| `db` | Fire-and-forget | Insert into a configured collection (security jailed) |
+
+All non-`mcp` transports run in a worker thread so rendering speed is unaffected.
+
+**All transports are blocked by default.** Enable them in `.markdownai/security.json`:
+
+```json
+{
+  "events": {
+    "allowed_transports": ["mcp", "log"],
+    "allow_env_interpolation": false,
+    "max_value_length": 500,
+    "onError": "silence"
+  }
+}
+```
+
+Masking runs unconditionally on `data` before any dispatch. `{{ expression }}` in `data` is only evaluated when `allow_env_interpolation: true` (off by default).
+
+See the [full @event reference](https://markdownai.dev/user-guide.html#event) for transport config, the automatic `EventMeta` debug object, and consuming events from `EngineResult`.
+
+---
+
 ## Security model
 
 By default, all operations that could have side effects are blocked:
