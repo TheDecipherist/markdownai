@@ -682,6 +682,20 @@ Running in **{{ env.NODE_ENV }}** mode.
             </p>
           </div>
 
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-amber">@event</div>
+            <h3>@event</h3>
+            <p>
+              Fire a named signal with a structured payload to one or more transports while a
+              document renders. Use it for progress indicators, live status updates, and debugging.
+              The <code>mcp</code> transport delivers events synchronously to the AI tool reading
+              the document. All other transports (<code>log</code>, <code>file</code>,
+              <code>http</code>, <code>db</code>) are fire-and-forget and never slow down rendering.
+            </p>
+            <pre><code class="language-markdown">@event name='build-done' data='{"status":"ok"}' transport='mcp'
+@event name='progress' data='step 2 of 4' transport='log,file'</code></pre>
+          </div>
+
         </div>
       </section>
 

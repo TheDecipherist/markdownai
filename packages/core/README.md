@@ -90,6 +90,7 @@ mai render report.md -o dist/report.md          # write to file
 mai render report.md --env .env.production      # use production env
 mai render report.md --consumer ai              # AI-optimized output
 mai render report.md --strict                   # fail on any warning
+mai render report.md --passthrough              # pass plain .md files through unchanged
 ```
 
 **Flags:**
@@ -97,6 +98,7 @@ mai render report.md --strict                   # fail on any warning
 - `--consumer <human|ai>` - target audience for consumer-conditional sections
 - `--budget <N>` - token budget for AI-format output (drops low-priority sections to fit)
 - `--phase <name>` - render only a specific named phase
+- `--passthrough` - pass plain (non-MarkdownAI) files through unchanged instead of erroring; useful when looping over directories with mixed files
 
 ---
 
@@ -191,6 +193,7 @@ Start the MarkdownAI MCP server. Use this to connect Claude Code or other MCP-co
 mai serve
 mai serve --cwd /path/to/project
 mai serve --port 3000
+mai serve --passthrough              # pass plain .md files through the engine unchanged
 ```
 
 After starting, configure your AI client to connect. See [`@markdownai/mcp`](https://www.npmjs.com/package/@markdownai/mcp) for Claude Code setup instructions.
