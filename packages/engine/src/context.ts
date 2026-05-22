@@ -1,5 +1,26 @@
 import type { ASTNode } from '@markdownai/parser'
-import type { FilesystemSecurityConfig, ShellSecurityConfig, HttpSecurityConfig, DbSecurityConfig } from './security/config.js'
+import type { FilesystemSecurityConfig, ShellSecurityConfig, HttpSecurityConfig, DbSecurityConfig, EventSecurityConfig } from './security/config.js'
+
+export interface EventMeta {
+  datetime: string
+  line: number
+  runId: string
+  sessionId: string | null
+  model: string | null
+  tokenUsage: number | null
+  git: { hash: string; short: string } | null
+  callstack: string[]
+}
+
+export interface EngineEvent {
+  name: string
+  data: string
+  transport: string
+  document: string
+  phase: string | null
+  timestamp: number
+  meta: EventMeta
+}
 
 export interface Connection {
   type: string
@@ -15,6 +36,7 @@ export interface SecurityConfig {
   shellConfig?: ShellSecurityConfig
   httpConfig?: HttpSecurityConfig
   dbConfig?: DbSecurityConfig
+  eventConfig?: EventSecurityConfig
 }
 
 export interface MCPContext {
@@ -60,6 +82,12 @@ export interface EngineContext {
   glossary: Map<string, string>
   constraints: ConstraintEntry[]
   skillContext: SkillContext | null
+  events: EngineEvent[]
+  runId: string
+  gitMeta: { hash: string; short: string } | null
+  model: string | null
+  tokenUsage: number | null
+  callstack: string[]
 }
 
 export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
@@ -87,9 +115,15 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     glossary: new Map<string, string>(),
     constraints: [],
     skillContext: null,
+    events: [],
+    runId: '',
+    gitMeta: null,
+    model: null,
+    tokenUsage: null,
+    callstack: [],
   }
   if (!overrides) return base
-  const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, ...rest } = overrides
+  const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, events, callstack, ...rest } = overrides
   return {
     ...base,
     ...rest,
@@ -99,6 +133,8 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     localConnectionNames: localConnectionNames ?? base.localConnectionNames,
     glossary: glossary ?? base.glossary,
     constraints: constraints ?? base.constraints,
+    events: events ?? base.events,
+    callstack: callstack ?? base.callstack,
   }
 }
 

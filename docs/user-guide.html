@@ -119,6 +119,7 @@
     <a href="#http">@http</a>
     <a href="#query">@query Shell</a>
     <a href="#phases">@phase / @graph</a>
+    <a href="#event">@event Broadcast</a>
     <a href="#stdlib">Standard Library</a>
     <div class="toc-group">Security</div>
     <a href="#security">Security Overview</a>
@@ -201,6 +202,7 @@ mai init</code></pre>
         <a href="#http">@http</a>
         <a href="#query">@query Shell</a>
         <a href="#phases">@phase / @graph</a>
+        <a href="#event">@event Broadcast</a>
         <a href="#stdlib">Standard Library</a>
         <span class="toc-group">Security</span>
         <a href="#security">Security Overview</a>
@@ -1106,6 +1108,121 @@ graph LR
         </ul>
       </section>
 
+      <!-- ===== EVENT ===== -->
+      <section id="event">
+        <h2>@event Event Broadcast</h2>
+
+        <p>
+          Fire a named signal with a payload to one or more transports while a document renders. Use it for progress indicators, live status updates, structured logging, and debugging document execution.
+        </p>
+
+        <pre><code class="language-markdown">@markdownai v1.0
+
+// Plain string - fine for simple status
+@event name='phase-start' data='setup' transport='log'
+
+// JSON payload - use when you need multiple fields
+@event name='progress' data='{"step": 2, "total": 5, "label": "Loading config"}' transport='vscode,log'
+
+// Render inline in the document output as well
+@event name='build-complete' data='{"status": "ok"}' transport='mcp' visible</code></pre>
+
+        <h3>Parameters</h3>
+        <table>
+          <thead><tr><th>Parameter</th><th>Required</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>name</code></td><td>yes</td><td>Event name - identifies what happened (e.g. <code>phase-complete</code>, <code>progress</code>)</td></tr>
+            <tr><td><code>data</code></td><td>yes</td><td>The payload. Plain string or JSON object string. JSON is encouraged when sending more than one field.</td></tr>
+            <tr><td><code>transport</code></td><td>no</td><td>Comma-separated transport names. Defaults to <code>log</code> if omitted.</td></tr>
+            <tr><td><code>visible</code></td><td>no</td><td>Flag (no value). When present, renders the event as a blockquote in the document output.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Built-in Transports</h3>
+        <table>
+          <thead><tr><th>Transport</th><th>Delivery</th><th>Output</th></tr></thead>
+          <tbody>
+            <tr><td><code>mcp</code></td><td>Synchronous</td><td>Pushed to <code>EngineResult.events[]</code> before <code>execute()</code> returns - consumed by the MCP server or calling code</td></tr>
+            <tr><td><code>log</code></td><td>Fire-and-forget</td><td>Structured line to stderr: <code>[event] name=... data=... document=... ts=...</code></td></tr>
+            <tr><td><code>vscode</code></td><td>Fire-and-forget</td><td>JSON-Lines to <code>/tmp/markdownai-events-&lt;sessionId&gt;.json</code> - VS Code extension reads this for status bar display</td></tr>
+            <tr><td><code>websocket</code></td><td>Fire-and-forget</td><td>JSON payload broadcast to all connected WebSocket clients</td></tr>
+            <tr><td><code>file</code></td><td>Fire-and-forget</td><td>JSON-Lines appended to a configured file path (absolute, outside document root)</td></tr>
+            <tr><td><code>http</code></td><td>Fire-and-forget</td><td>JSON POST to a configured URL (domain must be in the allowlist)</td></tr>
+            <tr><td><code>db</code></td><td>Fire-and-forget</td><td>Insert into a configured collection (security jailed)</td></tr>
+          </tbody>
+        </table>
+
+        <p>
+          All non-<code>mcp</code> transports are fire-and-forget via a worker thread. Network latency, file I/O, and database writes are invisible to rendering time. A document with many <code>@event</code> directives renders in the same time as one with none.
+        </p>
+
+        <h3>Security</h3>
+        <p>
+          All transports are blocked by default. Enable specific ones in <code>.markdownai/security.json</code>:
+        </p>
+        <pre><code class="language-json">{
+  "events": {
+    "allowed_transports": ["mcp", "log", "vscode"],
+    "allow_env_interpolation": false,
+    "max_value_length": 500,
+    "onError": "silence"
+  }
+}</code></pre>
+
+        <table>
+          <thead><tr><th>Option</th><th>Default</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>allowed_transports</code></td><td><code>[]</code></td><td>Transports that are permitted. Empty means all events are silently dropped.</td></tr>
+            <tr><td><code>allow_env_interpolation</code></td><td><code>false</code></td><td>When false, <code>{{ env.VAR }}</code> in <code>data</code> is dispatched literally. Enable only when needed.</td></tr>
+            <tr><td><code>max_value_length</code></td><td><code>500</code></td><td>Data is truncated to this length (hard cap, never configurable above 500).</td></tr>
+            <tr><td><code>onError</code></td><td><code>"silence"</code></td><td><code>"silence"</code> drops blocked events silently, <code>"warn"</code> adds to warnings, <code>"fail"</code> surfaces an error.</td></tr>
+          </tbody>
+        </table>
+
+        <p>
+          Masking runs unconditionally on <code>data</code> before any dispatch - regardless of the <code>allow_env_interpolation</code> setting. A secret embedded in a JSON value is caught and replaced with <code>***MASKED***</code>, and a <code>SECURITY_ALERT</code> is added to document warnings. This cannot be bypassed.
+        </p>
+
+        <h3>Automatic Debug Metadata</h3>
+        <p>
+          Every event carries an automatic <code>meta</code> object requiring no author configuration:
+        </p>
+        <pre><code class="language-typescript">interface EventMeta {
+  datetime: string          // ISO 8601 timestamp
+  line: number              // line number of @event in the source .md file
+  runId: string             // UUID for this execute() call - shared by all events in one run
+  sessionId: string | null  // MCP session ID, or null
+  model: string | null      // AI model name (injected by the calling layer)
+  tokenUsage: number | null // token count at dispatch time (injected by the calling layer)
+  git: { hash: string; short: string } | null  // git commit at execute() start, null if not in a repo
+  callstack: string[]       // active @phase and @call context, e.g. ["phase:setup", "call:myMacro"]
+}</code></pre>
+
+        <p>
+          The <code>callstack</code> field tracks which <code>@phase</code> blocks and <code>@call</code> macro invocations the event fired from, outermost to innermost. The git hash is resolved once at <code>execute()</code> start and cached. <code>model</code> and <code>tokenUsage</code> are set by the calling layer (for example, the MCP server) - the engine itself does not have access to AI runtime state.
+        </p>
+
+        <h3>Consuming Events</h3>
+        <p>
+          For the <code>mcp</code> transport, events are available in <code>EngineResult.events</code>:
+        </p>
+        <pre><code class="language-typescript">const result = execute(ast, { ctx: { security: { eventConfig: { allowed_transports: ['mcp'], ... } } } })
+
+for (const event of result.events) {
+  console.log(event.name, event.data, event.meta.datetime)
+}</code></pre>
+
+        <h3>Rules</h3>
+        <ul>
+          <li>All transports are blocked by default. Add them to <code>allowed_transports</code> to enable.</li>
+          <li>Masking is unconditional - it runs on every event regardless of other settings.</li>
+          <li><code>{{ expression }}</code> in <code>data</code> is only evaluated when <code>allow_env_interpolation: true</code>.</li>
+          <li>Data is hard-capped at 500 characters and cannot be configured above that.</li>
+          <li>Multiple transports in a single <code>@event</code> fire simultaneously - one <code>EngineEvent</code> per transport.</li>
+          <li>The <code>mcp</code> transport is the only synchronous one. All others are fire-and-forget.</li>
+        </ul>
+      </section>
+
       <!-- ===== STDLIB ===== -->
       <section id="stdlib">
         <h2>Standard Library</h2>
@@ -1955,6 +2072,16 @@ code --install-extension markdownai.markdownai</code></pre>
             <tr><td><code>@phase name</code> ... <code>@end</code></td><td>Named workflow phase block.</td></tr>
             <tr><td><code>@on complete -> phase-name</code></td><td>Transition to next phase on completion.</td></tr>
             <tr><td><code>@on complete -> @call macro</code></td><td>Call a macro on completion.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Events and Signals</h3>
+        <table>
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@event name='x' data='...' transport='log'</code></td><td>Fire a named signal with a payload to a transport during rendering.</td></tr>
+            <tr><td><code>@event name='x' data='...' transport='mcp,log'</code></td><td>Fire to multiple transports simultaneously.</td></tr>
+            <tr><td><code>@event name='x' data='...' transport='mcp' visible</code></td><td>Also render a blockquote in the document output.</td></tr>
           </tbody>
         </table>
 

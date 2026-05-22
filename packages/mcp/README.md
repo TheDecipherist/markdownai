@@ -10,7 +10,7 @@
   </a>
 </p>
 
-MCP (Model Context Protocol) server for MarkdownAI. Bridges AI assistants and live documents - intercepts file reads, resolves directives, and serves phase-aware content through 8 tools AI tools can call directly.
+MCP (Model Context Protocol) server for MarkdownAI. Bridges AI assistants and live documents - intercepts file reads, resolves directives, serves phase-aware content, and delivers `@event` broadcasts through 8 tools AI tools can call directly.
 
 **All packages:**
 [@markdownai/core](https://www.npmjs.com/package/@markdownai/core) &nbsp;·&nbsp;
@@ -216,6 +216,19 @@ Runs a single MarkdownAI directive and returns its output. Useful for ad-hoc que
 
 Security rules apply exactly as they do during a full render - the directive must pass the shell allowlist, HTTP domain allowlist, or database jail before it executes.
 
+`@event` directives with `transport='mcp'` are supported. Events fired to the `mcp` transport appear in the tool's `events` array in the response, alongside the rendered `output`:
+
+```json
+{
+  "name": "execute_directive",
+  "arguments": {
+    "directive": "@event name='status' data='{\"step\":1}' transport='mcp'"
+  }
+}
+// response includes:
+// { "output": "", "events": [{ "name": "status", "data": "{\"step\":1}", "meta": { ... } }] }
+```
+
 ---
 
 ### `invalidate_cache`
@@ -245,6 +258,7 @@ The server enforces the same security rules as the CLI:
 - **File access** - only files within the project's document root can be read. Path traversal attempts (`../../../etc/passwd`) are rejected.
 - **Environment variables** - keys matching credential patterns are blocked in `get_env` responses.
 - **Directives** - `execute_directive` calls run through the full security jail. Shell-injection sequences are blocked.
+- **Event transports** - `@event` dispatch is deny-all by default. The server's security config must include `allowed_transports` for any transport to fire. Data masking is unconditional - secrets in event payloads are replaced with `***MASKED***` before any transport receives them.
 - **Server resilience** - a bad request never crashes the server. The server recovers and keeps running.
 
 ## API Reference (library usage)

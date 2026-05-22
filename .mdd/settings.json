@@ -1,0 +1,13 @@
+{
+  "autoDiscovery": true,
+  "stack": {
+    "language": ["typescript"],
+    "runtime": ["node"],
+    "frameworks": ["mcp"],
+    "orm": [],
+    "auth": []
+  },
+  "overrides": {},
+  "phaseLogging": true,
+  "securityScan": false
+}

@@ -8,11 +8,12 @@ export interface ExecuteDirectiveResult {
   output: string
   warnings: string[]
   errors: string[]
+  events: import('@markdownai/engine').EngineEvent[]
 }
 
 // Only these directive types may be executed via MCP — no shell, no filesystem traversal
 const ALLOWED_DIRECTIVES = new Set([
-  'env', 'define', 'call', 'list', 'read', 'date', 'count', 'tree',
+  'env', 'define', 'call', 'list', 'read', 'date', 'count', 'tree', 'event',
 ])
 
 function parsedDirectiveType(directive: string): string | null {
@@ -42,11 +43,11 @@ export function executeDirective(
   const envErrors = validateEnvRecord(env)
   const allErrors = [...inputValidation.errors, ...envErrors]
   if (allErrors.length > 0) {
-    return { output: '', warnings: [], errors: allErrors.map(e => `${e.field}: ${e.reason}`) }
+    return { output: '', warnings: [], errors: allErrors.map(e => `${e.field}: ${e.reason}`), events: [] }
   }
 
   const cwdError = validateCwd(cwd)
-  if (cwdError) return { output: '', warnings: [], errors: [cwdError] }
+  if (cwdError) return { output: '', warnings: [], errors: [cwdError], events: [] }
 
   const resolvedCwd = resolve(cwd)
   // Strip embedded newlines to prevent multi-directive injection via a single directive= string
@@ -57,14 +58,15 @@ export function executeDirective(
       output: '',
       warnings: [],
       errors: [`Directive type not permitted via MCP: "${directiveType ?? 'unknown'}". Allowed: ${[...ALLOWED_DIRECTIVES].join(', ')}`],
+      events: [],
     }
   }
 
   const doc = `@markdownai\n${sanitized}`
   const ast = parse(doc)
   if (!ast.isMarkdownAI) {
-    return { output: '', warnings: [], errors: ['Failed to parse directive'] }
+    return { output: '', warnings: [], errors: ['Failed to parse directive'], events: [] }
   }
   const result = execute(ast, { ctx: { envFiles: env ?? {}, cwd: resolvedCwd } })
-  return { output: result.output, warnings: result.warnings, errors: result.errors }
+  return { output: result.output, warnings: result.warnings, errors: result.errors, events: result.events }
 }

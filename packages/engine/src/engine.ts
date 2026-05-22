@@ -1,8 +1,9 @@
 import { resolve, dirname } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import type {
   ASTNode, ParseResult, ConnectNode, DefineNode, CallNode, PhaseNode, ConditionalNode, PipeNode,
   InterpolationSpan, ShellInlineSpan, RenderNode, PromptNode, SectionNode, ConceptNode, ConstraintNode,
-  ChunkBoundaryNode, NoteNode,
+  ChunkBoundaryNode, NoteNode, EventNode,
 } from '@markdownai/parser'
 import { render } from '@markdownai/renderer'
 import type { RenderType, RendererInput } from '@markdownai/renderer'
@@ -14,6 +15,7 @@ import { runShell } from './shell.js'
 import { executeList, executeRead, executeCount, executeDate, executeTree, executeDb, executeHttp, executeQuery } from './sources.js'
 import { resolveInterpolations, evalExpr } from './engine-interpolate.js'
 import { FatalError, versionIsNewer, loadStdlib, executeImport, executeInclude } from './engine-include.js'
+import { executeEvent } from './event.js'
 
 export type { EngineContext }
 export { FatalError }
@@ -30,13 +32,29 @@ export interface EngineResult {
   output: string
   errors: string[]
   warnings: string[]
+  events: import('./context.js').EngineEvent[]
+}
+
+function resolveGitMeta(cwd: string): { hash: string; short: string } | null {
+  try {
+    const result = spawnSync('git', ['log', '-1', '--format=%H %h'], { cwd, encoding: 'utf8', timeout: 2000 })
+    if (result.status !== 0 || !result.stdout?.trim()) return null
+    const parts = result.stdout.trim().split(' ')
+    const hash = parts[0] ?? ''
+    const short = parts[1] ?? hash.slice(0, 7)
+    return hash ? { hash, short } : null
+  } catch {
+    return null
+  }
 }
 
 export function execute(ast: ParseResult, options?: EngineOptions): EngineResult {
   if (!ast.isMarkdownAI) {
-    return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [] }
+    return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [], events: [] }
   }
   const base = makeContext(options?.ctx)
+  if (!base.runId) base.runId = crypto.randomUUID()
+  if (!base.gitMeta) base.gitMeta = resolveGitMeta(base.cwd)
   loadStdlib(base)
   const mainFile = options?.filePath ? resolve(options.filePath) : null
   if (mainFile) {
@@ -67,7 +85,7 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
   }
   const joined = parts.join('\n').trimStart()
   const output = base.consumer === 'ai' ? injectAiPrefixes(joined, base) : joined
-  return { output, errors, warnings: base.warnings }
+  return { output, errors, warnings: base.warnings, events: base.events }
 }
 
 function injectAiPrefixes(body: string, ctx: EngineContext): string {
@@ -139,6 +157,7 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
     case 'chunk-boundary': return ctx.consumer === 'ai' ? `---chunk:${node.id}---` : `<!-- chunk: ${node.id} -->`
     case 'define-concept': return executeConcept(node, ctx)
     case 'constraint': return executeConstraint(node, ctx)
+    case 'event': return executeEvent(node as EventNode, ctx, ctx.docDir)
     default: throw new Error(`walkNode: unhandled AST node type "${(node as { type: string }).type}"`)
   }
 }
@@ -190,12 +209,22 @@ function handleCall(node: CallNode, ctx: EngineContext): string {
     const paramName = macro.params[i]
     if (paramName !== undefined) namedArgs[paramName] = node.positionalArgs[i] ?? ''
   }
-  return walkNodes(substituteParams(macro.body, namedArgs), ctx).join('\n').trimStart()
+  ctx.callstack.push(`call:${node.name}`)
+  try {
+    return walkNodes(substituteParams(macro.body, namedArgs), ctx).join('\n').trimStart()
+  } finally {
+    ctx.callstack.pop()
+  }
 }
 
 function handlePhase(node: PhaseNode, ctx: EngineContext): string {
   if (ctx.phase !== null && ctx.phase !== node.name) return ''
-  return walkNodes(node.body, ctx).join('\n').trimStart()
+  ctx.callstack.push(`phase:${node.name}`)
+  try {
+    return walkNodes(node.body, ctx).join('\n').trimStart()
+  } finally {
+    ctx.callstack.pop()
+  }
 }
 
 function handleConditional(node: ConditionalNode, ctx: EngineContext): string {

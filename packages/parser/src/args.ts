@@ -11,14 +11,21 @@ export interface ParsedArgs {
 function tokenize(str: string): string[] {
   const tokens: string[] = []
   let current = ''
-  let inQuote = false
+  let inDoubleQuote = false
+  let inSingleQuote = false
 
   for (const ch of str) {
-    if (inQuote) {
-      if (ch === '"') { inQuote = false }
+    if (inDoubleQuote) {
+      if (ch === '"') { inDoubleQuote = false }
+      current += ch
+    } else if (inSingleQuote) {
+      if (ch === "'") { inSingleQuote = false }
       current += ch
     } else if (ch === '"') {
-      inQuote = true
+      inDoubleQuote = true
+      current += ch
+    } else if (ch === "'") {
+      inSingleQuote = true
       current += ch
     } else if (ch === ' ' || ch === '\t') {
       if (current) { tokens.push(current); current = '' }
@@ -31,7 +38,10 @@ function tokenize(str: string): string[] {
 }
 
 function unquote(val: string): string {
-  if (val.startsWith('"') && val.endsWith('"')) return val.slice(1, -1)
+  if (val.length >= 2) {
+    if (val.startsWith('"') && val.endsWith('"')) return val.slice(1, -1)
+    if (val.startsWith("'") && val.endsWith("'")) return val.slice(1, -1)
+  }
   return val
 }
 
