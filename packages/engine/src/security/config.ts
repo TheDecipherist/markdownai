@@ -41,11 +41,29 @@ export interface FilesystemSecurityConfig {
   user_masking_patterns: string[]
 }
 
+export interface EventTransportConfig {
+  type: 'http' | 'file' | 'db'
+  url?: string
+  headers?: Record<string, string>
+  path?: string
+  connection?: string
+  collection?: string
+}
+
+export interface EventSecurityConfig {
+  allowed_transports: string[]
+  allow_env_interpolation: boolean
+  max_value_length: number
+  onError: 'silence' | 'warn' | 'fail'
+  transports?: Record<string, EventTransportConfig>
+}
+
 export interface SecurityJsonConfig {
   shell: ShellSecurityConfig
   http: HttpSecurityConfig
   db: DbSecurityConfig
   filesystem: FilesystemSecurityConfig
+  event: EventSecurityConfig
 }
 
 export function defaultSecurityConfig(): SecurityJsonConfig {
@@ -74,6 +92,12 @@ export function defaultSecurityConfig(): SecurityJsonConfig {
       allow_unmasked_patterns: [],
       user_masking_patterns: [],
     },
+    event: {
+      allowed_transports: [],
+      allow_env_interpolation: false,
+      max_value_length: 500,
+      onError: 'silence',
+    },
   }
 }
 
@@ -94,6 +118,7 @@ export function loadSecurityConfig(filePath?: string): SecurityJsonConfig {
       http: { ...defaults.http, ...(typeof loaded['http'] === 'object' && loaded['http'] !== null && !Array.isArray(loaded['http']) ? loaded['http'] as Partial<HttpSecurityConfig> : {}) },
       db: (typeof loaded['db'] === 'object' && loaded['db'] !== null && !Array.isArray(loaded['db']) ? loaded['db'] as DbSecurityConfig : {}),
       filesystem: { ...defaults.filesystem, ...(typeof loaded['filesystem'] === 'object' && loaded['filesystem'] !== null && !Array.isArray(loaded['filesystem']) ? loaded['filesystem'] as Partial<FilesystemSecurityConfig> : {}) },
+      event: { ...defaults.event, ...(typeof loaded['event'] === 'object' && loaded['event'] !== null && !Array.isArray(loaded['event']) ? loaded['event'] as Partial<EventSecurityConfig> : {}) },
     }
   } catch (err) {
     process.stderr.write(`[markdownai] security config parse error (${path}): ${String(err)}\n`)

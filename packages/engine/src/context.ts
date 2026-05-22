@@ -1,5 +1,14 @@
 import type { ASTNode } from '@markdownai/parser'
-import type { FilesystemSecurityConfig, ShellSecurityConfig, HttpSecurityConfig, DbSecurityConfig } from './security/config.js'
+import type { FilesystemSecurityConfig, ShellSecurityConfig, HttpSecurityConfig, DbSecurityConfig, EventSecurityConfig } from './security/config.js'
+
+export interface EngineEvent {
+  name: string
+  data: string
+  transport: string
+  document: string
+  phase: string | null
+  timestamp: number
+}
 
 export interface Connection {
   type: string
@@ -15,6 +24,7 @@ export interface SecurityConfig {
   shellConfig?: ShellSecurityConfig
   httpConfig?: HttpSecurityConfig
   dbConfig?: DbSecurityConfig
+  eventConfig?: EventSecurityConfig
 }
 
 export interface MCPContext {
@@ -60,6 +70,7 @@ export interface EngineContext {
   glossary: Map<string, string>
   constraints: ConstraintEntry[]
   skillContext: SkillContext | null
+  events: EngineEvent[]
 }
 
 export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
@@ -87,9 +98,10 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     glossary: new Map<string, string>(),
     constraints: [],
     skillContext: null,
+    events: [],
   }
   if (!overrides) return base
-  const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, ...rest } = overrides
+  const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, events, ...rest } = overrides
   return {
     ...base,
     ...rest,
@@ -99,6 +111,7 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     localConnectionNames: localConnectionNames ?? base.localConnectionNames,
     glossary: glossary ?? base.glossary,
     constraints: constraints ?? base.constraints,
+    events: events ?? base.events,
   }
 }
 

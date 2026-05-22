@@ -25,11 +25,12 @@ import chunkBoundary from './directives/chunk-boundary.js'
 import defineConcept from './directives/define-concept.js'
 import constraint from './directives/constraint.js'
 import note from './directives/note.js'
+import eventDir from './directives/event.js'
 
 const modules: ParseModule[] = [
   header, include, importDir, env, define, call, phase, connect,
   list, read, query, db, http, tree, date, count, render, ifDir, graph, pipe,
-  prompt, section, chunkBoundary, defineConcept, constraint, note,
+  prompt, section, chunkBoundary, defineConcept, constraint, note, eventDir,
 ]
 
 const registry = new Map<string, ParseModule>(

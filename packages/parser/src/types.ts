@@ -229,6 +229,14 @@ export interface NoteNode extends ASTNodeBase {
   body: string
 }
 
+export interface EventNode extends ASTNodeBase {
+  type: 'event'
+  name: string
+  data: string
+  transports: string[]
+  visible: boolean
+}
+
 export type ASTNode =
   | HeaderNode
   | IncludeNode
@@ -259,6 +267,7 @@ export type ASTNode =
   | ConceptNode
   | ConstraintNode
   | NoteNode
+  | EventNode
 
 export interface ParseResult {
   isMarkdownAI: boolean

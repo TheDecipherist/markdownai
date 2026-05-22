@@ -98,6 +98,12 @@ const INLINE_DIRECTIVES: DirectiveCompletion[] = [
     kind: vscode.CompletionItemKind.Interface,
   },
   {
+    label: '@event',
+    snippet: "@event name='${1:event-name}' data='${2:value-or-json}' transport='${3|log,mcp,vscode,file,http,db,websocket|}'",
+    doc: 'Fire a named event to one or more transports — data can be a plain string or a JSON object string',
+    kind: vscode.CompletionItemKind.Event,
+  },
+  {
     label: '@define-concept',
     snippet: '@define-concept ${1:Name} "${2:definition}"',
     doc: 'Single-line glossary entry — multi-word definition must be quoted',
