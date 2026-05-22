@@ -1,6 +1,6 @@
 {
   "name": "@markdownai/mcp",
-  "version": "0.0.23",
+  "version": "0.0.24",
   "description": "MCP server for MarkdownAI - bridges AI assistants and live documents through phase-aware content tools",
   "license": "MIT",
   "type": "module",
