@@ -113,6 +113,7 @@ interface EngineResult {
   output: string            // the final rendered markdown
   errors: string[]          // fatal errors that prevented execution
   warnings: string[]        // non-fatal issues (blocked directives, missing vars, etc.)
+  events: EngineEvent[]     // events fired to the mcp transport during execution
 }
 ```
 
@@ -185,6 +186,7 @@ interface SecurityConfig {
   shellConfig?: ShellSecurityConfig
   httpConfig?: HttpSecurityConfig
   filesystemConfig?: FilesystemSecurityConfig
+  eventConfig?: EventSecurityConfig  // enable @event transport dispatch
 }
 ```
 
@@ -360,6 +362,77 @@ if (isBuiltin('grep \\.ts$')) {
 
 Connections are established via `@connect` in your document and referenced by name in `@db` blocks. All queries run through the database security jail (read-only by default, operation allowlist, collection restrictions).
 
+## Event Broadcast (`@event`)
+
+The engine executes `@event` directives and dispatches named signals to one or more transports. All transports are blocked by default - add them to `allowed_transports` to enable.
+
+```ts
+import { parse } from '@markdownai/parser'
+import { execute } from '@markdownai/engine'
+
+const source = `@markdownai
+@event name='build-done' data='{"status":"ok"}' transport='mcp'
+`
+
+const result = execute(parse(source), {
+  ctx: {
+    security: {
+      allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
+      eventConfig: {
+        allowed_transports: ['mcp'],
+        allow_env_interpolation: false,
+        max_value_length: 500,
+        onError: 'silence',
+      },
+    },
+  },
+})
+
+for (const event of result.events) {
+  console.log(event.name, event.data, event.meta.datetime)
+}
+```
+
+**`EventSecurityConfig`:**
+
+```ts
+interface EventSecurityConfig {
+  allowed_transports: string[]    // transports permitted to receive events (empty = block all)
+  allow_env_interpolation: boolean // evaluate {{ env.VAR }} in data (default: false)
+  max_value_length: number         // hard cap on data length, never above 500
+  onError: 'silence' | 'warn' | 'fail'
+}
+```
+
+**`EngineEvent` and `EventMeta`:**
+
+Every dispatched event includes an automatically populated `meta` object with contextual debugging information:
+
+```ts
+interface EventMeta {
+  datetime: string                             // ISO 8601 timestamp
+  line: number                                 // source line in the .md file
+  runId: string                                // UUID for this execute() call
+  sessionId: string | null                     // MCP session ID, or null
+  model: string | null                         // AI model (injected by caller via ctx.model)
+  tokenUsage: number | null                    // token count (injected by caller via ctx.tokenUsage)
+  git: { hash: string; short: string } | null  // git commit at execute() start
+  callstack: string[]                          // active @phase/@call context path
+}
+
+interface EngineEvent {
+  name: string
+  data: string          // masked before dispatch - secrets replaced with ***MASKED***
+  transport: string     // which transport this copy was routed to
+  document: string      // source document path
+  phase: string | null  // active phase filter, if any
+  timestamp: number     // Date.now()
+  meta: EventMeta
+}
+```
+
+Built-in transports: `mcp` (synchronous, appears in `result.events`), `log` (stderr), `vscode` (temp file for VS Code extension), `websocket`, `file`, `http`, `db`. All non-`mcp` transports are fire-and-forget via a worker thread.
+
 ## TypeScript
 
 Full type declarations are included for all exports:
@@ -376,6 +449,10 @@ import type {
   FilesystemSecurityConfig,
   SecurityJsonConfig,
   DbConnectionSecurityConfig,
+  EventSecurityConfig,
+  EventTransportConfig,
+  EngineEvent,
+  EventMeta,
   Connection,
   MacroDefinition,
   MCPContext,

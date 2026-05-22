@@ -34,7 +34,7 @@
 [![VS Code](https://img.shields.io/badge/VS_Code-Marketplace-007ACC?logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=markdownai.markdownai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js >=18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
-[![Tests: 754](https://img.shields.io/badge/tests-754_passing-brightgreen)](./packages)
+[![Tests: 811](https://img.shields.io/badge/tests-811_passing-brightgreen)](./packages)
 
 ---
 
@@ -594,6 +594,45 @@ Phases let you write a document that is also a workflow. Use `mai render --phase
 @graph depends_on from=".mdd/docs/*.md" style=mermaid
 ```
 
+
+### @event - Event Broadcast
+
+Fire a named signal with a payload to one or more transports while a document renders:
+
+```markdown
+@markdownai v1.0
+
+// Plain string - fine for simple status
+@event name='phase-start' data='setup' transport='log'
+
+// JSON payload - use when you need multiple fields
+@event name='progress' data='{"step": 2, "total": 5, "label": "Loading config"}' transport='vscode,log'
+
+// Show inline in the document output as well
+@event name='build-complete' data='{"status": "ok", "elapsed": "4s"}' transport='mcp' visible
+```
+
+Transports are comma-separated. Multiple transports fire simultaneously. The `mcp` transport is synchronous - events appear in `EngineResult.events` before `execute()` returns. All other transports (log, vscode, websocket, file, http, db) are fire-and-forget via a worker thread, so network latency and file I/O never slow down rendering.
+
+The `visible` flag renders a blockquote in the document output alongside dispatching to transports - useful during development to see what events are firing.
+
+**Security model:** all transports are blocked by default. Enable specific ones in the security config:
+
+```json
+{
+  "events": {
+    "allowed_transports": ["mcp", "log", "vscode"],
+    "allow_env_interpolation": false,
+    "max_value_length": 500,
+    "onError": "silence"
+  }
+}
+```
+
+Masking runs unconditionally on `data` before any dispatch - a secret embedded in a JSON value is caught and replaced with `***MASKED***` just as it would be in any other directive. `{{ expression }}` in `data` is only evaluated when `allow_env_interpolation: true` - off by default.
+
+Every event carries an automatic `meta` object: ISO datetime, source line number, a per-run UUID, MCP session ID, git commit hash, the active `@phase`/`@call` callstack, and optional model/token-usage fields the calling layer can inject. This makes `@event` a first-class debugging tool for document development - and lets MarkdownAI use it internally for performance tracing.
+
 ---
 
 ## Security
@@ -1046,6 +1085,14 @@ Condition operators: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `\|\|`, `!`, `start
 | `@cache persist` | Cache result to disk across runs. |
 | `@cache persist ttl=N` | Disk cache with expiry. |
 | `@cache mock=./file.json` | Always use fixture file, never call live source. |
+
+### Events and Signals
+
+| Directive | Description |
+|-----------|-------------|
+| `@event name='x' data='...' transport='log'` | Fire a named signal to a transport during rendering. |
+| `@event name='x' data='...' transport='mcp,log'` | Fire to multiple transports simultaneously. |
+| `@event name='x' data='...' transport='mcp' visible` | Also render a blockquote in the document output. |
 
 ### AI-Native
 

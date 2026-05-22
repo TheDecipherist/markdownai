@@ -97,6 +97,7 @@ The parser produces a flat array of typed nodes. Every node has a `type` field a
 | `CallNode` | `@call` | Macro invocation |
 | `ConditionalNode` | `@if / @elseif / @else / @endif` | Conditional block with branches |
 | `PhaseNode` | `@phase` | Phase block with `@on complete` transitions |
+| `EventNode` | `@event` | Named signal dispatch with data payload and transport list |
 | `PipeNode` | `source | transform | @render` | Pipe chain |
 | `RenderNode` | `@render` | Render sink with format type |
 | `PromptNode` | `@prompt` | AI instruction block |
@@ -200,10 +201,14 @@ All of that happens in `@markdownai/engine`.
 The parser is written in strict TypeScript and ships with full type declarations. All AST node types are exported and usable directly:
 
 ```ts
-import type { MarkdownAIDocument, DefineNode, ConditionalNode, PipeNode } from '@markdownai/parser'
+import type { MarkdownAIDocument, DefineNode, ConditionalNode, PipeNode, EventNode } from '@markdownai/parser'
 
 function findMacros(doc: MarkdownAIDocument): DefineNode[] {
   return doc.nodes.filter((n): n is DefineNode => n.type === 'DefineNode')
+}
+
+function findEvents(doc: MarkdownAIDocument): EventNode[] {
+  return doc.nodes.filter((n): n is EventNode => n.type === 'event')
 }
 ```
 
