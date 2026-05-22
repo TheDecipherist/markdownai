@@ -78,6 +78,37 @@ To scope the server to a specific project directory, add `--cwd`:
 }
 ```
 
+To pass plain markdown files through the engine unchanged (instead of returning raw source), add `--passthrough`. This is useful when you want `@event` logging or directive tracing to cover all files in a directory, not just MarkdownAI documents:
+
+```json
+{
+  "mcpServers": {
+    "markdownai": {
+      "command": "mai-serve",
+      "args": ["--passthrough"]
+    }
+  }
+}
+```
+
+To enable developer tracing, add a `MARKDOWNAI_TRACE` env var to the server config:
+
+```json
+{
+  "mcpServers": {
+    "markdownai": {
+      "command": "mai-serve",
+      "args": [],
+      "env": {
+        "MARKDOWNAI_TRACE": "file:/tmp/markdownai.jsonl"
+      }
+    }
+  }
+}
+```
+
+Trace output is JSON-Lines: one span per line, written for every directive the engine executes. All directive args are masked before serialization. See `@markdownai/engine` for the full span format.
+
 ## The 8 MCP tools
 
 Once the server is configured, Claude can call these tools directly during a session.
@@ -274,6 +305,7 @@ import { startServer } from '@markdownai/mcp'
 
 await startServer({
   cwd: process.cwd(),
+  passthrough: false,  // set true to pass plain .md files through the engine
 })
 ```
 

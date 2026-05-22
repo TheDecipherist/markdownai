@@ -1707,6 +1707,15 @@ This section updates nightly. Refresh before sharing.
         </p>
         <pre><code class="language-bash">mai render docs/api-reference.md --format=ai
 mai render docs/changelog.md --format=ai --tables=kv</code></pre>
+
+        <h3>Passthrough Mode</h3>
+        <p>
+          By default, <code>mai render</code> errors when a file does not start with <code>@markdownai</code>. Pass <code>--passthrough</code> to let plain markdown files pass through the engine unchanged instead. This is useful when looping over a directory that contains a mix of MarkdownAI documents and regular markdown files:
+        </p>
+        <pre><code class="language-bash">for f in docs/*.md; do mai render "$f" --passthrough -o "out/$(basename $f)"; done</code></pre>
+        <p>
+          The MCP server accepts the same flag. When started with <code>mai serve --passthrough</code>, plain files are processed through the engine (rather than returned as raw source), which enables <code>@event</code> logging and directive tracing for all files - not just MarkdownAI documents.
+        </p>
       </section>
 
       <!-- ===== SKILL VARS ===== -->
@@ -1956,7 +1965,7 @@ code --install-extension markdownai.markdownai</code></pre>
         <table class="mode-ref-table">
           <thead><tr><th>Command</th><th>Description</th><th>Key Flags</th></tr></thead>
           <tbody>
-            <tr><td><code>mai render &lt;file&gt;</code></td><td>Execute a document and print rendered markdown to stdout</td><td><code>-o &lt;path&gt;</code>, <code>--phase &lt;name&gt;</code>, <code>--consumer &lt;ai|human&gt;</code>, <code>--format=ai</code>, <code>--budget=N</code></td></tr>
+            <tr><td><code>mai render &lt;file&gt;</code></td><td>Execute a document and print rendered markdown to stdout</td><td><code>-o &lt;path&gt;</code>, <code>--phase &lt;name&gt;</code>, <code>--consumer &lt;ai|human&gt;</code>, <code>--format=ai</code>, <code>--budget=N</code>, <code>--passthrough</code></td></tr>
             <tr><td><code>mai build &lt;file&gt;</code></td><td>Render and write to disk</td><td><code>-o &lt;path&gt;</code> (required), <code>--watch</code></td></tr>
             <tr><td><code>mai watch &lt;file&gt;</code></td><td>Watch for changes and re-render automatically</td><td><code>--output &lt;path&gt;</code></td></tr>
             <tr><td><code>mai strip &lt;file&gt;</code></td><td>Remove all directives, produce plain markdown</td><td><code>-o &lt;path&gt;</code>, <code>--env &lt;file&gt;</code></td></tr>
@@ -1964,7 +1973,7 @@ code --install-extension markdownai.markdownai</code></pre>
             <tr><td><code>mai parse &lt;file&gt;</code></td><td>Parse document and output AST as JSON</td><td><code>--node &lt;type&gt;</code>, <code>--pretty</code></td></tr>
             <tr><td><code>mai eval "&lt;expression&gt;"</code></td><td>Evaluate a single expression against the environment</td><td><code>--env &lt;file&gt;</code></td></tr>
             <tr><td><code>mai init</code></td><td>Install PreToolUse hook into AI client</td><td><code>--client &lt;claude-code|cursor&gt;</code>, <code>--global-claude-md</code></td></tr>
-            <tr><td><code>mai serve</code></td><td>Start MCP server</td><td><code>--cwd &lt;path&gt;</code>, <code>--port &lt;N&gt;</code></td></tr>
+            <tr><td><code>mai serve</code></td><td>Start MCP server</td><td><code>--cwd &lt;path&gt;</code>, <code>--port &lt;N&gt;</code>, <code>--passthrough</code></td></tr>
             <tr><td><code>mai cache show [file]</code></td><td>List cached entries</td><td><code>--expired</code>, <code>--persist</code>, <code>--session</code></td></tr>
             <tr><td><code>mai cache clear [file]</code></td><td>Clear cached data</td><td><code>--session</code>, <code>--persist</code>, <code>--directive &lt;type&gt;</code></td></tr>
             <tr><td><code>mai cache seed &lt;file&gt;</code></td><td>Pre-populate cache by running all fetches</td><td><code>--env &lt;file&gt;</code>, <code>--directive &lt;type&gt;</code></td></tr>

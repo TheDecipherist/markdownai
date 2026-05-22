@@ -30,6 +30,7 @@ interface JsonRpcResponse {
 export interface ServerOptions {
   cwd?: string
   port?: number
+  passthrough?: boolean
 }
 
 const TOOL_ALLOWLIST = new Set([
@@ -47,7 +48,7 @@ function respondError(id: string | number | null, code: number, message: string)
   process.stdout.write(JSON.stringify(resp) + '\n')
 }
 
-function dispatchTool(method: string, p: Record<string, unknown>, id: string | number | null, cwd: string): void {
+function dispatchTool(method: string, p: Record<string, unknown>, id: string | number | null, cwd: string, passthrough?: boolean): void {
   switch (method) {
     case 'read_file': {
       const v = validateMcpInput([{ field: 'path', value: p['path'], noPathInjection: true }])
@@ -57,6 +58,7 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
       if (p['format'] === 'standard' || p['format'] === 'ai') rfArgs.format = p['format']
       if (p['budget'] != null) rfArgs.budget = Number(p['budget'])
       if (p['consumer'] != null) rfArgs.consumer = String(p['consumer'])
+      if (p['passthrough'] === true || passthrough) rfArgs.passthrough = true
       if (p['skill_args'] != null) rfArgs.skillArgs = String(p['skill_args'])
       if (p['skill_session_id'] != null) rfArgs.skillSessionId = String(p['skill_session_id'])
       if (p['skill_effort'] != null) rfArgs.skillEffort = String(p['skill_effort'])
@@ -112,7 +114,7 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
   }
 }
 
-function handleRequest(req: JsonRpcRequest, cwd: string): void {
+function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean): void {
   const p = req.params ?? {}
   try {
     switch (req.method) {
@@ -128,7 +130,7 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
       case 'tools/list':
         respond(req.id, {
           tools: [
-            { name: 'read_file', description: 'Read and render a MarkdownAI document. Returns ai-format (token-efficient) by default. Pass format="standard" to override. When reading a skill/command file, pass skill_args and skill_* fields to enable @if conditions on $ARGUMENTS, $CLAUDE_EFFORT, etc.', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' }, skill_args: { type: 'string', description: 'Raw $ARGUMENTS string from the Claude Code slash command invocation' }, skill_named_args: { type: 'object', description: 'Named arguments from the skill frontmatter arguments: list', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string', description: '${CLAUDE_SESSION_ID} from Claude Code' }, skill_effort: { type: 'string', description: '${CLAUDE_EFFORT} from Claude Code (low/medium/high/xhigh/max)' }, skill_dir: { type: 'string', description: '${CLAUDE_SKILL_DIR} — directory containing the skill file' } }, required: ['path'] } },
+            { name: 'read_file', description: 'Read and render a MarkdownAI document. Returns ai-format (token-efficient) by default. Pass format="standard" to override. When reading a skill/command file, pass skill_args and skill_* fields to enable @if conditions on $ARGUMENTS, $CLAUDE_EFFORT, etc.', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' }, passthrough: { type: 'boolean', description: 'Pass plain markdown files through the engine unchanged instead of returning raw source' }, skill_args: { type: 'string', description: 'Raw $ARGUMENTS string from the Claude Code slash command invocation' }, skill_named_args: { type: 'object', description: 'Named arguments from the skill frontmatter arguments: list', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string', description: '${CLAUDE_SESSION_ID} from Claude Code' }, skill_effort: { type: 'string', description: '${CLAUDE_EFFORT} from Claude Code (low/medium/high/xhigh/max)' }, skill_dir: { type: 'string', description: '${CLAUDE_SKILL_DIR} — directory containing the skill file' } }, required: ['path'] } },
             { name: 'list_phases', description: 'List all phases in a MarkdownAI document', inputSchema: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'] } },
             { name: 'resolve_phase', description: 'Resolve a named phase in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' } }, required: ['file', 'phase'] } },
             { name: 'next_phase', description: 'Get the next phase after current_phase', inputSchema: { type: 'object', properties: { file: { type: 'string' }, current_phase: { type: 'string' } }, required: ['file', 'current_phase'] } },
@@ -153,7 +155,7 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
         const toolArgs = (typeof argsVal === 'object' && argsVal !== null && !Array.isArray(argsVal))
           ? argsVal as Record<string, unknown>
           : {}
-        dispatchTool(toolName, toolArgs, req.id, cwd)
+        dispatchTool(toolName, toolArgs, req.id, cwd, passthrough)
         break
       }
       default:
@@ -166,13 +168,14 @@ function handleRequest(req: JsonRpcRequest, cwd: string): void {
 
 export function startServer(options: ServerOptions = {}): void {
   const cwd = options.cwd ?? process.cwd()
+  const passthrough = options.passthrough ?? false
   const rl = createInterface({ input: process.stdin, crlfDelay: Infinity })
   rl.on('line', (line) => {
     const trimmed = line.trim()
     if (!trimmed) return
     try {
       const req = JSON.parse(trimmed) as JsonRpcRequest
-      handleRequest(req, cwd)
+      handleRequest(req, cwd, passthrough)
     } catch {
       respondError(null, -32700, 'Parse error')
     }

@@ -956,12 +956,14 @@ Full command list:
 |---------|-------------|
 | `mai render <file>` | Execute and print rendered markdown to stdout |
 | `mai render <file> -o <path>` | Execute and write result to a file |
+| `mai render <file> --passthrough` | Pass plain (non-MarkdownAI) files through unchanged instead of erroring |
 | `mai validate <file>` | Check for errors and warnings; exits 1 on error |
 | `mai parse <file>` | Output the document AST as JSON |
 | `mai parse <file> --node <type> --pretty` | Filter and format AST output |
 | `mai eval "<expression>"` | Evaluate a single expression against the environment |
 | `mai strip <file>` | Remove all directives; output plain Markdown |
 | `mai serve` | Start the MCP server |
+| `mai serve --passthrough` | Start MCP server; pass plain files through the engine unchanged |
 | `mai init` | Install the PreToolUse hook into your AI client |
 | `mai build <file> -o <output>` | Render and write to disk (alias for render -o) |
 | `mai watch <file> -o <output>` | Watch for changes and re-render automatically |

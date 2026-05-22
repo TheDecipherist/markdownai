@@ -12,6 +12,7 @@ export interface ReadFileArgs {
   format?: 'ai' | 'standard'
   budget?: number
   consumer?: string
+  passthrough?: boolean
   // Claude Code skill context — populated when rendering a skill/command file
   skillArgs?: string                        // $ARGUMENTS raw string
   skillNamedArgs?: Record<string, string>   // named args from frontmatter arguments:
@@ -83,11 +84,11 @@ export function readFile(args: ReadFileArgs, cwd: string): ReadFileResult {
   }
 
   const ast = parse(source, { filePath: fullPath })
-  if (!ast.isMarkdownAI) {
+  if (!ast.isMarkdownAI && !args.passthrough) {
     return { content: source, isMarkdownAI: false, warnings: [] }
   }
 
-  const result = execute(ast, {
+  const execOpts: Parameters<typeof execute>[1] = {
     filePath: fullPath,
     ctx: {
       envFiles: args.env ?? {},
@@ -95,7 +96,9 @@ export function readFile(args: ReadFileArgs, cwd: string): ReadFileResult {
       consumer: args.consumer ?? 'ai',
       skillContext: buildSkillContext(args),
     },
-  })
+  }
+  if (args.passthrough) execOpts.passthrough = true
+  const result = execute(ast, execOpts)
 
   const content = postProcessContent(result.output, args)
   return { content, isMarkdownAI: true, warnings: result.warnings }
