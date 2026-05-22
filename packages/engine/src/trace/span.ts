@@ -20,7 +20,7 @@ export interface TraceSpan {
 }
 
 export function extractArgs(node: Record<string, unknown>): Record<string, string> {
-  const picks = ['name', 'path', 'url', 'command', 'transport', 'query', 'operation', 'fallback', 'source', 'format', 'key']
+  const picks = ['name', 'path', 'url', 'command', 'transport', 'query', 'operation', 'fallback', 'source', 'format', 'key', 'version']
   const result: Record<string, string> = {}
   for (const key of picks) {
     const val = node[key]
