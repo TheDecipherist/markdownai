@@ -34,6 +34,10 @@ known_issues: []
 
 Publishes all six `@markdownai/*` npm packages, deploys the docs site to Dokploy, and optionally packages the VS Code extension. All steps run on `main` directly - this is the one workflow that bypasses the feature-branch rule.
 
+**Lockstep versioning.** All six npm packages always release at the same version number, every release, whether or not their code changed. This is intentional - users installing `@markdownai/engine@0.0.23` and `@markdownai/core@0.0.23` should always be compatible, and a stale package at an older version creates confusion about which combination is supported. The `scripts/sync-version.mjs` script enforces this automatically when `npm version` runs.
+
+The VS Code extension (`packages/vscode`) is the only exception - it has its own version and ships separately via the Marketplace.
+
 **Publish order** (dependency-first):
 1. `@markdownai/parser` - no internal deps
 2. `@markdownai/renderer` - no internal deps
@@ -235,7 +239,7 @@ If docs files changed:
 
 ### Step 7 - Publish npm packages
 
-Publish in dependency order. Each publish runs `prepublishOnly` (e2e tests) automatically.
+Publish all six packages in dependency order. Do not skip a package because "nothing changed in it" - every package ships at the new version on every release. Each publish runs `prepublishOnly` (e2e tests) automatically.
 
 ```bash
 npm publish --workspace=packages/parser --access public
