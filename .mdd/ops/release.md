@@ -70,14 +70,15 @@ Ask the user: "Does this release include changes to CLI flags, commands, directi
 
 If yes - verify all of these are updated before proceeding:
 - `README.md` - CLI reference table, new commands/flags
+- `packages/core/README.md` - CLI commands, flags, usage examples
 - `packages/engine/README.md` - EngineOptions, new exports, API changes
 - `packages/mcp/README.md` - new tools, setup changes, ServerOptions
+- `packages/parser/README.md` - new AST node types, parse options
+- `packages/renderer/README.md` - new format types, render options
+- `packages/markdownai/README.md` - org index, links to updated packages
+- `packages/vscode/README.md` - new directive highlighting, snippets, features
+- `docs/index.html` - landing page, feature highlights, quick-start examples
 - `docs/user-guide.html` - command reference table, directive docs, new sections
-
-Check which package READMEs exist and may need updates:
-```bash
-ls packages/*/README.md
-```
 
 If any doc is missing updates - stop and update it first, then re-run `/mdd runop release`.
 
