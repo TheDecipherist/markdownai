@@ -207,7 +207,7 @@ If docs files changed:
 
 2. Build image:
    ```bash
-   docker build -t $DOCKER_HUB_IMAGE docs/
+   docker build -t $DOCKER_HUB_IMAGE . # Dockerfile is at repo root, not in docs/
    ```
 
 3. Test locally:
@@ -328,7 +328,7 @@ The npm release and docs site are independent. If the site fails, the packages a
 Fix the container issue on a branch, merge to main, then re-run Step 6 only:
 ```bash
 source .env
-docker build -t $DOCKER_HUB_IMAGE docs/
+docker build -t $DOCKER_HUB_IMAGE . # Dockerfile is at repo root, not in docs/
 # test locally, then:
 docker push $DOCKER_HUB_IMAGE
 curl -s -X POST "$DOKPLOY_WEBHOOK_URL"
