@@ -1,5 +1,6 @@
 import type { ASTNode } from '@markdownai/parser'
 import type { FilesystemSecurityConfig, ShellSecurityConfig, HttpSecurityConfig, DbSecurityConfig, EventSecurityConfig } from './security/config.js'
+import type { TraceConfig } from './trace/config.js'
 
 export interface EventMeta {
   datetime: string
@@ -88,6 +89,7 @@ export interface EngineContext {
   model: string | null
   tokenUsage: number | null
   callstack: string[]
+  traceConfig: TraceConfig | null
 }
 
 export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
@@ -121,6 +123,7 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     model: null,
     tokenUsage: null,
     callstack: [],
+    traceConfig: null,
   }
   if (!overrides) return base
   const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, events, callstack, ...rest } = overrides

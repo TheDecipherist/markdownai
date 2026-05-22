@@ -16,6 +16,10 @@ import { executeList, executeRead, executeCount, executeDate, executeTree, execu
 import { resolveInterpolations, evalExpr } from './engine-interpolate.js'
 import { FatalError, versionIsNewer, loadStdlib, executeImport, executeInclude } from './engine-include.js'
 import { executeEvent } from './event.js'
+import { parseTraceConfig } from './trace/config.js'
+import { emitSpan } from './trace/emit.js'
+import { extractArgs } from './trace/span.js'
+import { applyMasking } from './security/masking.js'
 
 export type { EngineContext }
 export { FatalError }
@@ -55,6 +59,7 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
   const base = makeContext(options?.ctx)
   if (!base.runId) base.runId = crypto.randomUUID()
   if (!base.gitMeta) base.gitMeta = resolveGitMeta(base.cwd)
+  if (!base.traceConfig) base.traceConfig = parseTraceConfig(process.env['MARKDOWNAI_TRACE'])
   loadStdlib(base)
   const mainFile = options?.filePath ? resolve(options.filePath) : null
   if (mainFile) {
@@ -117,7 +122,7 @@ function walkNodes(nodes: ASTNode[], ctx: EngineContext): string[] {
   return parts
 }
 
-function walkNode(node: ASTNode, ctx: EngineContext): string {
+function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
   switch (node.type) {
     case 'header': return ''
     case 'transition': return ''
@@ -159,6 +164,44 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
     case 'constraint': return executeConstraint(node, ctx)
     case 'event': return executeEvent(node as EventNode, ctx, ctx.docDir)
     default: throw new Error(`walkNode: unhandled AST node type "${(node as { type: string }).type}"`)
+  }
+}
+
+function walkNode(node: ASTNode, ctx: EngineContext): string {
+  if (!ctx.traceConfig) return walkNodeCore(node, ctx)
+
+  const id = crypto.randomUUID()
+  const startedAt = Date.now()
+  const nodeRecord = node as unknown as Record<string, unknown>
+  const rawArgs = extractArgs(nodeRecord)
+  const maskedArgs: Record<string, string> = {}
+  for (const [k, v] of Object.entries(rawArgs)) {
+    maskedArgs[k] = applyMasking(v).masked
+  }
+  const base = {
+    id,
+    runId: ctx.runId,
+    type: node.type,
+    document: ctx.docDir,
+    line: (nodeRecord['line'] as number | undefined) ?? 0,
+    phase: ctx.phase,
+    callstack: [...ctx.callstack],
+    args: maskedArgs,
+    git: ctx.gitMeta,
+    sessionId: ctx.mcp?.sessionId ?? null,
+  }
+
+  emitSpan({ ...base, status: 'start', timestamp: startedAt, startedAt }, ctx.traceConfig)
+
+  try {
+    const output = walkNodeCore(node, ctx)
+    const endedAt = Date.now()
+    emitSpan({ ...base, status: 'end', timestamp: endedAt, startedAt, endedAt, duration: endedAt - startedAt, outputSize: Buffer.byteLength(output) }, ctx.traceConfig)
+    return output
+  } catch (err) {
+    const endedAt = Date.now()
+    emitSpan({ ...base, status: 'error', timestamp: endedAt, startedAt, endedAt, duration: endedAt - startedAt, error: String(err) }, ctx.traceConfig)
+    throw err
   }
 }
 
