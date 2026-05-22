@@ -21,6 +21,8 @@ source_files:
   - packages/engine/src/engine.ts
   - packages/mcp/src/tools/execute_directive.ts
   - packages/vscode/src/completion-provider.ts
+  - README.md
+  - packages/core/README.md
 routes: []
 models: []
 test_files:
@@ -28,8 +30,8 @@ test_files:
   - packages/engine/src/__tests__/event.test.ts
   - packages/engine/src/__tests__/event-transports.test.ts
 data_flow: greenfield
-last_synced: 2026-05-21
-status: done
+last_synced: 2026-05-22
+status: complete
 phase: complete
 mdd_version: 1.8.7
 tags: [event, directive, transport, broadcast, progress, logging, mcp, vscode, signal]
