@@ -102,8 +102,9 @@ const result = execute(ast, {
 **`EngineOptions`:**
 ```ts
 interface EngineOptions {
-  filePath?: string         // absolute path to the document being executed
+  filePath?: string             // absolute path to the document being executed
   ctx?: Partial<EngineContext>  // execution context (security, env, etc.)
+  passthrough?: boolean         // pass plain markdown files through unchanged instead of erroring
 }
 ```
 
@@ -433,6 +434,24 @@ interface EngineEvent {
 
 Built-in transports: `mcp` (synchronous, appears in `result.events`), `log` (stderr), `vscode` (temp file for VS Code extension), `websocket`, `file`, `http`, `db`. All non-`mcp` transports are fire-and-forget via a worker thread.
 
+## Developer Tracing
+
+Set `MARKDOWNAI_TRACE` to emit a structured JSON-Lines span for every directive execution. Off by default - zero overhead when unset.
+
+```bash
+MARKDOWNAI_TRACE=stderr mai render doc.md           # print spans to stderr
+MARKDOWNAI_TRACE=file:/tmp/trace.jsonl mai render doc.md  # write spans to file
+MARKDOWNAI_TRACE=http://localhost:4317/trace mai render doc.md  # POST each span
+```
+
+Each span includes: `id`, `runId`, `ast` (`markdownai`/`markdown`/`header`), `directive` (on markdownai spans), `status` (`start`/`end`/`error`), `timestamp`, `duration`, `outputSize`, `line`, `phase`, `callstack`, `args` (always masked), `git`, `sessionId`.
+
+Directive args are masked unconditionally before serialization - credentials never appear in trace output regardless of transport.
+
+`MARKDOWNAI_TRACE=1` and `MARKDOWNAI_TRACE=true` are aliases for `stderr`.
+
+The `TraceSpan` and `TraceConfig` types are exported from this package if you need to consume spans programmatically.
+
 ## TypeScript
 
 Full type declarations are included for all exports:
@@ -459,6 +478,8 @@ import type {
   CacheEntry,
   StripOptions,
   StripResult,
+  TraceConfig,
+  TraceSpan,
 } from '@markdownai/engine'
 ```
 

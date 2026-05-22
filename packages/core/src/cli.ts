@@ -33,8 +33,9 @@ universalOptions(
     .option('--consumer <type>', 'target consumer: ai, human, or any custom value')
     .option('--format <mode>', 'output format: standard (default) or ai (token-efficient)')
     .option('--budget <n>', 'token budget — drop low-priority @section blocks to fit', parseInt)
+    .option('--passthrough', 'pass plain markdown files through unchanged instead of erroring')
 ).action((file: string, opts: Record<string, string | boolean | undefined>) => {
-  const result = runRender(file, opts)
+  const result = runRender(file, { ...opts, passthrough: Boolean(opts['passthrough']) })
   for (const warn of result.warnings) {
     if (!opts['silent']) process.stderr.write(`WARN: ${warn}\n`)
   }
@@ -151,9 +152,13 @@ universalOptions(
     .command('serve')
     .description('start the MarkdownAI MCP server')
     .option('--port <n>', 'port number (informational only — server uses stdio)')
-).action(async (opts: Record<string, string | undefined>) => {
+    .option('--passthrough', 'pass plain markdown files through the engine unchanged instead of erroring')
+).action(async (opts: Record<string, string | boolean | undefined>) => {
     const { startServer } = await import('@markdownai/mcp')
-    startServer(opts['cwd'] ? { cwd: opts['cwd'] } : {})
+    const serverOpts: Record<string, unknown> = {}
+    if (opts['cwd']) serverOpts['cwd'] = String(opts['cwd'])
+    if (opts['passthrough']) serverOpts['passthrough'] = true
+    startServer(serverOpts)
   })
 
 universalOptions(

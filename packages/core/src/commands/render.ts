@@ -16,6 +16,7 @@ export interface RenderOptions {
   format?: 'standard' | 'ai'
   budget?: number
   securityConfig?: SecurityConfig
+  passthrough?: boolean
 }
 
 export interface RenderResult {
@@ -120,7 +121,7 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
 
   const envFiles = options.env ? loadEnvFile(options.env) : {}
   const security = buildSecurityConfig(options, resolved)
-  const result = execute(ast, {
+  const execOpts: Parameters<typeof execute>[1] = {
     filePath: resolved,
     ctx: {
       envFiles,
@@ -128,7 +129,9 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
       consumer: options.consumer,
       security,
     },
-  })
+  }
+  if (options.passthrough) execOpts.passthrough = true
+  const result = execute(ast, execOpts)
 
   const output = postProcessOutput(result.output, options)
   const allErrors = options.strict ? [...result.errors, ...result.warnings] : result.errors

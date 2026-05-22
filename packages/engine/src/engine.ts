@@ -30,6 +30,7 @@ const VALID_CONNECTION_TYPES = new Set(['mongodb', 'postgres', 'mysql', 'mssql',
 export interface EngineOptions {
   ctx?: Partial<EngineContext>
   filePath?: string
+  passthrough?: boolean
 }
 
 export interface EngineResult {
@@ -53,7 +54,7 @@ function resolveGitMeta(cwd: string): { hash: string; short: string } | null {
 }
 
 export function execute(ast: ParseResult, options?: EngineOptions): EngineResult {
-  if (!ast.isMarkdownAI) {
+  if (!ast.isMarkdownAI && !options?.passthrough) {
     return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [], events: [] }
   }
   const base = makeContext(options?.ctx)
