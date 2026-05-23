@@ -133,8 +133,9 @@ describe('filesystem confinement', () => {
     expect(checkFilePath('aws_credentials', root).level).toBe('blocked')
   })
 
-  it('alerts on JSON files (sensitive type)', () => {
-    expect(checkFilePath('config.json', root).level).toBe('alert')
+  it('JSON files are allowed (v2.0: *.json no longer auto-alerts — too noisy)', () => {
+    expect(checkFilePath('config.json', root).level).toBe('allowed')
+    expect(checkFilePath('package.json', root).level).toBe('allowed')
   })
 
   it('alerts on config.yaml', () => {

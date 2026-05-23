@@ -63,6 +63,22 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
       return { ...node as HttpNode, args: subArgs(node.args, args) }
     case 'date':
       return { ...node as DateNode, args: subArgs(node.args, args) }
+    case 'mkdir':
+      return { ...node, path: subStr(node.path, args), args: subArgs(node.args, args) }
+    case 'copy':
+      return {
+        ...node,
+        from: subStr(node.from, args),
+        to: subStr(node.to, args),
+        args: subArgs(node.args, args),
+      }
+    case 'append-if-missing':
+      return {
+        ...node,
+        path: subStr(node.path, args),
+        text: subStr(node.text, args),
+        args: subArgs(node.args, args),
+      }
     case 'render':
       return { ...node as RenderNode, args: subArgs(node.args, args) }
     case 'connect':

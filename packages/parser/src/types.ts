@@ -140,6 +140,27 @@ export interface CountNode extends ASTNodeBase {
   args: Record<string, string>
 }
 
+// v2.0 write directives
+export interface MkdirNode extends ASTNodeBase {
+  type: 'mkdir'
+  path: string
+  args: Record<string, string>  // optional: recursive=false (default true)
+}
+
+export interface CopyNode extends ASTNodeBase {
+  type: 'copy'
+  from: string
+  to: string
+  args: Record<string, string>  // optional: if-missing (boolean flag)
+}
+
+export interface AppendIfMissingNode extends ASTNodeBase {
+  type: 'append-if-missing'
+  path: string
+  text: string
+  args: Record<string, string>
+}
+
 export interface RenderNode extends ASTNodeBase {
   type: 'render'
   args: Record<string, string>
@@ -255,6 +276,9 @@ export type ASTNode =
   | TreeNode
   | DateNode
   | CountNode
+  | MkdirNode
+  | CopyNode
+  | AppendIfMissingNode
   | RenderNode
   | ConditionalNode
   | PipeNode

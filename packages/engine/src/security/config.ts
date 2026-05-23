@@ -54,6 +54,12 @@ export interface FilesystemSecurityConfig {
   // any process env var, evaluated at check time.
   allowed_source_paths: string[]
   allowed_data_paths: string[]
+  // Write directives (@mkdir, @copy, @append-if-missing) — disabled by default.
+  // When enabled, writes may happen inside write_root and any allowed_write_paths.
+  // Built-in always-block list (.env, credentials, .ssh, .git, etc.) is immutable.
+  write_enabled?: boolean
+  write_root?: string                // "cwd" | "auto" | absolute path; default "cwd"
+  allowed_write_paths?: string[]
   // Pre-existing fields (apply to all filesystem ops):
   additional_block_paths: string[]
   additional_block_patterns: string[]

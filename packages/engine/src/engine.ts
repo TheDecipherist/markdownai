@@ -13,6 +13,7 @@ import { evalCondition } from './conditions.js'
 import { runBuiltin, isBuiltin } from './pipe.js'
 import { runShell } from './shell.js'
 import { executeList, executeRead, executeCount, executeDate, executeTree, executeDb, executeHttp, executeQuery } from './sources.js'
+import { executeMkdir, executeCopy, executeAppendIfMissing } from './write-ops.js'
 import { resolveInterpolations, evalExpr } from './engine-interpolate.js'
 import { FatalError, versionIsNewer, loadStdlib, executeImport, executeInclude } from './engine-include.js'
 import { executeEvent } from './event.js'
@@ -105,6 +106,23 @@ function resolveJailRoots(ctx: EngineContext, mainFile: string | null): void {
   }
   if (ctx.security.allowedDataPaths === undefined) {
     ctx.security.allowedDataPaths = expandAllowList(fsConfig?.allowed_data_paths, ctx)
+  }
+
+  // Write jail: only resolved if writes are enabled in config. The directives
+  // themselves (@mkdir / @copy / @append-if-missing) check writeEnabled and
+  // refuse if false.
+  if (ctx.security.writeEnabled === undefined) {
+    ctx.security.writeEnabled = fsConfig?.write_enabled ?? false
+  }
+  if (ctx.security.writeJail === undefined || ctx.security.writeJail === null) {
+    if (ctx.security.writeEnabled) {
+      ctx.security.writeJail = resolveRoot(fsConfig?.write_root, 'cwd')
+    } else {
+      ctx.security.writeJail = null
+    }
+  }
+  if (ctx.security.allowedWritePaths === undefined) {
+    ctx.security.allowedWritePaths = expandAllowList(fsConfig?.allowed_write_paths, ctx)
   }
 }
 
@@ -227,6 +245,9 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
       if (label && typeof label === 'string') ctx.envFiles[label] = lines[0]?.trim() ?? ''
       return lines.join('\n')
     }
+    case 'mkdir': return executeMkdir(node, ctx)
+    case 'copy': return executeCopy(node, ctx)
+    case 'append-if-missing': return executeAppendIfMissing(node, ctx)
     case 'prompt': return executePrompt(node, ctx)
     case 'note': return executeNote(node, ctx)
     case 'section': return `<!-- mda-section priority="${node.priority}"${node.id ? ` id="${node.id}"` : ''} -->\n${walkNodes(node.body, ctx).join('\n')}\n<!-- /mda-section -->`

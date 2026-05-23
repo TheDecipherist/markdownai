@@ -67,7 +67,11 @@ export const FILESYSTEM_ALWAYS_BLOCK_PATTERNS: readonly string[] = Object.freeze
 ])
 
 export const FILESYSTEM_ALWAYS_ALERT_PATTERNS: readonly string[] = Object.freeze([
-  '*.json', 'config.yaml', 'config.yml',
+  // Sensitive config files (credentials live in always_block list; these are
+  // commonly-sensitive but not always-secret, hence alert rather than block).
+  // *.json removed in v2.0 — it was too broad and produced noise on every
+  // package.json / tsconfig.json / settings.json read.
+  'config.yaml', 'config.yml',
   'settings.py', 'settings.rb', 'appsettings.*',
 ])
 

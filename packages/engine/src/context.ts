@@ -43,6 +43,12 @@ export interface SecurityConfig {
   // Expanded allow-lists (post-${VAR} substitution). Optional for back-compat.
   allowedSourcePaths?: string[]
   allowedDataPaths?: string[]
+  // Write directives (v2.0+): jail and allow-list resolved at execute() time.
+  // writeJail set to the configured write_root (default: cwd) when write_enabled.
+  // When undefined, write directives are blocked entirely.
+  writeJail?: string | null
+  allowedWritePaths?: string[]
+  writeEnabled?: boolean
   filesystemConfig?: FilesystemSecurityConfig
   shellConfig?: ShellSecurityConfig
   httpConfig?: HttpSecurityConfig

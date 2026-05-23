@@ -216,4 +216,135 @@ foo.md` while still giving skill mode the cwd-as-data-root behavior MDD needs.
   MDD does not use this pattern (uses `$CLAUDE_SKILL_DIR` shell expansion). The
   shell-aware tokenizer required for safe interpolation deserves its own PR.
 
+---
+
+## 2026-05-23 | feature | Wave 3 — Write Directives (@mkdir, @copy, @append-if-missing)
+
+Adds three native write directives so bootstrap-style operations no longer need
+`@query bash -c "..."` wrappers. All three go through a shared security gate
+(`filesystem.write_enabled` + `write_root` + `allowed_write_paths` + immutable
+rules).
+
+### New directives
+
+**`@mkdir`**
+
+```
+@mkdir .mdd
+@mkdir path=".mdd/docs"
+@mkdir .mdd/audits recursive=false
+```
+
+Default recursive. Creates the destination if it does not exist; no-op if it
+does.
+
+**`@copy`**
+
+```
+@copy from="./tpl.md" to=".mdd/file.md"
+@copy from="${CLAUDE_SKILL_DIR}/templates/x.md" to=".mdd/x.md" if-missing
+```
+
+- `from=` resolves via the **data jail** (read access)
+- `to=` resolves via the **write jail** (write access)
+- `if-missing` bare flag: skip the copy when `to=` already exists (idempotent
+  bootstrap)
+- Auto-creates parent directories of `to=` if absent
+
+**`@append-if-missing`**
+
+```
+@append-if-missing path=".gitignore" text=".mdd/audits/"
+```
+
+Appends `text=` to `path=` only if the file does not already contain `text=`.
+Idempotent. No-op if the target file does not exist (does NOT create it; use
+`@copy` to seed a new file).
+
+### Security model
+
+New `FilesystemSecurityConfig` fields:
+
+```json
+{
+  "filesystem": {
+    "write_enabled": false,          // master gate — default off
+    "write_root": "cwd",             // "cwd" | "auto" | absolute
+    "allowed_write_paths": []        // extra patterns w/ ${VAR} expansion
+  }
+}
+```
+
+- `write_enabled: false` is the default. All three directives no-op with a
+  warning until the user opts in.
+- Write paths must be inside `write_root` OR match `allowed_write_paths`.
+- Immutable always-block rules (`.env`, `.env.*`, `**/.ssh/**`, `**/credentials*`,
+  `*.pem`, etc.) apply regardless of allow-list. Cannot be bypassed.
+- Path traversal (`../`) always blocked.
+- `@copy from=` path goes through the data-op jail (separate from write jail)
+  with `allowed_data_paths` honored.
+
+### Side change: `*.json` no longer always-alerts (item #6)
+
+Removed `*.json` from `FILESYSTEM_ALWAYS_ALERT_PATTERNS`. The pattern produced
+SECURITY_ALERT warnings on every `package.json` / `tsconfig.json` /
+`settings.json` access — pure noise. Credentials JSON files are caught by the
+always-block list (`*credentials*`, `*.token`, etc.).
+
+### MDD integration check
+
+`mdd-shared.md` bootstrap macros rewritten to use native directives:
+
+```markdown
+@define bootstrap-dirs
+@mkdir .mdd
+@mkdir .mdd/docs
+@mkdir .mdd/audits
+...
+@end
+
+@define create-startup-if-missing
+@copy from="${CLAUDE_SKILL_DIR}/templates/startup.md" to=".mdd/.startup.md" if-missing
+@end
+
+@define ensure-gitignore
+@append-if-missing path=".gitignore" text=".mdd/audits/"
+@append-if-missing path=".gitignore" text=".mdd/jobs/"
+@end
+```
+
+All 51 MDD tests pass. No more `@query bash -c "..."` in any bootstrap macro.
+
+### Files touched
+
+- `packages/parser/src/types.ts` — `MkdirNode`, `CopyNode`, `AppendIfMissingNode`
+- `packages/parser/src/directives/mkdir.ts` — new
+- `packages/parser/src/directives/copy.ts` — new; also handles bare-flag args
+  like `if-missing` as `args["if-missing"] = "true"`
+- `packages/parser/src/directives/append-if-missing.ts` — new
+- `packages/parser/src/registry.ts` — registered all three
+- `packages/engine/src/write-ops.ts` — new: `executeMkdir`, `executeCopy`,
+  `executeAppendIfMissing`
+- `packages/engine/src/engine.ts` — dispatch the three new node types; resolve
+  `writeJail` / `allowedWritePaths` / `writeEnabled` in `resolveJailRoots()`
+- `packages/engine/src/context.ts` — `SecurityConfig` gains write-jail fields
+- `packages/engine/src/macros.ts` — `substituteNode` cases for new nodes
+- `packages/engine/src/security/filesystem.ts` — new `checkWritePath()`
+- `packages/engine/src/security/config.ts` — `write_enabled`, `write_root`,
+  `allowed_write_paths` in `FilesystemSecurityConfig`
+- `packages/engine/src/security/rules.ts` — `*.json` removed from alert list
+- `packages/engine/src/__tests__/write-ops.test.ts` — new: 14 tests
+- `packages/engine/src/__tests__/security-filesystem.test.ts` — updated
+  `*.json` test to expect `allowed`
+
+### Test totals
+
+- engine: 576 (was 558 + 14 new write-ops + 4 added in absolute-import = 576)
+- parser: 160
+- core: 93
+- mcp: 37
+- mdd: 51
+- **total: 917**
+
+
 

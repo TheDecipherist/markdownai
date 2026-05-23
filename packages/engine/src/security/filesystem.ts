@@ -186,6 +186,27 @@ function checkJailedPath(
   }
 }
 
+/**
+ * v2.0: Check a write-op destination path (@mkdir, @copy to=, @append-if-missing).
+ *
+ * Requires `filesystem.write_enabled: true` in the security config.
+ *
+ * Allowed when:
+ *   - path is inside writeRoot, OR
+ *   - path matches a pattern in allowedWritePaths
+ *
+ * Immutable rules apply: `.env`, `**\/.ssh/**`, credentials, etc. cannot be written
+ * to even with a wide allow-list.
+ */
+export function checkWritePath(
+  filePath: string,
+  writeRoot: string,
+  allowedWritePaths: string[] | undefined,
+  config?: FilesystemSecurityConfig
+): FilesystemCheckResult {
+  return checkJailedPath(filePath, writeRoot, allowedWritePaths, config, 'data')
+}
+
 function classifyAlert(name: string, _opType: 'source' | 'data'): FilesystemCheckResult {
   for (const pattern of FILESYSTEM_ALWAYS_ALERT_PATTERNS) {
     if (matchGlob(pattern, name)) {
