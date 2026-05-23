@@ -2,14 +2,14 @@
 
 > documentation that cannot lie.
 
-**Version:** 0.0.4  
-**Generated:** 2026-05-17
+**Version:** 0.0.24  
+**Generated:** 2026-05-22
 
 MarkdownAI is a superset of Markdown that makes your documents "live." Instead of writing documentation that drifts from reality the moment your code or data changes, MarkdownAI documents fetch their information directly from the sources that power your application - databases, APIs, the filesystem, environment variables, shell commands - and render fresh, accurate output every time you run them.
 
 The result is documentation that is always current and always honest. When you run `mai render`, the document reflects what your system actually is, not what it was when someone last bothered to update it.
 
-MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes any `.md` file that begins with the `@markdownai` header directive. Everything else in the file is standard Markdown, extended with directives that let you fetch, filter, transform, and display live data. It is organized as a six-package npm monorepo and supports 78 language, security, caching, AI-native, MCP integration, VS Code extension, and @db query system features documented in this manual.
+MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes any `.md` file that begins with the `@markdownai` header directive. Everything else in the file is standard Markdown, extended with directives that let you fetch, filter, transform, and display live data. It is organized as a six-package npm monorepo and supports 83 features across the language, security, caching, AI-native, MCP integration, VS Code extension, and @db query system - all documented in this manual.
 
 ---
 
@@ -43,6 +43,7 @@ MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes 
    - [Standard Library (stdlib)](#standard-library-stdlib)
    - [match Operator — Regex Matching in Expressions](#match-operator---regex-matching-in-expressions)
    - [@note Directive](#note-directive)
+   - [@event Directive](#language---event-directive)
    - **Security**
    - [Security Config, Runtime Modes, Audit Log](#security--config-file-runtime-modes-audit-log)
    - [Filesystem Confinement and Content Masking](#security--filesystem-confinement-and-content-masking)
@@ -58,6 +59,7 @@ MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes 
    - [CLI Complete — All Remaining mai Commands](#cli-complete--all-remaining-mai-commands)
    - **Testing**
    - [E2E Test Suite — Fixture Files and CLI Verification](#e2e-test-suite--fixture-files-and-cli-verification)
+   - [Run-State Tests - Pre-Publish Verification](#run-state-tests---pre-publish-verification)
    - **AI-Native Features**
    - [AI — Consumer-Targeted Conditional Rendering](#ai--consumer-targeted-conditional-rendering-planned--not-yet-implemented)
    - [AI — @prompt Directive](#ai--prompt-directive-embedded-ai-instructions)
@@ -86,7 +88,8 @@ MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes 
    - [Hover Provider](#vs-code-extension---hover-provider)
    - [Go-To-Definition for Macros](#go-to-definition-for-macros)
    - [Find All References for Macros](#find-all-references-for-macros)
-   - [Diagnostics Provider](#diagnostics-provider)
+   - [Diagnostics Provider](#vs-code-extension---diagnostics)
+   - [Live Preview](#vs-code-extension---live-preview)
    - [Extension Settings](#extension-settings)
    - [Extension Test Suite](#extension-test-suite)
    - [README and Marketplace Metadata](#readme-and-marketplace-metadata)
@@ -106,8 +109,11 @@ MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes 
    - **Toolchain**
    - [Engine Bug Fixes](#engine-bug-fixes)
    - [Package README Files - All npm Packages](#package-readme-files---all-npm-packages)
-3. [Command Reference](#command-reference)
-4. [Configuration Reference](#configuration-reference)
+   - [Directive Execution Tracing (dev tooling)](#engine---directive-execution-tracing-dev-tooling)
+3. [Operations](#operations)
+   - [Release Runbook](#release-runbook)
+4. [Command Reference](#command-reference)
+5. [Configuration Reference](#configuration-reference)
 
 ---
 
@@ -179,148 +185,251 @@ This report was generated on {{ @date format="YYYY-MM-DD" }}.
 <!-- /mdd-section: 01-parser -->
 
 <!-- mdd-section: 02-renderer -->
-### Renderer — Output Format Modules
+### Renderer - Output Format Modules
 
-The Renderer takes data from your document's live data sources and turns it into clean, readable markdown. It supports eleven different output formats — from simple lists and tables to ASCII charts — so your documents look great everywhere: terminals, AI tools, email, and plain text viewers alike.
-
-#### What It Does
-
-When your `mai` document fetches data from a database, API, or pipeline, the Renderer decides how to display it. You choose a format — table, bar chart, tree, timeline, and more — and the Renderer produces fully-formatted markdown output automatically. Every visualization is rendered in plain ASCII, meaning no external charting libraries, no JavaScript, and no browser required. Your documents render correctly in any context that can display text.
-
-#### How To Use It
-
-In your MarkdownAI document, specify the output format in your data block using the `type` field. The Renderer will automatically handle the rest when `mai` processes the document.
-
-Available format types:
-
-| Format | What It Produces |
-|---|---|
-| `list` | Unordered bullet list |
-| `numbered` | Ordered numbered list |
-| `links` | List of clickable markdown links |
-| `table` | Grid table with headers and rows |
-| `code` | Fenced code block (language auto-detected) |
-| `inline` | Plain text, no wrapping — for embedding a value in a sentence |
-| `bar` | Horizontal ASCII bar chart |
-| `flow` | ASCII flow diagram with arrows between steps |
-| `tree` | ASCII indented tree for nested data |
-| `timeline` | Left-to-right ASCII timeline |
-| `json` | Pretty-printed JSON in a fenced code block |
-
-#### Examples
-
-Render a query result as a table:
-```
-type: table
-```
-
-Render numeric data as a horizontal bar chart:
-```
-type: bar
-```
-
-Render a process or workflow as a flow diagram:
-```
-type: flow
-```
-
-Embed a single scalar value directly into surrounding text:
-```
-type: inline
-```
-
-<!-- /mdd-section: 02-renderer -->
-
-<!-- mdd-section: 03-engine -->
-### Engine — AST Execution
-
-The Engine is the brain of MarkdownAI — it reads your document, runs every live directive in it, and assembles the final output. It solves the core problem of making a document "execute": fetching data, evaluating conditions, expanding macros, and running pipelines all happen here, in the right order, every time.
+The renderer takes data piped from a directive and turns it into formatted markdown output. It supports eleven output formats, from plain lists and tables to ASCII charts and diagrams. Every format renders as plain text - no images, no JavaScript, no external dependencies.
 
 #### What It Does
 
-When you run `mai`, the Engine takes your parsed document and walks through it from top to bottom, resolving each piece into its final value. Environment variables are looked up in a predictable priority order (system environment first, then any `--env` file you provide, then fallbacks declared in your imports, then inline fallbacks, then blank). Macros you define with `@define` get expanded wherever they are called. Conditional blocks (`@if`) are evaluated and only the matching branch is included in the output. Data pipelines run their stages in sequence — filtering, sorting, slicing — and return the final result. The Engine also manages caching so repeated runs avoid redundant fetches.
+When you pipe data through a MarkdownAI directive, the renderer decides how that data appears in the final document. You pick a format type, and the renderer handles the layout. A list of database rows can become a markdown table, a bar chart, a JSON block, or a flow diagram - same data, different shape. All visual formats (bar charts, flow diagrams, timelines, trees) use ASCII characters, so they display correctly in terminals, AI context windows, email clients, and anywhere plain text is readable.
 
 #### How To Use It
 
-The Engine runs automatically whenever you execute any `mai` command — you do not invoke it directly. Everything you write in your `.md` document (directives, macros, conditionals, pipes) is processed by the Engine at render time.
+Specify a format using the `--format` flag on a data directive. The renderer takes the piped output and wraps it in the chosen layout before writing it into your document.
 
-To control which section of a document runs, use phases. Define phases in your document and pass the active phase when running `mai` — only nodes tagged for that phase (or untagged nodes) will execute.
-
-Caching is built in. Session cache keeps results in memory for the duration of a single run. Persistent cache saves results to disk so subsequent runs skip unchanged fetches. Pass a `cache=` option on any directive to opt in, or use `mock=` to replay a saved response without hitting the real source.
-
-#### Examples
-
-Run a document and let the Engine resolve all directives automatically:
 ```
-mai render my-report.md
+@db query="SELECT name, score FROM results" --format=bar
 ```
 
-Run only a specific phase of a document:
-```
-mai render my-report.md --phase production
-```
+For tabular data, you can also pass column names:
 
-Override environment variables for a run:
 ```
-mai render my-report.md --env .env.staging
+@db query="SELECT name, email FROM users" --format=table --columns="Name,Email"
 ```
 
-Use an inline fallback so a missing variable never causes an error:
-```
-@{MY_VAR fallback=default-value}
-```
+The format types are:
 
-<!-- /mdd-section: 03-engine -->
-
-<!-- mdd-section: 04-cli-core -->
-### CLI Core — mai render, validate, parse, eval
-
-The `mai` command is the entry point for all MarkdownAI operations. It gives you four essential commands to render live documents, check them for errors, inspect their structure, and test expressions — all from your terminal.
-
-#### What It Does
-
-The CLI turns MarkdownAI documents into useful output without requiring any code. You can render a document to see its final result with all data fetched and directives resolved, validate a document to catch problems before sharing it, inspect the raw parsed structure as JSON for debugging, or quickly evaluate a single expression against your environment. Every command shares a common set of flags so the experience is consistent regardless of what you're doing.
-
-#### How To Use It
-
-Run any command with `mai <command> <file>`. All commands accept a shared set of flags:
-
-- `--env <file>` — load a `.env` file to supply environment variables to the document
-- `--cwd <path>` — run as if you were in a different directory
-- `--verbose` — show warnings in the terminal output
-- `--strict` — treat warnings as errors and stop on any security issue
-- `--silent` — suppress all output except fatal errors and security alerts
-
-For `mai render`, add `-o <path>` to write the result to a file instead of printing to the terminal.
-
-For `mai parse`, add `--node <type>` to filter results to a specific node type, and `--pretty` to format the JSON output for readability.
-
-For `mai eval`, pass an expression in quotes directly as the argument instead of a file path.
+- `list` - unordered markdown bullet list
+- `numbered` - ordered numbered list
+- `links` - list of clickable markdown links
+- `table` - GFM pipe table with header row and alignment dashes
+- `code` - fenced code block (language auto-detected from content when possible)
+- `inline` - data joined as a plain string, no wrapping, for embedding a value mid-sentence
+- `bar` - horizontal ASCII bar chart using block characters
+- `flow` - ASCII flow diagram with left-to-right arrows
+- `tree` - indented ASCII tree using branch characters
+- `timeline` - left-to-right ASCII timeline with arrow connectors
+- `json` - pretty-printed JSON in a fenced code block
 
 #### Commands
 
 | Command | Description | Flags |
 |---------|-------------|-------|
-| `mai render <file>` | Executes the document and prints the fully rendered markdown to stdout | `-o <path>` to write to a file |
-| `mai validate <file>` | Checks the document for errors and warnings without producing output; exits with code 1 if errors are found | `--strict` to treat warnings as errors |
-| `mai parse <file>` | Parses the document and outputs its internal structure as JSON | `--node <type>`, `--pretty` |
-| `mai eval "<expression>"` | Evaluates a single expression against the current environment and prints the result | `--env <file>` |
+| `--format=<type>` | Sets the output format for the directive | Required to use any format other than the default |
+| `--columns="A,B,C"` | Names the columns when rendering tabular data | Used with `table` format |
+
+#### Configuration
+
+No global configuration is needed. Format is set per-directive. If you omit `--format`, the renderer falls back to the directive's default output behavior.
+
+The `inline` format is the only one that produces no markdown wrapping at all - it joins all values with a space and inserts them directly. Use it when you want a live value inside a sentence rather than as a block element.
 
 #### Examples
 
-Render a document and save the result to a file:
+**Bar chart from a query result:**
+
 ```
-mai render report.md -o output.md
+@db query="SELECT label, value FROM metrics" --format=bar
 ```
 
-Check a document for problems before sharing it, treating all warnings as errors:
+Renders as fixed-width horizontal bars, labels left-aligned, bars scaled to the largest value.
+
+**Markdown table with named columns:**
+
 ```
-mai validate report.md --strict
+@http url="https://api.example.com/users" --format=table --columns="ID,Name,Role"
 ```
 
-Test whether a directory exists in your project:
+Produces a GFM pipe table ready for any markdown renderer.
+
+**Inline scalar value embedded in prose:**
+
 ```
+The current version is @env var="APP_VERSION" --format=inline, released last week.
+```
+
+The env value drops directly into the sentence with no surrounding list or block.
+
+**ASCII tree for a nested structure:**
+
+```
+@read path="./config.json" --format=tree
+```
+
+Renders the JSON structure as an indented tree using `├──`, `└──`, and `│` characters.
+
+<!-- /mdd-section: 02-renderer -->
+
+<!-- mdd-section: 03-engine -->
+### Engine - AST Execution
+
+The engine is what makes a MarkdownAI document "live." When you run `mai render`, the engine walks the AST the parser produced and resolves every node - fetching values, expanding macros, evaluating conditions, running pipes - until the whole document is a flat string of output.
+
+#### What It Does
+
+The engine processes each node in order and produces a string. Static markdown passes through unchanged. Directives get executed: environment variables are resolved, conditionals pick a branch, macros expand inline, phases filter which sections run, and pipe commands chain together to transform data. The result is always a fully rendered document with no unresolved syntax left over.
+
+Security checks run before every execution - file paths, shell commands, HTTP URLs, and database operations are all validated before the engine touches them. Expression evaluation uses `vm.runInNewContext`, never `eval()`.
+
+#### How To Use It
+
+**Environment resolution**
+
+When a directive references a variable, the engine looks it up in this order - the first match wins:
+
+1. `process.env` (always wins, cannot be overridden)
+2. Values from `--env` files you pass on the CLI
+3. The `@import` fallback registry (values registered by `@import` directives)
+4. The `fallback=` attribute on the directive itself
+5. Empty string - unresolved variables never cause an error by default
+
+To override a value for a single render without changing your environment:
+
+```
+mai render doc.md --env .env.staging
+```
+
+**Caching**
+
+The engine has two cache layers. The session cache lives in memory and avoids re-executing the same directive twice in one render pass. The persist cache writes to `~/.markdownai/cache/` and survives across runs.
+
+Cache keys are computed from the directive type and its options, so changing any option invalidates the entry automatically. Sensitive values are masked before anything is written to disk.
+
+Use `--cache=persist` to opt into disk caching, or `--cache=mock` during development to read from a fixture file instead of executing the directive at all.
+
+**Pipe commands**
+
+Pipe stages chain after any directive that produces text output. The built-in commands run as pure Node.js - no shell is spawned, so they work the same on Windows and Unix:
+
+- `grep <pattern>`, `grep -v <pattern>`, `grep -i <pattern>`
+- `sort`, `sort -r`, `sort -n`, `sort -rn`
+- `head -n N`, `tail -n N`
+- `wc -l`
+- `uniq`
+
+Shell commands like `awk` and `jq` are also supported but require a Unix/WSL environment.
+
+**Phase filtering**
+
+Wrap content in `@phase` blocks to make sections conditional on the active phase. The engine only walks a phase block if it matches the current phase - everything else is silently skipped. Set the active phase via context or the `--phase` flag.
+
+#### Examples
+
+Resolve an env variable with a fallback:
+
+```markdown
+@markdownai v1.0
+
+Server: @env DATABASE_HOST fallback=localhost
+```
+
+Filter log lines and keep only errors:
+
+```markdown
+@markdownai v1.0
+
+@read logs/app.log | grep ERROR | tail -n 20
+```
+
+Use a phase to show deployment notes only in the `deploy` phase:
+
+```markdown
+@markdownai v1.0
+
+@phase deploy
+  @note visible
+    Deployment checklist goes here.
+  @end
+@end
+```
+
+Cache an HTTP call to disk so repeated renders stay fast:
+
+```markdown
+@markdownai v1.0
+
+@http https://api.example.com/status cache=persist ttl=300
+```
+
+<!-- /mdd-section: 03-engine -->
+
+<!-- mdd-section: 04-cli-core -->
+### CLI Core - mai render, validate, parse, eval
+
+The `mai` binary is the main entry point for MarkdownAI. It ships four commands that cover the full document lifecycle: rendering live output, validating before you commit, inspecting the parsed AST, and testing expressions on the spot.
+
+#### What It Does
+
+Every `mai` command reads a MarkdownAI document, processes its directives, and gives you back something useful - rendered markdown, a validation report, raw JSON, or the result of a single expression. The four commands map to four stages of working with a document: you render it to see output, validate it to catch problems, parse it to inspect structure, and eval to test logic.
+
+All four commands share a common set of flags that control environment loading, working directory, and output verbosity.
+
+#### How To Use It
+
+Run any command with a file path and optional flags. Rendered output goes to stdout by default - pipe it, redirect it, or use `-o` to write directly to a file. Validation exits with a non-zero code if errors are found, so it integrates cleanly into CI pipelines. Parse output is JSON, which you can pipe into `jq` or any other tool. Eval takes a quoted expression string and prints the result.
+
+#### Commands
+
+| Command | Description | Key Flags |
+|---------|-------------|-----------|
+| `mai render <file>` | Execute the document and print rendered markdown | `-o <path>`, `--strict`, `--verbose` |
+| `mai validate <file>` | Check the document for errors and warnings without rendering | `--strict` |
+| `mai parse <file>` | Print the parsed AST as JSON | `--node <type>`, `--pretty` |
+| `mai eval "<expression>"` | Evaluate a single expression against the current environment | `--env <file>` |
+
+**Universal flags** (work on every command):
+
+| Flag | Effect |
+|------|--------|
+| `--env <file>` | Load a `.env` file before running |
+| `--cwd <path>` | Override the working directory |
+| `--verbose` | Print warnings to the terminal |
+| `--strict` | Treat warnings as errors, halt on jailed directives |
+| `--silent` | Suppress all output except fatal errors and security alerts |
+| `--version` | Print the installed version |
+| `--help` | Print help text |
+
+#### Examples
+
+Render a document and write the output to a file:
+
+```bash
+mai render docs/status.md -o docs/status-rendered.md
+```
+
+Validate before pushing to CI - exits 1 if anything is wrong:
+
+```bash
+mai validate docs/status.md --strict
+```
+
+Check what the parser sees for a specific node type:
+
+```bash
+mai parse docs/status.md --node env --pretty
+```
+
+Test whether a path exists before wiring it into a document:
+
+```bash
 mai eval "file.exists './src/enterprise/'"
+# false
+```
+
+Load a specific env file for a one-off render:
+
+```bash
+mai render report.md --env .env.production -o report-prod.md
 ```
 
 <!-- /mdd-section: 04-cli-core -->
@@ -330,91 +439,96 @@ mai eval "file.exists './src/enterprise/'"
 ### Language Features
 
 <!-- mdd-section: 05-lang-header -->
-### Language — Header Declaration and Runtime Detection
+### Language - Header Declaration
 
-Every MarkdownAI document begins with `@markdownai` — a single directive that tells the `mai` tool this file is live. This opt-in mechanism requires no special file extension, no config file, and no sidecar.
+The `@markdownai` header on line 1 is the single thing that activates the runtime. Without it, the file is plain markdown. With it, every directive in the document becomes live.
 
 #### What It Does
 
-When you open a `.md` file, `mai` checks whether the first meaningful line starts with `@markdownai`. If it does, the file is treated as a live MarkdownAI document and all its dynamic features - data fetching, pipelines, AI rendering - become active. If that line is absent, `mai` treats the file as plain Markdown and does nothing special. You can also pin a language version (e.g. `@markdownai v1.0`) so the document declares exactly which MarkdownAI features it expects; if your installed version is older, `mai` warns you but continues running.
+The parser reads the first meaningful line of the file. If it starts with `@markdownai`, the file is processed as a MarkdownAI document and all directives are executed. If that line is missing or placed anywhere else, the file is treated as plain markdown - no directives run, no errors, no output change.
+
+You can pin a version with `@markdownai v1.0`. If the installed `mai` version is older than the pin, it logs a warning and continues processing rather than failing. This lets you signal intent without breaking older installs.
 
 #### How To Use It
 
-To make any Markdown file live, add `@markdownai` as the very first line - before any blank lines, headings, or other content. That single addition is all it takes.
+**New file:** Make `@markdownai` (or `@markdownai v1.0`) the very first line, then write the rest of your document below it.
 
-If your file has YAML frontmatter (a `---` block at the top), place `@markdownai` as the first line after the closing `---`. The parser skips the frontmatter block automatically before looking for the declaration.
+**Existing markdown file:** Insert `@markdownai` as line 1. Nothing else in the file needs to change.
 
-To pin a specific version, append the version after the declaration: `@markdownai v1.0`. This is optional but recommended for documents that depend on specific language features.
+**File with YAML frontmatter:** If your file starts with `---`, keep the frontmatter block intact and place `@markdownai` on the first non-blank line after the closing `---`. The parser skips frontmatter automatically and checks that line.
 
-To remove MarkdownAI from a file, delete line 1. The rest of the document stays untouched.
+**Removing MarkdownAI from a file:** Delete the `@markdownai` line. The rest of the file renders as ordinary markdown.
 
 #### Examples
 
-Enable MarkdownAI with no version pin:
-```
+A minimal MarkdownAI file:
+
+```md
 @markdownai
 
-# My Document
+## My Document
+
+@env NODE_ENV
 ```
 
-Enable MarkdownAI and pin to version 1.0:
-```
-@markdownai v1.0
+A file with YAML frontmatter (common in Jekyll or Hugo projects):
 
-# My Document
-```
-
-With YAML frontmatter (compatible with Claude Code skills, Jekyll, Hugo, etc.):
-```
+```md
 ---
-title: My Document
+title: Config Report
+date: 2024-01-15
 ---
 @markdownai v1.0
 
-# My Document
+## Current Environment
+
+@env APP_ENV
 ```
 
-Remove MarkdownAI from a document (delete only the `@markdownai` line):
-```
-# My Document   <- now the first line; file is plain Markdown again
-```
+In both cases, `mai render <file>` processes the directives. Open the file in a standard markdown viewer and `@markdownai` renders as plain text - no broken output, no errors.
 
 <!-- /mdd-section: 05-lang-header -->
 
 <!-- mdd-section: 06-lang-interpolation -->
-### Language — Inline Interpolation `{{ }}`
+### Language - Inline Interpolation {{ }}
 
-Inline interpolation lets you embed live values directly inside your prose using double curly braces. Instead of writing static text that goes stale, you pull in real data — environment variables, dates, file contents, or computed values — right where the words are.
+Wrap any expression in `{{ }}` to embed a live value directly inside a sentence. The value is evaluated at render time and dropped in place - no block directives, no line breaks, just the result sitting naturally in your prose.
 
 #### What It Does
 
-Anywhere in your document, you can wrap an expression in `{{ }}` and `mai` replaces it with the live result when the document renders. This works inside paragraphs, headings, list items, and table cells. It does not activate inside code blocks or inline code spans, so your code examples stay untouched. If an expression cannot be resolved, it quietly becomes an empty string and logs a warning — your document still renders cleanly.
+The double-curly syntax gives you the full expression engine right inside a paragraph. You can pull environment variables, read file metadata, check dates, count files, or run ternary logic - all without leaving the flow of your text. The same expressions that power `@if` conditions work here identically.
+
+If an expression can't be resolved, it outputs an empty string and logs a warning. It never crashes the render or leaves raw syntax in your output.
 
 #### How To Use It
 
-Write `{{ expression }}` inline wherever you want a live value to appear. The expression can reference environment variables, read files, count files matching a pattern, format dates, or test whether a file exists. You can also use conditional logic inline: a ternary `condition ? "yes" : "no"` picks between two values, `??` provides a fallback if the value is missing, and `?.` safely chains into optional properties. To render a literal `{{` in your output, escape it as `\{{`.
+Put `{{ expression }}` anywhere in a line of prose. The braces and everything between them get replaced with the evaluated result.
+
+To write a literal `{{` in your output, escape it with a backslash: `\{{`.
+
+Interpolation is **ignored** inside fenced code blocks (triple backtick) and inline backtick spans, so your code examples stay clean.
 
 #### Examples
 
-Show the current year inline:
+**Show an environment variable inline:**
 ```
-This report was generated in {{ date format="YYYY" }}.
+This service connects to {{ env.API_URL ?? "http://localhost:3000" }}.
 ```
+Outputs: `This service connects to https://api.example.com.`
+Falls back to localhost if `API_URL` is not set.
 
-Use an environment variable with a fallback:
+**Check which environment you're running in:**
 ```
-API endpoint: {{ env.API_URL ?? "http://localhost:3000" }}
+You are running in {{ file.exists "./config/prod.json" ? "production" : "development" }} mode.
 ```
+Reads the filesystem at render time and picks the right word - no manual updates needed when you switch environments.
 
-Switch text based on whether a file exists:
-```
-Running in {{ file.exists "./config/prod.json" ? "production" : "development" }} mode.
-```
-
-Show the version from `package.json`:
+**Pull a value from package.json:**
 ```
 Current version: {{ read ./package.json path="version" }}
 ```
+Outputs: `Current version: 1.4.2`
+The version in your docs always matches the one in your package - because it *is* the one in your package.
 
 <!-- /mdd-section: 06-lang-interpolation -->
 
@@ -828,59 +942,117 @@ Pull an environment variable from a `.env` file:
 <!-- /mdd-section: 15-lang-sources-read -->
 
 <!-- mdd-section: 16-lang-sources-utilities -->
-### Language — @tree, @date, @count Utility Directives
+### Language - @tree, @date, @count Utility Directives
 
-Three built-in utility directives let your documents automatically display live directory structures, inject current or file-modified dates, and count files — all without any external scripts or manual updates. Together they solve the problem of documentation that goes stale the moment something on disk changes.
+Three small directives that handle things you'd otherwise hardcode and forget to update: directory structure, timestamps, and file counts. Each one pulls live data at render time so your docs stay accurate without manual maintenance.
 
 #### What It Does
 
-The `@tree` directive renders a visual ASCII directory tree directly in your document, always reflecting the actual state of your filesystem. The `@date` directive stamps your document with the current date and time, or looks up when a specific file was last modified. The `@count` directive tallies how many files or folders match a pattern in a given directory — useful for showing metrics like "47 TypeScript files in this package" without ever touching the number by hand.
+`@tree` renders an ASCII directory tree for any path in your project. `@date` injects the current time - or a file's last-modified time - in whatever format you need. `@count` tallies files or directories that match a glob pattern. All three are read-only and subject to the same filesystem confinement rules as `@read` and `@include`.
 
 #### How To Use It
 
-Place any of the three directives on its own line in your MarkdownAI document. When `mai` renders the document, each directive is replaced with live output.
+**@tree**
 
-**@tree** — show a directory listing:
 ```
 @tree ./src/ depth=2 match="*.ts"
 ```
-Use `depth` to limit how many folder levels are shown, and `match` to filter by file pattern.
 
-**@date** — insert a date or timestamp:
+- `depth` limits how many levels down it descends (omit for full tree)
+- `match` filters entries by glob - only matching files appear
+- Output uses standard ASCII box characters: `├──`, `└──`, `│`
+
+Useful in architecture docs where you want the actual current structure, not a diagram you drew months ago.
+
+**@date**
+
 ```
+@date
 @date format="YYYY-MM-DD"
-@date file="./CHANGELOG.md" type="modified"
+@date file="./src/parser.ts" type="modified"
 ```
-Use `format` to control how the date looks. Use `file` + `type="modified"` to show when a specific file was last changed.
 
-**@count** — count files or directories:
+Without arguments, `@date` outputs the current date and time in ISO 8601 format. Add `format` to control the output using these tokens:
+
+| Token | Output |
+|-------|--------|
+| `YYYY` | Full year |
+| `MM` | Month (zero-padded) |
+| `DD` | Day (zero-padded) |
+| `HH` / `hh` / `h` | Hour (24h / 12h padded / 12h no pad) |
+| `mm` | Minutes |
+| `ss` | Seconds |
+| `A` / `a` | AM/PM / am/pm |
+| `zzz` / `z` | Timezone abbreviation (e.g. UTC, EST) |
+| `Z` / `ZZ` | Offset as +HH:mm / +HHmm |
+| `X` / `x` | Unix seconds / milliseconds |
+| `ISO` | Full ISO 8601 |
+| `date` | YYYY-MM-DD shorthand |
+
+The `file` option combined with `type="modified"` gives you the last-modified timestamp for a specific file. `type` defaults to `current` - there is no `created` option. If you use `type="created"`, the parser throws an error: `created is unreliable on Linux; use git log instead`.
+
+To get a file's creation date from git history, use:
+
 ```
+@query "git log --follow --format=%aI --diff-filter=A -- ./src/parser.ts | tail -1"
+```
+
+You can also use `@date` inline inside expressions:
+
+```
+Last updated: {{ date format="MMMM DD, YYYY" }}
+```
+
+**@count**
+
+```
+@count ./src/ match="**/*.ts"
 @count ./src/ match="**/*.ts" type=files
+@count ./tests/ match="**/" type=dirs
 ```
-Use `type=files`, `type=dirs`, or `type=both` to control what gets counted.
 
-All three directives also work inline inside double-curly-brace expressions:
+`type` accepts `files` (default), `dirs`, or `both`. Use this to show live file counts in docs - for example, how many source files are in a package or how many test suites exist.
+
+For counting rows in JSON, CSV, or database results, pipe through `wc -l` instead:
+
 ```
-There are {{ count ./src/ match="**/*.ts" }} TypeScript files.
-Last updated: {{ date format="YYYY-MM-DD" }}.
+@query "cat ./data/records.csv | wc -l"
+```
+
+Inline use works the same way:
+
+```
+This package contains {{ count ./src/ match="**/*.ts" }} TypeScript files.
 ```
 
 #### Examples
 
-Show the top two levels of a project's source folder, filtered to TypeScript files only:
+**Project structure in an architecture doc:**
+
 ```
-@tree ./packages/ depth=2 match="*.ts"
+## Source Layout
+
+@tree ./packages/ depth=2
 ```
 
-Stamp a document with today's date in ISO format:
+Renders the live directory tree every time the doc is built - no stale diagrams.
+
+**Auto-updating changelog header:**
+
 ```
-@date format="YYYY-MM-DD"
+# Changelog
+
+Last generated: @date format="YYYY-MM-DD HH:mm z"
 ```
 
-Display a live file count inline within a sentence:
+**Test suite coverage note:**
+
 ```
-This package contains {{ count ./src/ match="**/*.ts" }} source files.
+The test suite currently covers {{ count ./src/ match="**/*.ts" }} source files
+across {{ count ./tests/ match="**/" type=dirs }} test suites.
 ```
+
+Both counts update automatically as files are added or removed.
 
 <!-- /mdd-section: 16-lang-sources-utilities -->
 
@@ -1231,111 +1403,163 @@ mai render report.md --allow-traversal ../shared-data/
 <!-- /mdd-section: 23-security-filesystem -->
 
 <!-- mdd-section: 24-security-shell -->
-### Security — Shell Execution Jail (@query)
+### Security - Shell Execution Jail (@query)
 
-The shell execution jail controls exactly which shell commands your MarkdownAI documents are allowed to run via `@query`. It works on an allowlist-first basis — every command is blocked by default unless you explicitly permit it — so your documents can never run unexpected or dangerous commands.
+The shell execution jail controls which commands `@query` is allowed to run. By default, shell execution is completely disabled - nothing runs until you explicitly turn it on and define what's permitted. The jail uses an allowlist-first model, so commands are blocked unless they match a pattern you approve.
 
 #### What It Does
 
-When a MarkdownAI document uses `@query` to run a shell command, the engine checks that command against your security configuration before executing it. Shell execution is disabled entirely by default, so documents cannot run any commands until you opt in. Once enabled, you define glob patterns for commands you want to allow (such as `git log *`), and optionally patterns for commands you always want to deny (such as `rm *`). Deny rules always win over allow rules. Built-in always-block and always-alert patterns are also enforced regardless of your configuration.
+When a document contains an `@query` directive, the engine checks the command against three layers before running anything:
+
+1. **Built-in blocks** - A hardcoded list of always-blocked and always-alerted patterns that cannot be overridden by any config. These catch commands like credential theft, metadata endpoint access, and destructive system calls.
+2. **Deny patterns** - Your configured `deny_patterns` list. A match here blocks the command, even if it also matches an allow pattern. Deny wins.
+3. **Allow patterns** - Your configured `allow_patterns` list. The command must match at least one pattern here to proceed.
+
+If shell is disabled (`"enabled": false`), all `@query` directives are stripped from output silently. No commands run, no errors - the directive just produces nothing.
 
 #### How To Use It
 
-1. Enable shell execution in your security configuration file — it is off by default.
-2. Add allowlist patterns for the specific commands your documents need to run.
-3. Optionally add deny patterns for commands you want to block even if they match the allowlist.
-4. Use `mai security shell test` to verify whether a specific command would be allowed or blocked before relying on it in a document.
-5. Review the audit log periodically to see what commands have been executed.
+Enable shell execution and configure your allowlist through the `mai security shell` commands or by editing your security config directly. Start with the most specific patterns you can - `git log --oneline *` rather than `git *` - and only broaden if you need to.
+
+The config lives in the security section of your project config:
+
+```json
+{
+  "shell": {
+    "enabled": true,
+    "allow_patterns": ["git log *", "npm audit *"],
+    "deny_patterns": ["rm *"],
+    "allow_network": false,
+    "require_confirmation": false,
+    "audit_log": true
+  }
+}
+```
+
+Before adding a pattern to production use, test it with `mai security shell test`. The command exits with code 0 if allowed and code 1 if blocked, so you can use it in scripts and CI checks.
 
 #### Commands
 
-| Command | Description |
-|---|---|
-| `mai security shell enable` | Turn on shell execution (disabled by default) |
-| `mai security shell add "git log *"` | Add a glob pattern to the allowlist |
-| `mai security shell remove "git log *"` | Remove a pattern from the allowlist |
-| `mai security shell list` | Show all current allowlist and deny patterns |
-| `mai security shell test "git log --oneline -1"` | Check whether a specific command is ALLOWED or BLOCKED, and why |
+| Command | Description | Flags |
+|---------|-------------|-------|
+| `mai security shell enable` | Turn on shell execution | - |
+| `mai security shell add "<pattern>"` | Add a glob pattern to the allowlist | - |
+| `mai security shell remove "<pattern>"` | Remove a pattern from the allowlist | - |
+| `mai security shell list` | Show current allowlist and deny patterns | - |
+| `mai security shell test "<command>"` | Test whether a command would be allowed or blocked, with reason | Exits 1 if blocked |
 
 #### Configuration
 
-| Option | Default | Description |
-|---|---|---|
-| `shell.enabled` | `false` | Master switch — all `@query` shell directives are stripped when false |
-| `shell.allow_patterns` | `[]` | Glob patterns for commands that are permitted to run |
-| `shell.deny_patterns` | `[]` | Glob patterns for commands that are always blocked (deny wins over allow) |
-| `shell.allow_network` | `false` | Whether shell commands are permitted to make network calls |
-| `shell.require_confirmation` | `false` | Prompt the user to confirm before each command runs |
-| `shell.audit_log` | `true` | Record all command execution attempts to the audit log |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | boolean | `false` | Master switch. When false, all `@query` directives are stripped. |
+| `allow_patterns` | string[] | `[]` | Glob patterns a command must match to run. |
+| `deny_patterns` | string[] | `[]` | Glob patterns that block a command, checked after the allowlist. Deny always wins. |
+| `allow_network` | boolean | `false` | Whether commands in `@query` can make network calls. |
+| `require_confirmation` | boolean | `false` | Prompt for user confirmation before each command runs. |
+| `audit_log` | boolean | `true` | Write a log entry for every command attempt - allowed or blocked. |
 
 #### Examples
 
-Enable shell access and allow Git log commands:
+**Check what a git command would do before adding it:**
+
+```bash
+mai security shell test "git log --oneline -1"
+# → ALLOWED: matches pattern "git log *"
+
+mai security shell test "git push origin main"
+# → BLOCKED: no matching allow pattern
+# exit code: 1
 ```
+
+**Set up a read-only git + audit workflow:**
+
+```bash
 mai security shell enable
 mai security shell add "git log *"
+mai security shell add "git diff *"
+mai security shell add "git status"
 mai security shell add "npm audit *"
 ```
 
-Test whether a command your document needs will actually be permitted:
-```
-mai security shell test "git log --oneline -5"
-# → ALLOWED: matches allow_pattern "git log *"
-
-mai security shell test "rm -rf /tmp/cache"
-# → BLOCKED: matches deny_pattern "rm *"
-```
+With this config, a document can report on recent commits, show diffs, and surface dependency vulnerabilities - but cannot push, install, or delete anything.
 
 <!-- /mdd-section: 24-security-shell -->
 
 <!-- mdd-section: 25-security-database -->
-### Security — Database Query Jail (@db)
+### Security - Database Query Jail (@db)
 
-The Database Query Jail controls exactly which database operations your live documents are allowed to run. It keeps your data safe by making database access read-only by default and blocking dangerous commands — so a document can never accidentally (or maliciously) delete, modify, or expose data it shouldn't touch.
+The database query jail controls exactly which operations your `@db` directives can run. Each connection gets its own config, and every connection starts readonly by default. If a query tries to mutate data, it gets blocked before it ever touches the database.
 
 #### What It Does
 
-Every database connection used in a MarkdownAI document runs through a security jail before any query executes. The jail checks the operation against an allowlist of permitted commands, a blocklist of forbidden keywords, and an optional allowlist of specific collections or tables. Destructive operations — like dropping tables, deleting records, or granting database privileges — are always blocked, regardless of your configuration.
+When a document contains a `@db` directive, the engine checks the query against three layers of rules before executing:
+
+1. **Always-blocked patterns** - hardcoded, cannot be overridden. These cover destructive operations like `DROP DATABASE`, `TRUNCATE`, `deleteMany()`, `db.admin()`, and shutdown commands.
+2. **Denied keywords** - your own list of patterns to block per connection.
+3. **Allowed operations** - an explicit whitelist of permitted operations. If `allowed_operations` is set, anything not on the list is blocked.
+
+Optionally you can restrict which collections a connection may touch via `allowed_collections`. Queries targeting unlisted collections are rejected.
 
 #### How To Use It
 
-Use the `mai security db` commands to configure and test database security for each connection in your project.
+Add a `db` section to your security config for each named connection. The connection name matches the one you reference in `@db` directives. Keep `readonly: true` unless you have a specific reason to allow writes - there are very few cases where a document needs to mutate data.
 
-1. Add a new database connection to the security config: `mai security db add <connection-name>`
-2. Enable or enforce read-only mode for a connection: `mai security db set <connection-name>.readonly true`
-3. Restrict queries to specific collections or tables: `mai security db allow-collection <connection-name> <collection>`
-4. Block additional keywords beyond the built-in defaults: `mai security db deny-keyword <connection-name> <KEYWORD>`
-5. Test whether a specific query would be allowed or blocked before using it in a document: `mai security db test <connection-name> "<query>"`
+Use `mai security db test` to check whether a specific query would be allowed before you deploy a document. This is the fastest way to catch misconfigurations.
 
 #### Commands
 
-| Command | Description |
-|---|---|
-| `mai security db add <connection>` | Add a new connection to the security config |
-| `mai security db set <connection>.<option> <value>` | Set a security option (e.g. `readonly true`, `max_results 500`) |
-| `mai security db allow-collection <connection> <collection>` | Restrict queries to a specific collection or table |
-| `mai security db deny-keyword <connection> <KEYWORD>` | Block an additional SQL/query keyword |
-| `mai security db test <connection> "<query>"` | Test whether a query would be allowed or blocked |
+| Command | Description | Flags |
+|---------|-------------|-------|
+| `mai security db add <connection>` | Add a new jail config for a connection | - |
+| `mai security db set <connection>.<option> <value>` | Set a config value on a connection | - |
+| `mai security db allow-collection <connection> <name>` | Whitelist a collection for the connection | - |
+| `mai security db deny-keyword <connection> <keyword>` | Add a keyword to the deny list | - |
+| `mai security db test <connection> "<query>"` | Test whether a query would be allowed or blocked | - |
 
 #### Configuration
 
-| Option | Description | Default |
-|---|---|---|
-| `allowed_operations` | List of query operations permitted (e.g. `find`, `aggregate`) | All read operations |
-| `denied_keywords` | Additional keywords to block on top of built-in defaults | None |
-| `allowed_collections` | If set, queries are restricted to only these collections/tables | All collections |
-| `readonly` | When `true`, enforces strict read-only access for the connection | `true` |
-| `max_results` | Maximum number of rows/documents a single query may return | `1000` |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `readonly` | boolean | `true` | Block all write operations for this connection |
+| `allowed_operations` | string[] | `[]` (all allowed) | Whitelist of permitted operations. Empty means no whitelist is applied. |
+| `denied_keywords` | string[] | `[]` | Additional keywords to block beyond the built-in always-block list |
+| `allowed_collections` | string[] | `[]` (all allowed) | Restricts queries to named collections only |
+| `max_results` | number | `1000` | Hard cap on the number of results a query can return |
 
 #### Examples
 
-Test whether a query is safe before embedding it in a document:
-```
-mai security db test primary "db.users.find()"
-→ ALLOWED
+**Basic readonly connection** - allow read operations on specific collections:
 
-mai security db test primary "db.users.deleteMany({})"
-→ BLOCKED — operation matches always-blocked pattern: db.*.deleteMany()
+```json
+{
+  "db": {
+    "primary": {
+      "readonly": true,
+      "allowed_operations": ["find", "aggregate", "countDocuments"],
+      "allowed_collections": ["products", "orders"],
+      "max_results": 1000
+    }
+  }
+}
+```
+
+Test a query against it:
+
+```bash
+mai security db test primary "db.users.find()"
+# BLOCKED - collection 'users' is not in allowed_collections
+
+mai security db test primary "db.products.find({ active: true })"
+# ALLOWED
+```
+
+**Adding a custom deny rule** - block any query containing a keyword you want to flag:
+
+```bash
+mai security db deny-keyword primary DISTINCT
+mai security db test primary "db.products.distinct('category')"
+# BLOCKED - denied keyword: DISTINCT
 ```
 
 <!-- /mdd-section: 25-security-database -->
@@ -1488,82 +1712,104 @@ mai cache clear input.md                         # refresh cache when you need f
 <!-- /mdd-section: 28-caching -->
 
 <!-- mdd-section: 29-stripper -->
-### Stripper — mai strip Command
+### Stripper - mai strip Command
 
-The `mai strip` command removes all MarkdownAI syntax from a document, producing clean, standard markdown that is safe to commit, share, or open in any regular markdown viewer. It solves the problem of keeping live documents in sync with static outputs — you get the best of both worlds without locking readers into the MarkdownAI toolchain.
+`mai strip` removes all MarkdownAI syntax from a document and outputs clean, standard markdown. It never executes anything - no network requests, no file reads, no directive evaluation. The result is safe to commit, export, or drop into any markdown renderer that doesn't know about MarkdownAI.
 
-#### What It Does
+**When to use it**
 
-When you run `mai strip`, it reads your MarkdownAI document and strips out every directive — environment variables, database connections, data queries, pipelines, and more — leaving behind only the human-readable text and structure. Conditional sections (like content that varies by environment) are resolved against whatever environment you provide, so the right branch of content is kept and the rest is discarded. Plain markdown content, graph documentation, and passthrough blocks are preserved exactly as written. The command never executes anything — it only removes or resolves syntax.
+Strip a document before publishing it to a wiki, sharing it with someone who doesn't have `mai` installed, or committing a snapshot to git for review. It's also the right step before feeding a document into tools like Pandoc or Docusaurus that process standard markdown.
 
-#### How To Use It
+**Basic usage**
 
-1. Run `mai strip` with your input document as the argument.
-2. Optionally pass an environment file with `--env` so that conditional sections resolve correctly against your real variables.
-3. Optionally specify an output file or directory with `-o`. If omitted, the stripped output is printed to the terminal.
-
-You can strip a single file or an entire folder at once.
-
-#### Commands
-
-| Command | Description |
-|---|---|
-| `mai strip <input.md>` | Strip a single file and print the result |
-| `mai strip <input.md> -o <output.md>` | Strip a single file and save to a new file |
-| `mai strip <input.md> --env <.env.file> -o <output.md>` | Strip with environment variables for correct conditional resolution |
-| `mai strip <./docs/> --env <.env.file> -o <./dist/>` | Strip an entire directory of documents |
-
-#### Examples
-
-Strip a document and preview the output:
 ```bash
-mai strip README.md
-```
+# Strip a single file (outputs to stdout)
+mai strip input.md
 
-Strip for production export with environment-aware conditionals:
-```bash
-mai strip docs/guide.md --env .env.production -o dist/guide.md
-```
+# Strip to a specific output file
+mai strip input.md -o output.md
 
-Strip an entire docs folder into a static output directory:
-```bash
+# Strip with environment variables loaded
+mai strip input.md --env .env.production -o output.md
+
+# Strip an entire directory
 mai strip ./docs/ --env .env.production -o ./dist/
 ```
+
+**What happens to each directive type**
+
+Most directives are simply removed. The `@phase`/`@end` tags come out but the body text between them stays, so your prose survives intact. Graph blocks, plain markdown, and passthrough content pass through unchanged.
+
+Conditionals are the one case where the stripper makes a decision: it evaluates `@if` conditions against the current environment and keeps the matching branch, discarding the rest. The directive tags themselves are removed either way.
+
+Interpolations like `{{ env.VERSION }}` are resolved if the variable is available, or removed if it isn't.
+
+**The conditional trap - always use --env**
+
+Without `--env`, every unset variable evaluates to an empty string, which is falsy. That means every `@if` condition fails and every `@else` branch renders instead. If your document uses conditionals, running `mai strip` without loading an env file will produce a document that looks subtly wrong - and it won't throw an error, just a warning per unset variable.
+
+Before stripping any document that uses conditionals, run:
+
+```bash
+mai validate input.md --env .env.production
+```
+
+This reports all unset variables up front so you know what you're working with before stripping.
+
+**What the stripper never does**
+
+It does not execute directives, register `@define` blocks, read included files, or make any network requests. The output is purely the result of syntax removal plus conditional branch selection. If you need rendered output with live data, use `mai render` instead.
 
 <!-- /mdd-section: 29-stripper -->
 
 <!-- mdd-section: 30-mcp-server -->
-### MCP Server — AI Integration
+### MCP Server - AI Integration
 
-MarkdownAI's MCP Server acts as a bridge between AI assistants (like Claude) and your live documents. It intercepts AI file reads and routes them through the MarkdownAI engine, so AI tools always see resolved, up-to-date document content instead of raw source. The problem it solves: without it, an AI reads a document as plain text and misses all the live data, phases, and macros.
+The `@markdownai/mcp` package runs a Model Context Protocol server that sits between your AI tool and the filesystem. When an AI reads a `.md` file, the server checks for the `@markdownai` header and routes it through the engine instead of returning raw text. Plain markdown files pass through unchanged.
 
-#### What It Does
+#### Starting the server
 
-When an AI assistant opens one of your MarkdownAI documents, the MCP Server steps in and serves it intelligently. For multi-phase documents, it loads only the active phase into the AI's context window at any given time — so a 20-phase document never floods the AI with everything at once. The AI works through each phase in sequence, calling for the next phase only when ready. The server also handles macro resolution, environment variable access, directive execution, and cache invalidation — all exposed as tools the AI can call during a session. Database connections are established once when the server starts and reused across the entire session.
-
-#### How To Use It
-
-Start the MCP server from your project directory using the `mai serve` command. Once running, any AI assistant configured to use it will automatically benefit from lazy phase loading and live document resolution — no extra steps required on your end.
-
-#### Commands
-
-| Command | Description |
-|---|---|
-| `mai serve` | Start the MCP server in the current directory |
-| `mai serve --cwd /path/to/project` | Start the server rooted at a specific project directory |
-| `mai serve --port 3000` | Start the server on a specific port |
-
-#### Examples
-
-Start the server in your current project:
 ```bash
+# Start in the current directory
 mai serve
+
+# Start against a specific project root
+mai serve --cwd /path/to/project
+
+# Use a custom port
+mai serve --port 3000
 ```
 
-Start the server pointing at a different project directory:
-```bash
-mai serve --cwd ~/projects/my-docs
-```
+Connect your AI tool (Claude, Cursor, etc.) to the running server using standard MCP configuration. From that point on, all file reads go through the server automatically.
+
+#### What it enables
+
+**Lazy phase loading** is the main reason to use the MCP server. A document with 20 phases never loads all 20 at once. The AI calls `resolve_phase` to load the active phase, works through it, then calls `next_phase` to advance. Completed phases are not reloaded. The AI's context window only ever contains what is needed right now.
+
+**Live data on read** - directives like `@env`, `@db`, and `@http` are resolved at the moment the AI reads the file. The AI sees actual values, not directive syntax.
+
+**Single DB connection per session** - the server connects to databases once at startup and reuses those connections for every `@db` call in the session.
+
+#### Tools exposed to the AI
+
+| Tool | What it does |
+|------|--------------|
+| `read_file(path)` | Read a file - routes MarkdownAI docs through the engine, passes plain files through |
+| `resolve_phase(file, phase)` | Load and resolve a specific phase into context |
+| `list_phases(file)` | Return the phase list and transition map from `@on complete` declarations |
+| `next_phase(file, current_phase)` | Get the next phase based on `@on complete` transitions |
+| `call_macro(file, macro, args?)` | Resolve a named macro with parameter substitution |
+| `get_env(key, fallback?)` | Resolve an environment variable from the server's environment |
+| `execute_directive(directive)` | Execute a single directive string and return the output |
+| `invalidate_cache(file?, directive?)` | Drop session cache entries so the AI gets fresh data after a known change |
+
+#### Phase sequencing
+
+Phase order comes from `@on complete ->` declarations in the document. The `@graph` directive is for visualization only - the server never consults it for sequencing. If you want a phase to follow another, use `@on complete -> @phase <name>` in the source document.
+
+#### Cache invalidation
+
+If you update a data source mid-session (changed a config file, updated a database record), call `invalidate_cache` to tell the server to drop the relevant entries. The AI gets fresh values on the next read without needing a server restart.
 
 <!-- /mdd-section: 30-mcp-server -->
 
@@ -1755,176 +2001,281 @@ mai render status.md --consumer=ai
 <!-- /mdd-section: 34-ai-consumer-mode -->
 
 <!-- mdd-section: 35-ai-prompt -->
-### AI — @prompt Directive (Embedded AI Instructions)
+### AI - @prompt Directive (planned - not yet implemented)
 
-The `@prompt` directive lets you embed instructions for AI readers directly inside a MarkdownAI document. This solves the problem of needing to guide how an AI tool reasons about your content — domain rules, constraints, and calibration notes — without cluttering the version your human readers see.
+The `@prompt` directive lets you embed instructions for AI readers directly inside a MarkdownAI document. Think of it as a way to annotate a document with context that AI tools should know when reading it - without cluttering the human-readable content.
 
-#### What It Does
+**Syntax**
 
-When you add a `@prompt` block to a document, it carries instructions that shape how AI tools interpret the surrounding content. The block always renders, but its appearance adapts to the audience: AI readers see a structured instruction block they can act on, while human readers see a clean callout note. This means a single document can speak differently to machines and people without you maintaining two separate files.
-
-#### How To Use It
-
-Write a `@prompt` block anywhere in your document using the directive syntax. Give it an optional `role` to signal the purpose of the instruction — valid roles are `context`, `constraint`, `calibration`, and `instruction`. If you omit the role, it defaults to `context`. Close the block with `@end`.
-
-When rendering for an AI reader, pass `consumer=ai` to the `mai` command. When rendering for a human reader, pass `consumer=human` or omit the flag entirely.
-
-#### Examples
-
-**Basic context instruction:**
 ```
+@prompt [role="<role>"]
+  Your instructions here.
+@end
+```
+
+The `role` attribute is optional and defaults to `context`. Valid roles are:
+
+- `context` - background information the AI should keep in mind
+- `constraint` - rules the AI must follow when processing the document
+- `calibration` - guidance on tone, style, or behavior
+- `instruction` - explicit directions for what the AI should do
+
+**How it renders**
+
+The output depends on the `consumer` setting.
+
+When `consumer="ai"`, the block renders as a structured instruction prefix:
+
+```
+[AI INSTRUCTION - context]
+When reading this document, note that all API endpoints require an Authorization header.
+[/AI INSTRUCTION]
+```
+
+When `consumer="human"` (or when `consumer` is not set), the block renders as a styled info callout:
+
+```
+> **Note:** When reading this document, note that all API endpoints require an Authorization header.
+```
+
+The safe default - no `consumer` set - behaves like `human`. This means a document with `@prompt` blocks is always readable and never silently drops content.
+
+**Rules**
+
+- `@prompt` blocks are always rendered. They are never hidden from either consumer type.
+- You can use multiple `@prompt` blocks in a single document.
+- Blocks cannot be nested inside each other.
+- `@prompt` works inside `@define`/`@call` blocks and `@if` blocks.
+- `mai strip` removes `@prompt` blocks entirely, so stripped output contains no AI instructions.
+- When the MCP server renders a document with `consumer="ai"`, `@prompt` blocks appear in AI form.
+
+**Example**
+
+```
+@markdownai v1.0
+
+@prompt role="constraint"
+  Never suggest modifying the authentication flow. It is audited and locked.
+@end
+
 @prompt role="context"
-All API endpoints in this document require an Authorization header
-unless explicitly marked as public.
+  This document covers the v2 API only. v1 endpoints were deprecated in March.
 @end
+
+## API Reference
+
+...
 ```
 
-**Hiding the prompt from human readers:**
-```
-@if consumer="ai"
-@prompt role="calibration"
-Treat all code samples as pseudocode unless the block is marked "production."
-@end
-@end
-```
-
-**Stripping all prompt blocks before publishing:**
-```
-mai strip my-document.md > clean-output.md
-```
+An AI reading this document via the MCP server will see both instruction blocks prepended in structured form before the main content. A human opening the rendered document sees them as callout notes. Either way, nothing is hidden.
 
 <!-- /mdd-section: 35-ai-prompt -->
 
 <!-- mdd-section: 36-ai-context-budget -->
-### AI — Context Budget, Section Priority, and Chunk Boundaries (planned — not yet implemented)
+### AI - Context Budget and Section Priority (planned - not yet implemented)
 
-When you render a MarkdownAI document for an AI system, the output can easily exceed the AI's context window limit. This feature gives you fine-grained control over what gets included when space is tight — you mark sections by importance, set a token budget, and `mai` automatically drops the least important content to fit, without ever cutting a section in half.
+Three directives work together to give you control over how your document behaves when an AI reads it: `@section` marks how important a block of content is, `@chunk-boundary` tells RAG systems where to split the document, and `--budget` on the render command enforces a token limit by dropping low-priority content first.
 
-#### What It Does
+**Why this matters**
 
-Three directives work together to make your documents AI-aware. You wrap content in `@section` blocks and label each one with a priority — `critical`, `high`, `medium`, or `low`. You can also place `@chunk-boundary` markers at logical split points so that RAG pipelines know where one self-contained chunk ends and another begins. When you render with a token budget, `mai` resolves all your data and includes first, then trims from the lowest-priority sections outward until the output fits. Critical sections are never dropped, and no section is ever cut mid-way.
+When you feed a long document to an AI, something gets cut. Without priority hints, the AI or the context window just truncates from the end - your conclusion disappears, your critical warnings vanish. With `@section`, you decide what survives.
 
-#### How To Use It
+For RAG pipelines, splitting on paragraph breaks or arbitrary character counts produces chunks with broken context. `@chunk-boundary` lets you declare the splits at logical boundaries you define, so each chunk stands on its own.
 
-1. Wrap content blocks in your document with `@section priority="..."` and close them with `@end`.
-2. Optionally, place `@chunk-boundary id="..."` markers at natural break points.
-3. Render your document with the `--budget` flag to enforce a token limit.
+**Marking section priority**
 
-#### Commands
+```markdown
+@markdownai v1.0
 
-| Command | Description |
-|---|---|
-| `mai render <file> --budget=<N>` | Render with a token budget of N. Low-priority sections are dropped to fit. |
-| `mai render <file> --budget=<N> --consumer=ai` | Budget enforcement with clean AI output. |
-| `mai render <file> --chunk-map` | Emit a sidecar `.chunks.json` file alongside the rendered output. |
+@section id="overview" priority="critical"
+  ## What This Does
 
-#### Examples
+  This document describes the deployment process for production.
+  Read this section before doing anything else.
+@end
 
-Mark a section as low priority so it is the first to go when space is tight:
+@section id="background" priority="low"
+  ## Historical Context
 
-```
-@section id="appendix" priority="low"
-## Appendix
+  This process evolved from the 2019 manual deployment approach...
+@end
 
-Background reference material that AI assistants rarely need.
+@section id="steps" priority="high"
+  ## Deployment Steps
+
+  1. Run the pre-flight checks
+  2. Tag the release
+  3. Trigger the pipeline
 @end
 ```
 
-Render with a 4,000-token budget for an AI consumer:
+Priority levels from highest to lowest:
+
+- `critical` - never dropped, regardless of budget
+- `high` - dropped only after all `low` and `medium` sections are exhausted
+- `medium` - the default when no priority is specified
+- `low` - dropped first when the budget gets tight
+
+Content that lives outside any `@section` block is treated as `critical` - it will never be dropped.
+
+**Rendering with a budget**
 
 ```bash
-mai render report.md --budget=4000 --consumer=ai
+# Enforce a 4,000 token budget
+mai render guide.md --budget=4000
+
+# Budget + AI-optimized output combined
+mai render guide.md --budget=4000 --consumer=ai
 ```
+
+The budget pass runs after the document is fully rendered. Sections are whole units - the engine never cuts a section halfway through. When a section gets dropped, standard output replaces it with `[Section omitted - budget N tokens]`. In AI output mode (`--consumer=ai`), sections are dropped silently with no notice marker.
+
+Token count is estimated as `Math.ceil(characterCount / 4)`. If you have no `--budget` flag, `@section` has no visible effect - the markers disappear and content renders normally.
+
+**Declaring chunk boundaries for RAG**
+
+```markdown
+@markdownai v1.0
+
+## Introduction
+This guide covers the full setup process.
+
+@chunk-boundary id="install-section" standalone="true"
+
+## Installation
+
+Install the package and configure your environment.
+
+@chunk-boundary id="config-section"
+
+## Configuration
+
+Set your environment variables before starting the server.
+```
+
+In standard output, `@chunk-boundary` renders as an HTML comment (`<!-- chunk: install-section -->`), invisible in the final document. In AI output mode, it renders as `---chunk:install-section---` inline, where AI parsers can detect it.
+
+The `standalone="true"` attribute is a metadata hint to the RAG system that the following chunk makes sense on its own, without surrounding document context.
+
+**Generating a chunk map**
+
+```bash
+mai render guide.md --chunk-map
+```
+
+This emits a sidecar JSON file alongside the output (`<output>.chunks.json`) listing each chunk boundary and its position in the rendered output. Feed this to your RAG ingestion pipeline to split the document at the right places.
 
 <!-- /mdd-section: 36-ai-context-budget -->
 
 <!-- mdd-section: 37-ai-concepts -->
-### AI — @define-concept (Inline Glossary Injection) (planned — not yet implemented)
+### AI - @define-concept Inline Glossary (planned - not yet implemented)
 
-`@define-concept` lets you register definitions for domain-specific terms directly inside your documents. When an AI reads your document, all definitions are automatically gathered and placed at the top so the AI understands your terminology before encountering it — reducing misinterpretation and hallucination about project-specific language.
-
-#### What It Does
-
-When you write a MarkdownAI document, you can declare what your specialized terms mean using `@define-concept`. At render time, `mai` collects every definition you've declared throughout the document. If the document is being read by an AI, all definitions are injected as a structured glossary block at the very top — so the AI gets a vocabulary lesson before reading your content. If the document is being read by a human, each definition renders in place, right where you wrote it.
-
-#### How To Use It
-
-Write `@define-concept` directives anywhere in your document to register terms. Use the single-line form for short definitions, or the block form for longer ones:
+When you use an AI tool to read a document that references domain-specific terms, the AI fills in gaps with its training data. For a term like `jailRoot`, that means it might guess - and guess wrong. `@define-concept` fixes this by letting you register exact definitions inline, right where the term is introduced.
 
 **Single-line form:**
-```
-@define-concept <term> "<definition>"
-```
 
-**Block form:**
-```
-@define-concept <term>
-<Your definition text here.>
-@end
-```
-
-Once defined, you can reference a concept's definition inline anywhere in the document using `{{ concept.<term> }}`.
-
-#### Examples
-
-**Define a term inline (single-line):**
 ```
 @define-concept jailRoot "the document root directory used to confine file access"
 ```
 
-**Render with AI glossary injection:**
-```bash
-mai render my-doc.md --consumer ai
+**Block form (for longer definitions):**
+
+```
+@define-concept strict-mode
+  When --strict is active, any warning becomes a fatal error that halts rendering.
+@end
 ```
 
-The output will begin with a `## Glossary` block listing all defined terms before the rest of the document content.
+Both forms register the concept in the document's glossary. What happens at render time depends on the `consumer` setting.
+
+#### How consumer controls output
+
+When `consumer=ai`, all concepts collected from the document are injected as a structured glossary block at the top of the rendered output:
+
+```markdown
+## Glossary
+**jailRoot** - the document root directory used to confine file access
+**strict-mode** - when --strict is active, any warning becomes a fatal error
+---
+```
+
+This gives an AI reader the vocabulary it needs before it encounters those terms in context. The AI no longer has to infer what your project means by a term - it already has the definition.
+
+When `consumer=human` or no consumer is set, the concept renders in-place as a definition at the point it appears in the document:
+
+```markdown
+**jailRoot** - the document root directory used to confine file access
+```
+
+No glossary block is generated. The definition sits where you put it.
+
+#### Rules
+
+- **Duplicate names:** if you define the same concept twice, the last definition wins and a `WARN` is logged
+- **Ordering:** concepts appear in the AI glossary in document order (insertion order)
+- **Inside macros:** a concept defined inside `@define`/`@call` is registered when the macro is called, not when it is defined
+- **Stripping:** `mai strip` removes all `@define-concept` directives from output
+- **Interpolation:** once defined, you can reference a concept value directly using `{{ concept.jailRoot }}`
+
+#### Why this matters
+
+AI hallucination on domain terms is a real problem in technical documentation. A term like `strict-mode` means something specific in your project - but an AI reader has no way to know that without being told. `@define-concept` makes the vocabulary explicit in a machine-readable way, without cluttering the document for human readers. The AI glossary is only injected when the consumer is actually an AI.
 
 <!-- /mdd-section: 37-ai-concepts -->
 
 <!-- mdd-section: 38-ai-constraints -->
-### AI — @constraint Directive (Machine-Readable Rules) (planned — not yet implemented)
+### AI - @constraint Directive (planned - not yet implemented)
 
-The `@constraint` directive lets you embed machine-readable rules directly inside your documents. Instead of writing rules in prose that AI tools might overlook, you mark them explicitly as constraints — giving AI coding assistants a structured list of rules they can parse, quote, and check against any code they generate.
+`@constraint` lets you embed machine-readable rules directly in a document. Each rule gets a stable ID and a severity level, so AI tools can query the full constraint registry via MCP and verify code against those rules - without parsing prose.
 
-#### What It Does
+**Syntax**
 
-When you add `@constraint` blocks to a document, each rule gets a stable identifier and a severity level (critical, high, medium, or low). At render time, MarkdownAI collects all constraints and presents them in a way that matches how the document is being read. If an AI tool is reading the document, it receives a structured table of all constraints at the top — making them impossible to miss. If a human is reading the document, each constraint appears inline as a clearly labeled callout.
-
-#### How To Use It
-
-Add one or more `@constraint` blocks anywhere in your document. Each block needs a unique `id` (a short slug) and an optional `severity`. Write the rule in plain English between the opening and closing tags.
-
-- `id` — required. A stable slug used to identify the rule (e.g. `no-raw-sql`).
-- `severity` — optional. One of `critical`, `high`, `medium`, or `low`. Defaults to `high`.
-
-#### Commands
-
-| Command | Description |
-|---------|-------------|
-| `mai validate <file>` | Lists all `@constraint` IDs and severity levels found in the document |
-| `mai strip <file>` | Removes all `@constraint` blocks from the document output |
-
-#### Examples
-
-**Defining constraints in a document:**
 ```
 @constraint id="no-raw-sql" severity="critical"
 NEVER pass user input directly to a database query. Always use parameterized queries.
 @end
-
-@constraint id="eval-forbidden" severity="critical"
-eval() is never used. Use vm.runInNewContext() for expression evaluation.
-@end
 ```
 
-**How constraints appear when an AI tool reads the document:**
+The `id` attribute is required - it's the stable slug used for programmatic reference. `severity` defaults to `"high"` if omitted.
+
+**Severity levels**
+
+| Level | Meaning |
+|-------|---------|
+| `critical` | Absolute prohibition - AI tools treat this as a hard rule |
+| `high` | Strong rule; violations point to bugs or security issues |
+| `medium` | Design preference; violations are worth flagging |
+| `low` | Style or convention |
+
+**How it renders**
+
+Rendering depends on the consumer target.
+
+For AI consumers (`consumer="ai"`), constraints are pulled to the top of the document as a table:
+
 ```markdown
 ## Constraints
-
 | ID | Severity | Rule |
 |----|----------|------|
-| no-raw-sql | CRITICAL | NEVER pass user input directly to a database query. Always use parameterized queries. |
+| no-raw-sql | CRITICAL | NEVER pass user input directly... |
 ```
+
+For human readers (`consumer="human"` or unset), each constraint renders in-place as a blockquote:
+
+```markdown
+> **CONSTRAINT [no-raw-sql] - CRITICAL**
+> NEVER pass user input directly to a database query.
+```
+
+**MCP integration**
+
+The new `get_constraints` MCP tool returns the full constraint registry for a document as structured JSON. This is the main payoff - an AI tool reading your codebase can call `get_constraints` on any MarkdownAI document and get back every rule with its ID and severity, ready to check against the code it's reviewing.
+
+**Ordering and validation**
+
+Constraints render in severity order (critical first), then by insertion order within each severity tier. If the same `id` appears twice, the second definition overwrites the first and a warning is logged.
+
+Run `mai validate` to list all constraint IDs and their severity levels across the document. `mai strip` removes `@constraint` blocks from output.
 
 <!-- /mdd-section: 38-ai-constraints -->
 
@@ -2343,52 +2694,59 @@ Claude Code skill files support a native shell injection syntax, `` !`command` `
 <!-- /mdd-section: 47-skill-context-variables -->
 
 <!-- mdd-section: 48-shell-inline -->
-### Shell Inline - Native `!`command`` Interception
+### Shell Inline - Native Command Interception
 
-Claude Code skill files support a native shell injection syntax, `` !`command` ``. It runs commands before Claude sees the file and injects the output inline. No security gates of any kind.
+Claude Code skill files support a native shell injection syntax: `` !`command` ``. When Claude reads a file, it runs any `` !`command` `` tags and injects the output inline - before any other processing happens. There are no gates, no allowlist, no jail. In a plain skill file, `` !`git branch --show-current` `` just runs.
 
-When the document has a `@markdownai` header, that is not acceptable. MarkdownAI takes ownership of all shell execution within its documents - including `` !`command` `` patterns. Authors can write either syntax and get the same security behavior.
+When a document opens with `@markdownai`, that changes. MarkdownAI intercepts all `` !`command` `` patterns and routes them through the same security layer that governs `@query`. The parser emits a `ShellInlineNode`; the engine decides whether to run it.
 
-#### What It Does
+**Default behavior: blocked**
 
-In any `@markdownai` document, `` !`command` `` is a recognized syntax. The parser emits a `ShellInlineNode`. The engine evaluates it through the same security layer as `@query`.
-
-By default (`allowShell: false`), shell inline commands are blocked. The engine emits a warning and replaces the tag with nothing. When `allowShell: true`, commands run through the deny-pattern check and jailRoot confinement identical to `@query`.
-
-To opt out of interception and let Claude Code handle the command natively:
+With `allowShell: false` (the default), every `` !`command` `` tag is blocked. The engine emits a warning and replaces the tag with nothing:
 
 ```
-@markdownai shell-inline="passthrough"
+Shell inline blocked: allowShell is false
 ```
 
-The opt-out is intentionally named "passthrough" rather than "disable" - the author is explicitly handing control back to Claude Code, which has no security layer.
+This means a skill file or runbook that contains `` !`make build` `` or `` !`curl http://internal-api/reset` `` will not silently execute those commands just because someone opens the document. The document author has to explicitly enable shell execution.
 
-#### How To Use It
+**When allowShell is true**
 
-Write shell inline exactly as Claude Code documents it:
+With `allowShell: true`, `` !`command` `` runs - but through the same deny-pattern check and `jailRoot` confinement that `@query` uses. The output replaces the tag inline at the point it appears. There is no label, no stored result, and no way to reference the output in an `@if` condition later. It is purely inline substitution.
 
 ```
 Current branch: !`git branch --show-current`
 Files changed: !`git diff --stat | wc -l`
 ```
 
-With `allowShell: true` and no matching deny patterns, the commands execute and their output replaces the tag inline.
+Both `@query` and `` !`command` `` can appear in the same document without conflict.
 
-Shell inline has no label - unlike `@query label=varname`, output is injected at the point it appears and cannot be referenced elsewhere or used in `@if` conditions. For reuse and conditions, use `@query`.
+**Opting out with passthrough**
 
-#### Security Comparison
+If you want Claude Code's native `` !`command` `` behavior - no gating, runs immediately on read - add this to the document header:
 
-| Control | `@query` | `` !`command` `` via MarkdownAI | `` !`command` `` via Claude Code |
-|---------|----------|---------------------------------|----------------------------------|
-| Disabled by default | Yes | Yes (same `allowShell`) | No - always runs |
+```
+@markdownai shell-inline="passthrough"
+```
+
+The option is called `passthrough`, not `disable`. That naming is intentional: you are explicitly handing control back to Claude Code, not turning off a feature. MarkdownAI passes the raw tag through unchanged and takes no responsibility for what runs.
+
+Passthrough makes sense for personal skill files you control entirely, where Claude Code's native evaluation is exactly what you want and adding a security layer would just get in the way.
+
+**Why this matters for runbooks and shared skill files**
+
+Runbooks and skill files are often shared across a team or checked into a repo. A file that contains `` !`command` `` syntax can run arbitrary commands on whatever machine opens it. Without interception, there is no review step - the command runs before Claude even sees the document content.
+
+MarkdownAI's interception means shared `.md` files in a `@markdownai` project get the same scrutiny as any other shell execution.
+
+| Property | `@query` | `` !`command` `` via MarkdownAI | `` !`command` `` via Claude Code |
+|---|---|---|---|
+| Disabled by default | Yes | Yes | No - always runs |
 | Command allowlist | Yes | Yes (same gates) | No |
 | Deny patterns | Yes | Yes (same gates) | No |
 | Filesystem jail | Yes | Yes (same jailRoot) | No |
 | Immutable block rules | Yes | Yes | No |
-| Audit log | Yes | Yes | No |
-| Works in any document | Yes | Yes | No - skills only |
-
-Any `@markdownai` document - whether used as a Claude Code skill, a standalone runbook, a spec, or a dashboard - routes all shell execution through the security layer. The document's own header cannot be used as a vector for ungated shell execution, even if the author uses Claude Code's own syntax.
+| User can opt out | No | Yes (passthrough) | N/A |
 
 <!-- /mdd-section: 48-shell-inline -->
 
@@ -2773,37 +3131,34 @@ When you want to know everywhere a macro is called before renaming or changing i
 <!-- /mdd-section: 58-reference-panel -->
 
 <!-- mdd-section: 59-diagnostics-provider -->
-### Diagnostics Provider
+### VS Code Extension - Diagnostics
 
-The Diagnostics Provider catches structural mistakes and broken macro references in your MarkdownAI documents before you render them. Problems show up as squiggly underlines directly in the editor - red for errors, yellow for warnings.
+The extension watches your MarkdownAI documents for structural problems and highlights them inline, the same way a linter would. You don't need to run anything - errors and warnings appear as you type.
 
-#### What It Does
+**What you'll see**
 
-Every time you open or edit a MarkdownAI document, the extension runs two checks. The first check looks at block structure: if you open an `@if`, `@define`, or `@phase` block and never close it, the opening line gets a red error underline. The second check looks at macro calls: if you use `@call someMacro` and that macro is not defined anywhere in scope, the `@call` line gets a yellow warning underline. When you close the document, all diagnostics for it are cleared.
+Red squiggly underlines mark structural errors - blocks that were opened but never closed. If you write `@if`, `@define`, or `@phase` and reach the end of the file without the matching `@endif` or `@end`, the opening line gets flagged. All open blocks are reported, not just the first one.
 
-#### How To Use It
+Yellow squiggly underlines mark unknown macro references. If you call a macro with `@call myMacro` and `myMacro` isn't defined anywhere in scope, the macro name gets a warning. The underline covers just the name, not the whole line.
 
-1. Open any MarkdownAI document.
-2. Write or edit your directives normally.
-3. Watch the editor for squiggly underlines - red means a block is missing its closing tag, yellow means a macro name is not recognized.
-4. Hover over an underline to read the diagnostic message.
-5. Fix the issue and the underline disappears automatically.
+**What triggers an error**
 
-See Extension Settings to disable diagnostics or silence undefined-macro warnings independently.
+- `@if` without a matching `@endif`
+- `@define <name>` without a matching `@end`
+- `@phase <name>` without a matching `@end`
+- Any combination of the above left open at end-of-document
 
-#### Examples
+Nested blocks work fine - `@elseif` and `@else` inside an `@if` are valid and don't produce diagnostics.
 
-Unclosed block (red error on the `@if` line):
-```markdown
-@if env.DEBUG
-Some debug content
-(no @endif - error here)
-```
+**What triggers a warning**
 
-Unknown macro reference (yellow warning):
-```markdown
-@call formatTable
-```
+- `@call someMacro` where `someMacro` isn't in the local document or the standard library
+
+Macros prefixed with `stdlib:` are always considered known, so you won't see warnings for built-in references.
+
+**What doesn't get analyzed**
+
+Diagnostics only run on files the extension recognizes as MarkdownAI documents - those with a `@markdownai` header and the `markdownai` language ID. Plain `.md` files are never touched.
 
 <!-- /mdd-section: 59-diagnostics-provider -->
 
@@ -3357,6 +3712,301 @@ Renders as:
 
 <!-- /mdd-section: 78-lang-note -->
 
+<!-- mdd-section: 00-frontmatter-spec -->
+### MDD Frontmatter Schema Reference
+
+Every feature doc in `.mdd/docs/` opens with a YAML frontmatter block. This block is machine-read by the MDD workflow, so field names and values must be exact.
+
+**Identity fields**
+
+- `id` - matches the filename slug exactly (e.g. `03-auth-tokens`)
+- `title` - human-readable feature name
+- `path` - slash-delimited breadcrumb showing where this feature sits in the project hierarchy
+- `edition` - `MDD` or `Both`
+- `status` - one of `draft`, `in_progress`, `complete`, or `deprecated`
+- `phase` - build phase this doc belongs to
+- `mdd_version` - integer, increments when the doc structure changes
+- `last_synced` - ISO date when doc was last verified against actual code
+
+**Dependency fields**
+
+- `depends_on` - list of doc IDs that must be built before this one
+- `relates` - list of doc IDs that tend to change at the same time as this one (not hard dependencies, but good to review together)
+
+**Code location fields**
+
+- `source_files` - source files this doc describes
+- `test_files` - test files that cover this feature
+- `routes` - API routes owned by this feature
+- `models` - database models owned by this feature
+
+**Behavior fields**
+
+- `data_flow` - one of `greenfield`, `reads-existing`, `writes-existing`, or `mixed`
+- `tags` - domain concepts and technology names; used for cross-referencing
+- `integration_contracts` - contracts this feature consumes from other features
+- `satisfies_contracts` - contracts this feature publishes for others to consume
+
+**Safety fields**
+
+- `security_read_sites` - code locations where security-sensitive reads happen; keep this current so audits know where to look
+- `known_issues` - append-only list of known bugs or gaps; never delete entries, only add new ones
+
+All fields are required unless the value genuinely does not apply, in which case use an empty list `[]`. Omitting a field entirely will cause workflow validation to fail.
+
+<!-- /mdd-section: 00-frontmatter-spec -->
+
+<!-- mdd-section: 79-vscode-preview -->
+### VS Code Extension - Live Preview
+
+The live preview panel renders your MarkdownAI document inside VS Code using the built-in Markdown preview, so you can see exactly what `mai render` produces without switching to a terminal.
+
+**Opening the preview**
+
+With a MarkdownAI file open and focused, open the preview using any of these:
+
+- Click the preview icon in the editor title bar (top-right of the tab)
+- Right-click the editor tab and select "Open MarkdownAI Preview"
+- Right-click inside the editor and select "Open MarkdownAI Preview"
+
+The preview opens to the side - it does not replace the source editor. These options only appear on files detected as MarkdownAI documents (files that open with `@markdownai`).
+
+**What it shows**
+
+The preview runs `mai render` on your file and displays the output. This includes all resolved directives - `@env` values are pulled from your environment, `@http` responses are fetched live, `@include` files are inlined. What you see in the panel is what `mai render` would print to the terminal.
+
+If a directive fails or the render exits with an error, the preview shows a formatted error message rather than going blank.
+
+**Auto-refresh**
+
+The preview updates automatically each time you save the file. You do not need to close and reopen it. The refresh triggers only on MarkdownAI files, so preview panels on other file types are unaffected.
+
+**Render timeout**
+
+Each preview render has a 15-second timeout. If your document fetches from a slow external source - a database query, a slow API - and it does not complete within that window, the preview stops waiting and shows a timeout error. The source file is untouched; just save again once the connection is available.
+
+**Note:** The preview does not cache output. Every save triggers a fresh render from scratch.
+
+<!-- /mdd-section: 79-vscode-preview -->
+
+<!-- mdd-section: 80-run-state-tests -->
+### Run-State Tests - Pre-Publish Verification
+
+Before any package in the MarkdownAI monorepo can be published to npm, it must pass a run-state test. These tests verify that each package actually works from its built `dist/` artifacts - the same files a consumer gets when they `npm install` the package. They catch the class of bugs that only appear after a build: broken relative paths, missing export declarations, and binary entry points that resolve correctly in `src/` but fail on a real install.
+
+**What gets tested**
+
+A single test file, `e2e/run-state.test.ts`, covers all five publishable packages. Each package has its own `describe` block that checks four things:
+
+1. The package's main export resolves and returns the expected type
+2. A primary function can be called with minimal valid input without throwing
+3. For packages with a CLI binary, the binary exits `0` on `--version` and `--help`
+4. At least one real-world operation completes successfully end to end
+
+The five packages and their key checks:
+
+| Package | Core check |
+|---|---|
+| `@markdownai/parser` | `parse('@markdownai v1.0\n\nHello world')` returns a nodes array |
+| `@markdownai/renderer` | `render(ast, 'markdown')` returns a non-empty string |
+| `@markdownai/engine` | `execute(...)` output contains expected content |
+| `@markdownai/mcp` | `startServer` is a function; `mai-serve` responds to JSON-RPC `tools/list` |
+| `@markdownai/core` | `mai --version` exits `0` with a semver; `mai --help` contains `render`, `strip`, `validate` |
+
+Tests import only from `dist/` - never from `src/`. If the build is broken or incomplete, the tests fail.
+
+**The all-or-nothing publish guard**
+
+This is the part that matters most. Every publishable package has this in its `package.json`:
+
+```json
+"prepublishOnly": "npm --prefix ../.. run test:run-state"
+```
+
+That script runs the full suite across all five packages. If any one of them fails, `npm publish` is blocked for the package you tried to publish. You cannot publish `@markdownai/renderer` with a broken `@markdownai/parser`. All five must pass before any single package can go out.
+
+The root `package.json` exposes the suite directly:
+
+```bash
+npm run test:run-state
+```
+
+Run this any time you want to verify the full publish readiness of the workspace without actually publishing.
+
+**What is excluded**
+
+The VS Code extension (`markdownai`) requires the VS Code runtime and cannot be tested this way. The `@markdownai/markdownai` meta-package is also excluded - it has no runtime behavior to verify, only peer dependencies to declare.
+
+<!-- /mdd-section: 80-run-state-tests -->
+
+<!-- mdd-section: 81-lang-event -->
+### Language - @event Directive
+
+The `@event` directive fires a named signal at a specific point during document rendering. When the engine hits an `@event` line, it dispatches the event to one or more transports - output channels that do something with the signal. The document keeps rendering immediately; events are fire-and-forget.
+
+Use `@event` when you want to push a value somewhere at a specific point in a document: report progress during a long render, log a status change, notify VS Code's status bar, or feed structured data to a WebSocket listener.
+
+**All transports are disabled by default.** A document with `@event` directives and no config produces no side effects - the directives are silently no-ops until you explicitly allow transports in `.markdownai.json`.
+
+#### Syntax
+
+```
+@event name='<event-name>' data='<string-or-json>' transport='<transport>'
+@event name='<event-name>' data='<string-or-json>' transport='<transport>' visible
+```
+
+Parameters:
+
+- **`name`** (required) - the event name, e.g. `phase-complete`, `progress`, `status`
+- **`data`** (required) - a plain string or a JSON object string
+- **`transport`** (optional) - comma-separated list of transport names; defaults to `log` if omitted
+- **`visible`** (optional flag) - when present, the event renders as a blockquote in the output document; without it, the directive produces no visible output
+
+#### Enabling Transports
+
+Add an `allowed_transports` list to your `.markdownai.json`. Only transports in this list will fire:
+
+```json
+{
+  "allowed_transports": ["log", "vscode"]
+}
+```
+
+Any transport not in the list is silently skipped, even if a document references it.
+
+#### Built-in Transports
+
+**`log`** - writes a structured line to stderr. Good for debugging and CLI pipelines. The default when no transport is specified.
+
+```
+@event name='step-done' data='config loaded' transport='log'
+```
+
+**`mcp`** - accumulates the event in `ctx.events[]`, which gets returned in the MCP tool response. Use this when documents run inside an MCP tool call and the caller needs to collect events as structured output.
+
+```
+@event name='progress' data='{"step": 1, "total": 4}' transport='mcp'
+```
+
+**`vscode`** - writes to a session-specific JSON file that the VS Code extension polls. This drives status bar updates while a document is rendering. Combine with `log` if you also want stderr output:
+
+```
+@event name='progress' data='{"step": 2, "total": 5, "label": "Loading config"}' transport='vscode,log'
+```
+
+**`websocket`** - pushes JSON to all connected WebSocket clients. Use for live dashboards or any UI that listens for render progress.
+
+**`file`** - appends the event as a JSON line to a configured file path.
+
+**`http`** - POSTs the event as JSON to a configured URL. The target domain must be in the security allowlist.
+
+**`db`** - inserts the event into a configured collection. Requires security config.
+
+#### Multiple Transports
+
+Separate transport names with commas - all listed transports fire simultaneously:
+
+```
+@event name='build-status' data='{"status": "running"}' transport='mcp,websocket'
+```
+
+#### Visible Events
+
+Without `visible`, `@event` is a pure side effect - nothing appears in the rendered document. Add `visible` to render the event as a blockquote at that position:
+
+```
+@event name='phase-done' data='setup complete' transport='log' visible
+```
+
+This is useful when you want the document itself to show a status marker alongside dispatching the signal.
+
+#### Security
+
+- **Transport allowlist** - only transports listed in `allowed_transports` fire; everything else is a no-op
+- **No expression evaluation in data** - `{{ expressions }}` inside `data` are not evaluated by default (`allow_env_interpolation: false`)
+- **Automatic masking** - `applyMasking()` runs on every data string before dispatch, unconditionally, regardless of config
+- **Data cap** - data strings are capped at 500 characters after masking; this limit cannot be raised
+
+Custom transports can be registered in `.markdownai.json` with type `http`, `file`, or `db`. They follow the same security rules as built-in transports.
+
+<!-- /mdd-section: 81-lang-event -->
+
+<!-- mdd-section: 82-engine-directive-tracing -->
+### Engine - Directive Execution Tracing (dev tooling)
+
+**This is internal dev tooling. Document authors cannot enable or use it.**
+
+Set `MARKDOWNAI_TRACE` to enable structured trace output for every directive the engine executes. Each span records the directive type, timing, arguments (masked), output size, and any error. Spans are paired - every start has a matching end or error span.
+
+**Sink options:**
+
+| Value | Behavior |
+|---|---|
+| `true`, `1`, or `stderr` | Writes JSON-Lines to stderr, synchronously |
+| `file:/path/to/trace.jsonl` | Appends to file, async (fire-and-forget) |
+| `http://host/trace` | POSTs to endpoint, async (fire-and-forget) |
+
+File and HTTP sinks never block rendering. Stderr is synchronous, so trace output appears in execution order - useful for debugging sequencing issues.
+
+**What each span contains:** a unique span ID, run ID, directive type, status (`start`/`end`/`error`), timestamps, duration, document path, source line, current phase, call stack depth, masked args, output size, error details, git hash, and session ID.
+
+All 24 directive types are traced. Args are always run through `applyMasking()` regardless of transport - sensitive values do not appear in trace output even though this path bypasses the normal user security gates.
+
+Off by default. No directive exists to turn it on from inside a document.
+
+<!-- /mdd-section: 82-engine-directive-tracing -->
+
+<!-- mdd-section: ops/release -->
+### Release Runbook
+
+Publishes all six `@markdownai/*` npm packages in dependency order, deploys the docs site to Dokploy, and optionally ships the VS Code extension to the Marketplace. All six packages always release at the same version number (lockstep versioning). The VS Code extension has its own version and ships separately.
+
+#### When To Use
+
+When a new version is ready to ship.
+
+#### Steps
+
+1. **Doc check** - If any CLI commands, directives, or public APIs changed, verify the relevant docs are updated before continuing.
+
+2. **Preflight** - Confirm you are on `main` with a clean working tree. This is one of the few cases where `main` is used directly instead of a feature branch.
+
+3. **Determine bump type** - Decide whether this is a `patch`, `minor`, or `major` release. Run `npm version <type> --no-git-tag-version` from the repo root. This bumps `package.json` and all workspace package versions together.
+
+4. **Build and test** - Run `npm run build` then `npm test --workspaces --if-present`. All packages must pass before proceeding.
+
+5. **Commit the version bump** - Stage only the version files and commit:
+   ```
+   git add package.json packages/*/package.json
+   git commit -m "chore(release): bump to <VERSION>"
+   ```
+
+6. **Push to GitHub** - `git push origin main`
+
+7. **Deploy docs site** - Only needed if `docs/` or `README.md` changed. Build the Docker image, test it locally, push to Docker Hub, then trigger the Dokploy webhook:
+   ```
+   docker build -t $DOCKER_HUB_IMAGE .
+   # verify it starts and returns 200
+   docker push $DOCKER_HUB_IMAGE
+   source .env && curl -s -X POST "$DOKPLOY_WEBHOOK_URL"
+   ```
+
+8. **Publish npm packages** - Publish in dependency order so downstream packages resolve correctly:
+   ```
+   npm publish --workspace=packages/parser --access public
+   npm publish --workspace=packages/renderer --access public
+   npm publish --workspace=packages/engine --access public
+   npm publish --workspace=packages/mcp --access public
+   npm publish --workspace=packages/core --access public
+   npm publish --workspace=packages/markdownai --access public
+   ```
+
+9. **VS Code extension** - Only needed if `packages/vscode` changed. Run `npm run release:vscode` to produce a `.vsix` file, then upload it manually to the VS Code Marketplace.
+
+10. **Update global install** - `npm install -g @markdownai/core` to confirm the published version installs cleanly.
+
+<!-- /mdd-section: ops/release -->
+
 ---
 
 ## Command Reference
@@ -3481,4 +4131,24 @@ Key configuration options across all features. For full details, see the individ
 | `@cache ttl=N` | Session cache that expires after N seconds |
 | `@cache persist` | Write result to disk across restarts |
 | `@cache persist ttl=N` | Disk cache that expires after N seconds |
+
+### @event — Transports
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `allowed_transports` | `[]` | Transports that are permitted to fire; all others are no-ops |
+
+**Transport configuration** — set in `.markdownai.json` under `transports`:
+
+| Transport | Type | Required config |
+|-----------|------|-----------------|
+| `log` | built-in | None — writes to stderr |
+| `mcp` | built-in | None — accumulates in `ctx.events[]` |
+| `vscode` | built-in | None — writes to session JSON file |
+| `websocket` | built-in | Requires active WebSocket server session |
+| `file` | custom | `path` — file path to append JSON lines |
+| `http` | custom | `url` — endpoint to POST to; domain must be in HTTP allowlist |
+| `db` | custom | `collection` and a named `@connect` connection |
+
+Data strings are always masked via `applyMasking()` and capped at 500 characters before dispatch. This limit cannot be raised.
 | `@cache mock=./file.json` | Always return data from a local file; never call the live source |
