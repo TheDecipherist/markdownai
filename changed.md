@@ -577,3 +577,72 @@ separate `@read-frontmatter ... label=` line:
 Non-breaking. All four additions are opt-in. Existing `@update-frontmatter`
 calls with scalar `field=` work exactly as before — list-index syntax only
 activates when `field=` matches the `name[N].sub` or `name[append]` pattern.
+
+---
+
+## 2026-05-23 | bug-fix | Source directive `label=` now captures multi-line output
+
+Discovered during the MDD Wave 5 parity audit (`~/projects/mdd2` against
+`~/projects/mdd`). `mdd-shared.md`'s new `detect-stack` macro needed to
+read `package.json`'s `devDependencies` into a label and run substring
+tests against it. `@read ./package.json path="devDependencies" label=deps`
+captured only the first dependency name; the rest was discarded.
+
+### Root cause
+
+`engine.ts` walked all source directives (`@list`, `@read`, `@tree`,
+`@count`, `@date`, `@db`, `@http`, `@query`) through one dispatch:
+
+```javascript
+if (label) ctx.envFiles[label] = lines[0]?.trim() ?? ''   // FIRST line only
+return lines.join('\n')
+```
+
+The first-line-only behavior makes sense for scalar-shaped directives
+(`@count`, `@date`) but loses information for multi-line ones (`@read`,
+`@list`, `@tree`, `@query`, `@db`, `@http`).
+
+### Fix
+
+Branch by node type. Scalar-shaped sources keep `lines[0]?.trim()`. The rest
+store `lines.join('\n').trim()` so the label carries the full output for
+substring tests, `String.includes()`, `@foreach` source expressions, etc.
+
+```javascript
+const scalarShaped = node.type === 'count' || node.type === 'date'
+ctx.envFiles[label] = scalarShaped
+  ? (lines[0]?.trim() ?? '')
+  : lines.join('\n').trim()
+```
+
+### Files touched
+
+- `packages/engine/src/engine.ts` — the dispatch case at `walkNodeCore`'s
+  list/read/tree/count/date/db/http/query branch.
+- `packages/engine/src/__tests__/source-label-multiline.test.ts` — new: 6
+  regression tests covering both behaviors and the @foreach interaction.
+
+### Test totals
+
+- engine: 652 (was 646; +6 new tests)
+- parser: 160
+- core: 93
+- mcp: 37
+- mdd: 51
+- **total: 993**
+
+### Migration notes
+
+Behavior change for callers that relied on the first-line-only semantic for
+`@read` / `@list` / `@tree` / `@query` / `@db` / `@http` `label=` captures.
+Search the codebase for `@<source> ... label=` patterns and confirm none
+depend on the old truncated behavior. Within this repo no callers depended
+on it; the Wave 4 / Wave 5 directive tests pass unchanged.
+
+### Linked MDD site
+
+`~/projects/mdd2/commands/mdd-shared.md` → the `detect-stack` macro
+(which would otherwise have to fall back to bash-via-`@query`). Documented
+in `~/projects/mdd2/markdownai-comments.md` under "Still Open (engine
+bugs surfaced during Wave 5 parity verification)" — marked resolved by
+this commit.

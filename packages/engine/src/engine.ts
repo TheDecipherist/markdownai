@@ -251,7 +251,16 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
     case 'query': {
       const lines = executeSource(node, ctx)
       const label = 'args' in node && (node as { args: Record<string, string> }).args?.['label']
-      if (label && typeof label === 'string') ctx.envFiles[label] = lines[0]?.trim() ?? ''
+      if (label && typeof label === 'string') {
+        // For single-line scalar-shaped directives (count, date), the value
+        // is the first (and only) line. For multi-line sources (read, list,
+        // tree, query, db, http) keep the full content joined so labels can
+        // carry the whole output for substring tests, foreach sources, etc.
+        const scalarShaped = node.type === 'count' || node.type === 'date'
+        ctx.envFiles[label] = scalarShaped
+          ? (lines[0]?.trim() ?? '')
+          : lines.join('\n').trim()
+      }
       return lines.join('\n')
     }
     case 'mkdir': return executeMkdir(node, ctx)
