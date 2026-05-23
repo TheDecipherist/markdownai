@@ -3,11 +3,11 @@ id: mdd-integration-fixes-wave-1
 title: "Wave 1: Source vs Data Root Split"
 initiative: mdd-integration-fixes
 initiative_version: 1
-status: planned
+status: complete
 depends_on: none
 demo_state: "Source ops (@import/@include) resolve relative to document. Data ops (@list/@read/@tree/@count/file.*) resolve relative to cwd by default, with config override. MDD shared library macros work natively (without @query workarounds) against this engine."
 created: 2026-05-23
-hash: af88f2e4
+hash: ae94a3ed
 ---
 
 # Wave 1: Source vs Data Root Split

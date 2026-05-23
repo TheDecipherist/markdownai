@@ -3,7 +3,7 @@ id: mdd-integration-fixes
 title: MDD Integration Fixes
 status: active
 version: 1
-hash: f35efc76
+hash: 1a199bc9
 created: 2026-05-23
 ---
 
@@ -59,7 +59,7 @@ not file operations MarkdownAI could do natively.
 
 | Wave | File | Demo-state | Status |
 |------|------|------------|--------|
-| Wave 1 | waves/mdd-integration-fixes-wave-1.md | Source vs data root split: `@list`/`@read`/`file.*` resolve relative to `cwd` by default; `@import`/`@include` resolve relative to document; security config supports both. MDD shared library macros work natively (without `@query` workarounds) against this engine. | planned |
+| Wave 1 | waves/mdd-integration-fixes-wave-1.md | Source vs data root split: `@list`/`@read`/`file.*` resolve relative to `cwd` by default; `@import`/`@include` resolve relative to document; security config supports both. MDD shared library macros work natively (without `@query` workarounds) against this engine. | complete |
 | Wave 2 | waves/mdd-integration-fixes-wave-2.md | `\|\|` parser fix + `--skill-args` CLI flag + `@query` interpolation with shell-escape + absolute-path imports via `allowed_source_paths`. MDD tests pass using these features. | planned |
 | Wave 3 | waves/mdd-integration-fixes-wave-3.md | `@mkdir`, `@copy`, `@append-if-missing` directives implemented with security gates. MDD shared library rewritten to use them. MDD test suite stays green. | planned |
 | Wave 4 | waves/mdd-integration-fixes-wave-4.md | v2.0.0 release: changed.md finalized, README updated, user guide updated, website docs updated. MDD updates to depend on `@markdownai/core@^2.0.0`. | planned |
