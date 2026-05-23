@@ -36,10 +36,29 @@ export function executeShellInline(command: string, ctx: EngineContext): string 
   }
 }
 
+// Skill context variables that take precedence over plain env var lookups.
+// Matches the sandbox keys set up in conditions.ts so {{ ARGUMENTS }} behaves
+// identically to ARGUMENTS inside @if conditions.
+function skillVarValue(name: string, ctx: EngineContext): string | undefined {
+  const skill = ctx.skillContext
+  if (!skill) return undefined
+  switch (name) {
+    case 'ARGUMENTS': return skill.args
+    case 'CLAUDE_SESSION_ID': return skill.sessionId
+    case 'CLAUDE_EFFORT': return skill.effort
+    case 'CLAUDE_SKILL_DIR': return skill.skillDir
+    default: return undefined
+  }
+}
+
 export function evalExpr(expr: string, ctx: EngineContext): string {
   const trimmed = expr.trim()
 
-  if (/^[A-Z_][A-Z0-9_]*$/.test(trimmed)) return resolveEnv(trimmed, null, ctx)
+  if (/^[A-Z_][A-Z0-9_]*$/.test(trimmed)) {
+    const skillVal = skillVarValue(trimmed, ctx)
+    if (skillVal !== undefined) return skillVal
+    return resolveEnv(trimmed, null, ctx)
+  }
 
   const dateFmtMatch = trimmed.match(/^date\s+format="([^"]*)"$/)
   if (dateFmtMatch) return formatDate(new Date(), dateFmtMatch[1] ?? 'ISO')
@@ -70,8 +89,27 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
       try { return statSync(isAbsolute(p) ? p : resolve(dataJail, p)).isDirectory() } catch { return false }
     },
   }
+  // Build the sandbox with skill context variables exposed at the top level
+  // (mirrors conditions.ts so {{ arg0 }} / {{ argsList[0] }} / etc. resolve correctly).
+  const skill = ctx.skillContext
+  const argsList = skill?.argsList ?? []
+  const sandbox: Record<string, unknown> = {
+    ...envObj,
+    env: envObj,
+    file: fileHelper,
+    ARGUMENTS: skill?.args ?? '',
+    args: skill?.args ?? '',
+    argsList,
+    arg0: argsList[0] ?? '',
+    arg1: argsList[1] ?? '',
+    arg2: argsList[2] ?? '',
+    arg3: argsList[3] ?? '',
+    CLAUDE_SESSION_ID: skill?.sessionId ?? '',
+    CLAUDE_EFFORT: skill?.effort ?? '',
+    CLAUDE_SKILL_DIR: skill?.skillDir ?? '',
+  }
   try {
-    const result = runInNewContext(trimmed, { ...envObj, env: envObj, file: fileHelper }, { timeout: 500 })
+    const result = runInNewContext(trimmed, sandbox, { timeout: 500 })
     return String(result ?? '')
   } catch {
     ctx.warnings.push(`Unresolvable expression: ${trimmed}`)

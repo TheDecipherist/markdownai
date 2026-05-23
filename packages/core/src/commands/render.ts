@@ -17,6 +17,34 @@ export interface RenderOptions {
   budget?: number
   securityConfig?: SecurityConfig
   passthrough?: boolean
+  // v2.0: skill context for local skill-file testing. Mirrors MCP read_file
+  // skill_* parameters so docs can be exercised without a running MCP server.
+  skillArgs?: string             // raw $ARGUMENTS string
+  skillDir?: string              // ${CLAUDE_SKILL_DIR}
+  skillSessionId?: string        // ${CLAUDE_SESSION_ID}
+  skillEffort?: string           // ${CLAUDE_EFFORT}
+}
+
+function buildSkillContext(options: RenderOptions): {
+  args: string; argsList: string[]; namedArgs: Record<string, string>; sessionId: string; effort: string; skillDir: string
+} | null {
+  const hasAny = options.skillArgs !== undefined
+    || options.skillDir !== undefined
+    || options.skillSessionId !== undefined
+    || options.skillEffort !== undefined
+  if (!hasAny) return null
+  const rawArgs = options.skillArgs ?? ''
+  const argsList = rawArgs.trim().length > 0
+    ? [...rawArgs.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)].map(m => m[1] ?? m[2] ?? m[3] ?? '')
+    : []
+  return {
+    args: rawArgs,
+    argsList,
+    namedArgs: {},
+    sessionId: options.skillSessionId ?? '',
+    effort: options.skillEffort ?? '',
+    skillDir: options.skillDir ?? '',
+  }
 }
 
 export interface RenderResult {
@@ -78,12 +106,26 @@ function applyBudget(output: string, budget: number): string {
 function buildSecurityConfig(options: RenderOptions, resolved: string): SecurityConfig {
   if (options.securityConfig) return options.securityConfig
   const json = loadSecurityConfig()
+  // CLI default: data ops jail to the document's directory (matches v1.x and the
+  // ergonomic expectation of `mai render foo.md` finding files near foo.md).
+  // Skill mode (--skill-args set, or invoked via MCP read_file) opts into the
+  // v2.0 cwd-as-data-root behavior by virtue of MCP setting data_root="cwd"
+  // explicitly. CLI users who want cwd behavior can set filesystem.data_root="cwd"
+  // in security.json or pass --cwd <path>.
+  const fsConfig = json.filesystem
+  const isSkillMode = options.skillArgs !== undefined
+  const filesystemConfig = {
+    ...fsConfig,
+    // If user has not configured data_root, pick the right default per mode.
+    source_root: fsConfig.source_root ?? 'auto',
+    data_root: fsConfig.data_root ?? (isSkillMode ? 'cwd' : 'auto'),
+  }
   return {
     allowShell: json.shell.enabled,
     allowHttp: json.http.enabled,
     allowDb: Object.keys(json.db).length > 0,
     jailRoot: dirname(resolved),
-    filesystemConfig: json.filesystem,
+    filesystemConfig,
     shellConfig: json.shell,
   }
 }
@@ -121,6 +163,7 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
 
   const envFiles = options.env ? loadEnvFile(options.env) : {}
   const security = buildSecurityConfig(options, resolved)
+  const skillContext = buildSkillContext(options)
   const execOpts: Parameters<typeof execute>[1] = {
     filePath: resolved,
     ctx: {
@@ -128,6 +171,7 @@ export function runRender(filePath: string, options: RenderOptions = {}): Render
       cwd: options.cwd ? resolve(options.cwd) : process.cwd(),
       consumer: options.consumer,
       security,
+      ...(skillContext ? { skillContext } : {}),
     },
   }
   if (options.passthrough) execOpts.passthrough = true

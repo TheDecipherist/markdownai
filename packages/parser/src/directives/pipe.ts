@@ -15,21 +15,48 @@ function isBuiltin(cmd: string): boolean {
 function splitUnquotedPipe(line: string): string[] {
   const segments: string[] = []
   let current = ''
-  let inQuote = false
+  let inDouble = false
+  let inSingle = false
+  let braceDepth = 0  // tracks {{ ... }} interpolations
 
-  for (const ch of line) {
-    if (inQuote) {
-      if (ch === '"') inQuote = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]!
+    const next = line[i + 1]
+
+    // Inside a quoted string: track close-quote, treat everything else literally.
+    if (inDouble) {
+      if (ch === '"') inDouble = false
       current += ch
-    } else if (ch === '"') {
-      inQuote = true
+      continue
+    }
+    if (inSingle) {
+      if (ch === "'") inSingle = false
       current += ch
-    } else if (ch === '|') {
+      continue
+    }
+    // Inside a {{ }} interpolation: || and | are JS operators, not pipes.
+    if (braceDepth > 0) {
+      if (ch === '{' && next === '{') { braceDepth++; current += '{{'; i++; continue }
+      if (ch === '}' && next === '}') { braceDepth--; current += '}}'; i++; continue }
+      current += ch
+      continue
+    }
+
+    if (ch === '"') { inDouble = true; current += ch; continue }
+    if (ch === "'") { inSingle = true; current += ch; continue }
+    if (ch === '{' && next === '{') { braceDepth++; current += '{{'; i++; continue }
+
+    // || is a logical OR operator in @if conditions and JS expressions —
+    // NOT a pipe separator. Treat as two literal characters.
+    if (ch === '|' && next === '|') { current += '||'; i++; continue }
+
+    if (ch === '|') {
       segments.push(current.trim())
       current = ''
-    } else {
-      current += ch
+      continue
     }
+
+    current += ch
   }
   if (current.trim()) segments.push(current.trim())
   return segments

@@ -34,8 +34,22 @@ universalOptions(
     .option('--format <mode>', 'output format: standard (default) or ai (token-efficient)')
     .option('--budget <n>', 'token budget — drop low-priority @section blocks to fit', parseInt)
     .option('--passthrough', 'pass plain markdown files through unchanged instead of erroring')
+    .option('--skill-args <args>', 'skill ARGUMENTS string (for testing Claude Code skill files locally)')
+    .option('--skill-dir <path>', 'skill directory ($CLAUDE_SKILL_DIR)')
+    .option('--skill-session-id <id>', 'Claude Code session id ($CLAUDE_SESSION_ID)')
+    .option('--skill-effort <level>', 'Claude effort level ($CLAUDE_EFFORT): low|medium|high|xhigh|max')
 ).action((file: string, opts: Record<string, string | boolean | undefined>) => {
-  const result = runRender(file, { ...opts, passthrough: Boolean(opts['passthrough']) })
+  const renderOpts: Parameters<typeof runRender>[1] = {
+    ...opts,
+    passthrough: Boolean(opts['passthrough']),
+  }
+  // Commander stores flags with kebab-case names as camelCase, but our options
+  // come through as a string-keyed record. Map them explicitly.
+  if (typeof opts['skillArgs'] === 'string') renderOpts.skillArgs = opts['skillArgs']
+  if (typeof opts['skillDir'] === 'string') renderOpts.skillDir = opts['skillDir']
+  if (typeof opts['skillSessionId'] === 'string') renderOpts.skillSessionId = opts['skillSessionId']
+  if (typeof opts['skillEffort'] === 'string') renderOpts.skillEffort = opts['skillEffort']
+  const result = runRender(file, renderOpts)
   for (const warn of result.warnings) {
     if (!opts['silent']) process.stderr.write(`WARN: ${warn}\n`)
   }

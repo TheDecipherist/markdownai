@@ -41,12 +41,14 @@ export interface FilesystemSecurityConfig {
   //     <absolute path> → pin to a specific directory
   //   data_root: where @list / @read / @tree / @count / @date file= / file.*
   //              and other data operations resolve from
-  //     "cwd"           → process working directory (recommended default; matches
-  //                       skill mode where a document operates on the user's project)
-  //     "auto"          → dirname of entry document (matches v1.x behavior)
+  //     "cwd"           → process working directory (recommended for skill mode)
+  //     "auto"          → dirname of entry document (recommended for plain CLI)
   //     <absolute path> → pin to a specific directory
-  source_root: string
-  data_root: string
+  // Both default to "auto" when unset. The CLI's `mai render` keeps "auto" for
+  // backward-compatible behavior. MCP read_file / skill mode passes "cwd" so a
+  // skill can see the user's project.
+  source_root?: string
+  data_root?: string
   // Additional whitelisted paths beyond the corresponding root. Glob patterns
   // accepted. Variable expansion supported: ${HOME}, ${CLAUDE_SKILL_DIR}, and
   // any process env var, evaluated at check time.
@@ -105,8 +107,6 @@ export function defaultSecurityConfig(): SecurityJsonConfig {
     },
     db: {},
     filesystem: {
-      source_root: 'auto',
-      data_root: 'cwd',
       allowed_source_paths: [],
       allowed_data_paths: [],
       additional_block_paths: [],
@@ -114,6 +114,8 @@ export function defaultSecurityConfig(): SecurityJsonConfig {
       allow_unmasked_paths: [],
       allow_unmasked_patterns: [],
       user_masking_patterns: [],
+      // source_root and data_root deliberately left unset — callers (CLI vs MCP)
+      // pick the right default per mode.
     },
     event: {
       allowed_transports: [],

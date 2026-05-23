@@ -222,6 +222,130 @@ describe('allowed_data_paths and allowed_source_paths', () => {
   })
 })
 
+describe('absolute paths in @import / @include via allowed_source_paths (Wave 2)', () => {
+  let projectDir: string
+  let libDir: string
+
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), 'maitest-proj-'))
+    libDir = mkdtempSync(join(tmpdir(), 'maitest-lib-'))
+  })
+
+  afterEach(() => {
+    for (const d of [projectDir, libDir]) {
+      try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }
+    }
+  })
+
+  function makeFsConfig(allowed: string[]) {
+    return {
+      source_root: 'auto',
+      data_root: 'cwd',
+      allowed_source_paths: allowed,
+      allowed_data_paths: [],
+      additional_block_paths: [],
+      additional_block_patterns: [],
+      allow_unmasked_paths: [],
+      allow_unmasked_patterns: [],
+      user_masking_patterns: [],
+    }
+  }
+
+  it('@import accepts an absolute path matching allowed_source_paths', () => {
+    writeFileSync(join(libDir, 'shared.md'),
+      '@markdownai v1.0\n@define hello\nfrom-lib\n@end\n', 'utf8')
+    const docPath = join(projectDir, 'doc.md')
+    const content = `@markdownai v1.0\n@import ${join(libDir, 'shared.md')}\n@call hello\n`
+    writeFileSync(docPath, content, 'utf8')
+    const ast = parse(content, { filePath: docPath })
+
+    const result = execute(ast, {
+      filePath: docPath,
+      ctx: {
+        cwd: projectDir,
+        security: {
+          allowShell: false, allowHttp: false, allowDb: false,
+          jailRoot: null,
+          filesystemConfig: makeFsConfig([`${libDir}/**`]),
+        },
+      },
+    })
+    expect(result.output).toContain('from-lib')
+  })
+
+  it('@import blocks an absolute path not in allowed_source_paths', () => {
+    writeFileSync(join(libDir, 'shared.md'),
+      '@markdownai v1.0\n@define hello\nfrom-lib\n@end\n', 'utf8')
+    const docPath = join(projectDir, 'doc.md')
+    const content = `@markdownai v1.0\n@import ${join(libDir, 'shared.md')}\n@call hello\n`
+    writeFileSync(docPath, content, 'utf8')
+    const ast = parse(content, { filePath: docPath })
+
+    const result = execute(ast, {
+      filePath: docPath,
+      ctx: {
+        cwd: projectDir,
+        security: {
+          allowShell: false, allowHttp: false, allowDb: false,
+          jailRoot: null,
+          filesystemConfig: makeFsConfig([]),
+        },
+      },
+    })
+    expect(result.output).not.toContain('from-lib')
+    expect(result.warnings.join('\n')).toMatch(/blocked|outside/i)
+  })
+
+  it('${CLAUDE_SKILL_DIR} expands in allowed_source_paths', () => {
+    writeFileSync(join(libDir, 'shared.md'),
+      '@markdownai v1.0\n@define hello\nfrom-skill-dir\n@end\n', 'utf8')
+    const docPath = join(projectDir, 'doc.md')
+    const content = `@markdownai v1.0\n@import ${join(libDir, 'shared.md')}\n@call hello\n`
+    writeFileSync(docPath, content, 'utf8')
+    const ast = parse(content, { filePath: docPath })
+
+    const result = execute(ast, {
+      filePath: docPath,
+      ctx: {
+        cwd: projectDir,
+        skillContext: {
+          args: '', argsList: [], namedArgs: {}, sessionId: '', effort: '',
+          skillDir: libDir,
+        },
+        security: {
+          allowShell: false, allowHttp: false, allowDb: false,
+          jailRoot: null,
+          filesystemConfig: makeFsConfig(['${CLAUDE_SKILL_DIR}/**']),
+        },
+      },
+    })
+    expect(result.output).toContain('from-skill-dir')
+  })
+
+  it('immutable rules block sensitive files even with broad allow_source_paths', () => {
+    writeFileSync(join(libDir, '.env'),
+      '@markdownai v1.0\nSECRET=abc\n', 'utf8')
+    const docPath = join(projectDir, 'doc.md')
+    const content = `@markdownai v1.0\n@import ${join(libDir, '.env')}\n`
+    writeFileSync(docPath, content, 'utf8')
+    const ast = parse(content, { filePath: docPath })
+
+    const result = execute(ast, {
+      filePath: docPath,
+      ctx: {
+        cwd: projectDir,
+        security: {
+          allowShell: false, allowHttp: false, allowDb: false,
+          jailRoot: null,
+          // Even with a wide allow-list, .env stays blocked.
+          filesystemConfig: makeFsConfig([`${libDir}/**`]),
+        },
+      },
+    })
+    expect(result.warnings.join('\n')).toMatch(/blocked/i)
+  })
+})
+
 describe('data_root = "auto" preserves v1.x behavior', () => {
   let docDir: string
   let cwd: string

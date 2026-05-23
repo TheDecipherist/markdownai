@@ -183,6 +183,54 @@ describe('Parser', () => {
     })
   })
 
+  describe('|| in @if conditions (Wave 2 fix)', () => {
+    it('@if A || B parses as conditional, not pipe', () => {
+      const result = parse('@markdownai\n@if env.A == "x" || env.B == "y"\ncontent\n@endif')
+      const n = node<ConditionalNode>(result.nodes, 1)
+      expect(n.type).toBe('conditional')
+      expect(n.branches[0]?.condition).toBe('env.A == "x" || env.B == "y"')
+    })
+
+    it('@if A || B || C parses correctly', () => {
+      const result = parse('@markdownai\n@if a == 1 || b == 2 || c == 3\nx\n@endif')
+      const n = node<ConditionalNode>(result.nodes, 1)
+      expect(n.type).toBe('conditional')
+      expect(n.branches[0]?.condition).toMatch(/c == 3/)
+    })
+
+    it('@if A && B || C parses correctly', () => {
+      const result = parse('@markdownai\n@if a && b || c\nx\n@endif')
+      const n = node<ConditionalNode>(result.nodes, 1)
+      expect(n.type).toBe('conditional')
+    })
+
+    it('@elseif A || B parses correctly', () => {
+      const result = parse('@markdownai\n@if a == 1\nA\n@elseif b == 2 || c == 3\nBC\n@endif')
+      const n = node<ConditionalNode>(result.nodes, 1)
+      expect(n.type).toBe('conditional')
+      expect(n.branches).toHaveLength(2)
+      expect(n.branches[1]?.condition).toBe('b == 2 || c == 3')
+    })
+
+    it('|| inside {{ interpolation }} does not break out', () => {
+      const result = parse('@markdownai\nValue: {{ env.X || "default" }}')
+      // Should parse as a markdown line with interpolation, not a pipe
+      expect(result.nodes[1]?.type).toBe('markdown')
+    })
+
+    it('| inside single-quoted strings is not a pipe', () => {
+      const result = parse(`@markdownai\n@query bash -c 'echo a | wc -l'`)
+      expect(result.nodes[1]?.type).toBe('query')
+    })
+
+    it('existing pipe chains still work', () => {
+      const result = parse('@markdownai\n@list ./src/ | sort | @render type="list"')
+      const n = node<PipeNode>(result.nodes, 1)
+      expect(n.type).toBe('pipe')
+      expect(n.stages.length).toBeGreaterThanOrEqual(3)
+    })
+  })
+
   describe('parse errors', () => {
     it('throws ParseError for @on outside @phase', () => {
       expect(() =>

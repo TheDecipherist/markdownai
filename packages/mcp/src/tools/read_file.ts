@@ -88,17 +88,31 @@ export function readFile(args: ReadFileArgs, cwd: string): ReadFileResult {
     return { content: source, isMarkdownAI: false, warnings: [] }
   }
 
+  // MCP/skill mode: data ops jail to the user's project (cwd); source ops to
+  // the document directory. Explicitly setting filesystem.data_root="cwd"
+  // overrides any default that ships with @markdownai/core (the CLI defaults
+  // to "auto" for backward compatibility).
+  const fsForSkill: import('@markdownai/engine').FilesystemSecurityConfig = {
+    ...loadSecurityConfig().filesystem,
+    source_root: 'auto',
+    data_root: 'cwd',
+  }
   const execOpts: Parameters<typeof execute>[1] = {
     filePath: fullPath,
     ctx: {
-      // v2.0: cwd is the MCP server's working directory (the user's project).
-      // Engine will derive dataJail from this and sourceJail from dirname(fullPath).
-      // See engine.resolveJailRoots() for the resolution rules.
       cwd,
       envFiles: args.env ?? {},
       phase: args.phase ?? null,
       consumer: args.consumer ?? 'ai',
       skillContext: buildSkillContext(args),
+      security: {
+        allowShell: loadSecurityConfig().shell.enabled,
+        allowHttp: loadSecurityConfig().http.enabled,
+        allowDb: Object.keys(loadSecurityConfig().db).length > 0,
+        jailRoot: null,
+        filesystemConfig: fsForSkill,
+        shellConfig: loadSecurityConfig().shell,
+      },
     },
   }
   if (args.passthrough) execOpts.passthrough = true

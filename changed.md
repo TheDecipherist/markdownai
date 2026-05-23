@@ -130,3 +130,90 @@ rewritten to replace `@query bash -c "..."` workarounds with native directives
   covering default behavior, allowlists, ${VAR} expansion, immutable rules,
   legacy mode
 
+---
+
+## 2026-05-23 | bug-fix + feature | Wave 2 — Parser fix, --skill-args, absolute imports
+
+Four targeted fixes for issues that surfaced while integrating MarkdownAI into MDD:
+
+### bug-fix | `||` in `@if` conditions misclassified as pipe
+
+The parser's pipe detection split lines on every `|` outside double-quotes,
+breaking `@if A == 1 || B == 2`. Updated `splitUnquotedPipe()` in
+`packages/parser/src/directives/pipe.ts` to:
+- Treat `||` as a single non-pipe token
+- Recognize single-quoted strings (in addition to existing double-quote handling)
+- Skip `|` inside `{{ }}` interpolations
+
+No API change. Pure bug fix. 7 new tests in `parser-pipes.test.ts`.
+
+### feature | `mai render --skill-args` (and related CLI flags)
+
+Adds CLI flags so skill files can be tested locally without spinning up the MCP
+server. Mirrors the `read_file` MCP tool's skill_* parameters:
+
+```
+mai render mdd.md --skill-args "audit foo" --skill-dir ~/.claude/commands
+mai render mdd.md --skill-args "build" --skill-effort high
+mai render mdd.md --skill-session-id <id>
+```
+
+When `--skill-args` is set, the CLI also defaults `filesystem.data_root` to
+`"cwd"` (skill mode) so data ops jail to the user's project. Without
+`--skill-args`, the CLI keeps `data_root: "auto"` (dirname of doc) — backward
+compatible with v1.x render behavior.
+
+Side fix: `evalExpr()` in `engine-interpolate.ts` now exposes skill context
+variables (`ARGUMENTS`, `arg0..arg3`, `argsList`, `CLAUDE_*`) in `{{ }}`
+interpolations. Previously only the `@if` condition sandbox had them.
+
+### feature | Absolute paths in `@import` / `@include` via `allowed_source_paths`
+
+The Wave 1 split already wired through the allowlist. Wave 2 verifies it with
+4 new tests in `source-data-root.test.ts`:
+- Allowed absolute import succeeds when matching `allowed_source_paths`
+- Same path blocked when no allowlist entry matches
+- `${CLAUDE_SKILL_DIR}` expansion works
+- Immutable blocks (e.g. `.env`) cannot be bypassed even with broad allowlist
+
+### internal | Default split: CLI `auto`, MCP `cwd`
+
+Removed engine-level defaults for `source_root` / `data_root` (now optional
+fields). The CLI (`runRender`) defaults to `auto` for both, MCP `read_file`
+sets both explicitly. This restores v1.x ergonomics for plain `mai render
+foo.md` while still giving skill mode the cwd-as-data-root behavior MDD needs.
+
+### Files touched
+
+- `packages/parser/src/directives/pipe.ts` — `splitUnquotedPipe()` rewrite
+- `packages/parser/src/__tests__/parser-pipes.test.ts` — 7 new `||` tests
+- `packages/core/src/commands/render.ts` — `--skill-args` / `--skill-dir` /
+  `--skill-session-id` / `--skill-effort` options; mode-aware `data_root` default
+- `packages/core/src/cli.ts` — Commander flag definitions
+- `packages/engine/src/engine-interpolate.ts` — skill context in `{{ }}`
+  interpolation sandbox
+- `packages/engine/src/security/config.ts` — `source_root`, `data_root` made
+  optional (defaults pushed to callers)
+- `packages/mcp/src/tools/read_file.ts` — explicit `data_root: "cwd"` in
+  filesystemConfig
+- `packages/engine/src/__tests__/source-data-root.test.ts` — 4 new
+  absolute-import tests (16 total)
+
+### MDD integration check
+
+- `~/projects/mdd2/commands/mdd.md` — dropped `(env.ARGUMENTS ?? ARGUMENTS)`
+  fallback (just `ARGUMENTS`), collapsed 23 `@elseif` branches back into grouped
+  `||` conditions
+- `~/projects/mdd2/tests/helpers.ts` — uses `--skill-args` / `--skill-dir`
+  flags instead of writing temp `.env` files
+- `~/projects/mdd2/package.json` — removed `@markdownai/core` devDep so tests
+  use the globally-linked binary
+- MDD's 51-test suite stays green
+
+### Deferred to a future release
+
+- `@query` `{{ }}` interpolation with shell-escape (markdownai-comments.md #1).
+  MDD does not use this pattern (uses `$CLAUDE_SKILL_DIR` shell expansion). The
+  shell-aware tokenizer required for safe interpolation deserves its own PR.
+
+
