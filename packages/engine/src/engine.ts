@@ -13,7 +13,7 @@ import { evalCondition } from './conditions.js'
 import { runBuiltin, isBuiltin } from './pipe.js'
 import { runShell } from './shell.js'
 import { executeList, executeRead, executeCount, executeDate, executeTree, executeDb, executeHttp, executeQuery } from './sources.js'
-import { executeMkdir, executeCopy, executeAppendIfMissing } from './write-ops.js'
+import { executeMkdir, executeCopy, executeAppendIfMissing, executeUpdateFrontmatter } from './write-ops.js'
 import { resolveInterpolations, evalExpr } from './engine-interpolate.js'
 import { FatalError, versionIsNewer, loadStdlib, executeImport, executeInclude } from './engine-include.js'
 import { executeEvent } from './event.js'
@@ -248,6 +248,7 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
     case 'mkdir': return executeMkdir(node, ctx)
     case 'copy': return executeCopy(node, ctx)
     case 'append-if-missing': return executeAppendIfMissing(node, ctx)
+    case 'update-frontmatter': return executeUpdateFrontmatter(node, ctx)
     case 'prompt': return executePrompt(node, ctx)
     case 'note': return executeNote(node, ctx)
     case 'section': return `<!-- mda-section priority="${node.priority}"${node.id ? ` id="${node.id}"` : ''} -->\n${walkNodes(node.body, ctx).join('\n')}\n<!-- /mda-section -->`

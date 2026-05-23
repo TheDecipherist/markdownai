@@ -198,6 +198,76 @@ describe('write directives (Wave 3)', () => {
     })
   })
 
+  describe('@update-frontmatter', () => {
+    it('replaces an existing frontmatter field value', () => {
+      writeFileSync(join(projectDir, 'doc.md'),
+        '---\nid: 01-test\nstatus: draft\ntitle: Test\n---\n\nBody content.\n', 'utf8')
+      render(
+        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete"\n`,
+        { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
+      )
+      const after = readFileSync(join(projectDir, 'doc.md'), 'utf8')
+      expect(after).toContain('status: complete')
+      expect(after).not.toContain('status: draft')
+      expect(after).toContain('Body content.')
+    })
+
+    it('idempotent: no write when value is unchanged', () => {
+      const original = '---\nid: 01-test\nstatus: complete\n---\n\nBody.\n'
+      writeFileSync(join(projectDir, 'doc.md'), original, 'utf8')
+      render(
+        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete"\n`,
+        { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
+      )
+      expect(readFileSync(join(projectDir, 'doc.md'), 'utf8')).toBe(original)
+    })
+
+    it('appends the field if absent in the frontmatter', () => {
+      writeFileSync(join(projectDir, 'doc.md'),
+        '---\nid: 01-test\ntitle: Test\n---\n\nBody.\n', 'utf8')
+      render(
+        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete"\n`,
+        { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
+      )
+      const after = readFileSync(join(projectDir, 'doc.md'), 'utf8')
+      expect(after).toContain('status: complete')
+      expect(after).toContain('id: 01-test')
+      expect(after).toContain('title: Test')
+    })
+
+    it('refuses to write a file with no frontmatter block', () => {
+      writeFileSync(join(projectDir, 'doc.md'), 'No frontmatter here.\n', 'utf8')
+      const result = render(
+        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete"\n`,
+        { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
+      )
+      expect(readFileSync(join(projectDir, 'doc.md'), 'utf8')).toBe('No frontmatter here.\n')
+      expect(result.warnings.join('\n')).toMatch(/no YAML frontmatter/i)
+    })
+
+    it('blocked when target is .env (immutable rule)', () => {
+      writeFileSync(join(projectDir, '.env'),
+        '---\nSECRET: abc\n---\n', 'utf8')
+      const result = render(
+        `@markdownai v1.0\n@update-frontmatter path=".env" field="SECRET" value="xyz"\n`,
+        { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
+      )
+      expect(readFileSync(join(projectDir, '.env'), 'utf8')).toContain('SECRET: abc')
+      expect(result.warnings.join('\n')).toMatch(/blocked/i)
+    })
+
+    it('blocked when write_enabled is false', () => {
+      writeFileSync(join(projectDir, 'doc.md'),
+        '---\nstatus: draft\n---\n', 'utf8')
+      const result = render(
+        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete"\n`,
+        { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: false }) },
+      )
+      expect(readFileSync(join(projectDir, 'doc.md'), 'utf8')).toContain('status: draft')
+      expect(result.warnings.join('\n')).toMatch(/write is disabled/i)
+    })
+  })
+
   describe('@append-if-missing', () => {
     it('appends text when not already present', () => {
       writeFileSync(join(projectDir, '.gitignore'), 'node_modules/\n', 'utf8')

@@ -161,6 +161,14 @@ export interface AppendIfMissingNode extends ASTNodeBase {
   args: Record<string, string>
 }
 
+export interface UpdateFrontmatterNode extends ASTNodeBase {
+  type: 'update-frontmatter'
+  path: string
+  field: string
+  value: string
+  args: Record<string, string>
+}
+
 export interface RenderNode extends ASTNodeBase {
   type: 'render'
   args: Record<string, string>
@@ -279,6 +287,7 @@ export type ASTNode =
   | MkdirNode
   | CopyNode
   | AppendIfMissingNode
+  | UpdateFrontmatterNode
   | RenderNode
   | ConditionalNode
   | PipeNode

@@ -18,6 +18,7 @@ import count from './directives/count.js'
 import mkdir from './directives/mkdir.js'
 import copy from './directives/copy.js'
 import appendIfMissing from './directives/append-if-missing.js'
+import updateFrontmatter from './directives/update-frontmatter.js'
 import render from './directives/render.js'
 import ifDir from './directives/if.js'
 import graph from './directives/graph.js'
@@ -32,7 +33,7 @@ import eventDir from './directives/event.js'
 
 const modules: ParseModule[] = [
   header, include, importDir, env, define, call, phase, connect,
-  list, read, query, db, http, tree, date, count, mkdir, copy, appendIfMissing, render, ifDir, graph, pipe,
+  list, read, query, db, http, tree, date, count, mkdir, copy, appendIfMissing, updateFrontmatter, render, ifDir, graph, pipe,
   prompt, section, chunkBoundary, defineConcept, constraint, note, eventDir,
 ]
 

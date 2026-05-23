@@ -4,9 +4,9 @@
 // + allowed_write_paths) and run through checkWritePath() for each destination
 // path. Source paths in @copy go through the data-jail check (read access).
 
-import { mkdirSync, copyFileSync, existsSync, readFileSync, appendFileSync, statSync } from 'node:fs'
+import { mkdirSync, copyFileSync, existsSync, readFileSync, appendFileSync, writeFileSync, statSync } from 'node:fs'
 import { resolve, isAbsolute, dirname } from 'node:path'
-import type { MkdirNode, CopyNode, AppendIfMissingNode } from '@markdownai/parser'
+import type { MkdirNode, CopyNode, AppendIfMissingNode, UpdateFrontmatterNode } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
 import { checkDataPath, checkWritePath } from './security/filesystem.js'
 import { expandPattern } from './security/path-expand.js'
@@ -132,6 +132,76 @@ export function executeAppendIfMissing(node: AppendIfMissingNode, ctx: EngineCon
     appendFileSync(target, (needsNewline ? '\n' : '') + node.text + (node.text.endsWith('\n') ? '' : '\n'))
   } catch (err) {
     ctx.warnings.push(`@append-if-missing failed: ${node.path} — ${String(err)}`)
+  }
+  return ''
+}
+
+/**
+ * @update-frontmatter — replace a single YAML frontmatter field value in-place.
+ *
+ * Frontmatter is the leading `---` ... `---` block. Only top-level scalar
+ * fields are supported (`status: complete`, `last_synced: 2026-05-23`).
+ * Nested objects, lists, and multi-line scalars are out of scope for v2.0 —
+ * use @copy + manual edit for those cases.
+ *
+ * Idempotent: if the existing value already matches `value`, no write happens.
+ * If the field is missing from the frontmatter block, it is appended (above
+ * the closing `---`). If the file has no frontmatter block, the operation
+ * fails with a warning rather than corrupting the file.
+ */
+export function executeUpdateFrontmatter(node: UpdateFrontmatterNode, ctx: EngineContext): string {
+  if (!ensureWriteEnabled(ctx, '@update-frontmatter')) return ''
+  if (!node.path || !node.field) {
+    ctx.warnings.push('@update-frontmatter: path= and field= are required')
+    return ''
+  }
+  const target = resolveWritePath(node.path, ctx, '@update-frontmatter')
+  if (!target) return ''
+  if (!existsSync(target)) {
+    ctx.warnings.push(`@update-frontmatter: target does not exist: ${node.path}`)
+    return ''
+  }
+  let content: string
+  try { content = readFileSync(target, 'utf8') } catch (err) {
+    ctx.warnings.push(`@update-frontmatter failed: cannot read ${node.path}: ${String(err)}`)
+    return ''
+  }
+
+  // YAML frontmatter detection: file MUST start with `---\n` and have a closing `---\n`.
+  // Anything else is rejected to avoid corrupting non-frontmatter files.
+  const fmRegex = /^---\n([\s\S]*?)\n---\n?/
+  const fmMatch = content.match(fmRegex)
+  if (!fmMatch) {
+    ctx.warnings.push(`@update-frontmatter: ${node.path} has no YAML frontmatter block (must start with --- ... ---)`)
+    return ''
+  }
+  const fmBody = fmMatch[1] ?? ''
+  const fmFull = fmMatch[0]
+
+  // Escape regex metacharacters in the field name (kebab-case allowed) and build
+  // a regex that matches `<field>: <existing-value>` at top level (no leading
+  // whitespace — nested fields skipped).
+  const fieldRe = new RegExp(`^(${node.field.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}):[ \\t]*(.*)$`, 'm')
+
+  let newFmBody: string
+  if (fieldRe.test(fmBody)) {
+    // Replace existing field's value
+    const existingMatch = fmBody.match(fieldRe)
+    const existingValue = (existingMatch?.[2] ?? '').trim()
+    if (existingValue === node.value) {
+      return '' // idempotent no-op
+    }
+    newFmBody = fmBody.replace(fieldRe, `$1: ${node.value}`)
+  } else {
+    // Field absent — append before the closing ---
+    newFmBody = fmBody + `\n${node.field}: ${node.value}`
+  }
+
+  const newContent = content.replace(fmFull, `---\n${newFmBody}\n---\n`)
+  try {
+    writeFileSync(target, newContent, 'utf8')
+  } catch (err) {
+    ctx.warnings.push(`@update-frontmatter failed: cannot write ${node.path}: ${String(err)}`)
   }
   return ''
 }

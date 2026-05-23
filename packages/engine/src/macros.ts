@@ -79,6 +79,14 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
         text: subStr(node.text, args),
         args: subArgs(node.args, args),
       }
+    case 'update-frontmatter':
+      return {
+        ...node,
+        path: subStr(node.path, args),
+        field: subStr(node.field, args),
+        value: subStr(node.value, args),
+        args: subArgs(node.args, args),
+      }
     case 'render':
       return { ...node as RenderNode, args: subArgs(node.args, args) }
     case 'connect':
