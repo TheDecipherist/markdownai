@@ -1,5 +1,5 @@
 import { runInNewContext } from 'node:vm'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, statSync, readFileSync } from 'node:fs'
 import { resolve, isAbsolute } from 'node:path'
 import type { EngineContext } from './context.js'
 import { checkDataPath } from './security/filesystem.js'
@@ -29,6 +29,33 @@ function makeFileHelpers(
       const abs = confined(p)
       if (abs === null) return false
       try { return statSync(abs).isDirectory() } catch { return false }
+    },
+    containsLine: (p: string, pattern: string): boolean => {
+      const abs = confined(p)
+      if (abs === null || !existsSync(abs)) return false
+      try {
+        const content = readFileSync(abs, 'utf8')
+        const re = new RegExp(pattern, 'm')
+        return re.test(content)
+      } catch { return false }
+    },
+    containsSection: (p: string, heading: string): boolean => {
+      const abs = confined(p)
+      if (abs === null || !existsSync(abs)) return false
+      try {
+        const content = readFileSync(abs, 'utf8')
+        // Match Markdown ATX heading on its own line. Accept exact "## Bugs"
+        // or "## Bugs " — trailing whitespace OK. Heading argument can include
+        // the leading `#`s ("## Bugs") or just the title ("Bugs"), in which
+        // case we match any heading level.
+        const normalized = heading.trim()
+        if (/^#+\s/.test(normalized)) {
+          const re = new RegExp('^' + normalized.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\s*$', 'm')
+          return re.test(content)
+        }
+        const re = new RegExp('^#{1,6}\\s+' + normalized.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\s*$', 'm')
+        return re.test(content)
+      } catch { return false }
     },
   }
 }

@@ -169,6 +169,39 @@ export interface UpdateFrontmatterNode extends ASTNodeBase {
   args: Record<string, string>
 }
 
+export interface ReadFrontmatterNode extends ASTNodeBase {
+  type: 'read-frontmatter'
+  path: string
+  field: string
+  args: Record<string, string>  // optional: label=
+}
+
+export interface RenderTemplateNode extends ASTNodeBase {
+  type: 'render-template'
+  from: string
+  to: string
+  params: Record<string, string>
+  args: Record<string, string>  // optional: force (bare flag) / if-missing
+}
+
+export interface TestNode extends ASTNodeBase {
+  type: 'test'
+  command: string | null
+  args: Record<string, string>  // optional: command=, label=, budget=
+}
+
+export interface CheckNode extends ASTNodeBase {
+  type: 'check'
+  command: string | null
+  args: Record<string, string>  // optional: command=, label=, budget=
+}
+
+export interface HashNode extends ASTNodeBase {
+  type: 'hash'
+  path: string
+  args: Record<string, string>  // optional: algo=, length=, exclude-line=, label=
+}
+
 export interface RenderNode extends ASTNodeBase {
   type: 'render'
   args: Record<string, string>
@@ -288,6 +321,11 @@ export type ASTNode =
   | CopyNode
   | AppendIfMissingNode
   | UpdateFrontmatterNode
+  | ReadFrontmatterNode
+  | RenderTemplateNode
+  | TestNode
+  | CheckNode
+  | HashNode
   | RenderNode
   | ConditionalNode
   | PipeNode

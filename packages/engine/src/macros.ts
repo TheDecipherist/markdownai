@@ -87,6 +87,37 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
         value: subStr(node.value, args),
         args: subArgs(node.args, args),
       }
+    case 'read-frontmatter':
+      return {
+        ...node,
+        path: subStr(node.path, args),
+        field: subStr(node.field, args),
+        args: subArgs(node.args, args),
+      }
+    case 'render-template': {
+      const subbedParams: Record<string, string> = {}
+      for (const [k, v] of Object.entries(node.params)) subbedParams[k] = subStr(v, args)
+      return {
+        ...node,
+        from: subStr(node.from, args),
+        to: subStr(node.to, args),
+        params: subbedParams,
+        args: subArgs(node.args, args),
+      }
+    }
+    case 'test':
+    case 'check':
+      return {
+        ...node,
+        command: node.command === null ? null : subStr(node.command, args),
+        args: subArgs(node.args, args),
+      }
+    case 'hash':
+      return {
+        ...node,
+        path: subStr(node.path, args),
+        args: subArgs(node.args, args),
+      }
     case 'render':
       return { ...node as RenderNode, args: subArgs(node.args, args) }
     case 'connect':

@@ -10,6 +10,7 @@ import type { MkdirNode, CopyNode, AppendIfMissingNode, UpdateFrontmatterNode } 
 import type { EngineContext } from './context.js'
 import { checkDataPath, checkWritePath } from './security/filesystem.js'
 import { expandPattern } from './security/path-expand.js'
+import { extractFrontmatter, fieldRegex } from './frontmatter-utils.js'
 
 function buildExpandContext(ctx: EngineContext) {
   const env: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
@@ -167,21 +168,14 @@ export function executeUpdateFrontmatter(node: UpdateFrontmatterNode, ctx: Engin
     return ''
   }
 
-  // YAML frontmatter detection: file MUST start with `---\n` and have a closing `---\n`.
-  // Anything else is rejected to avoid corrupting non-frontmatter files.
-  const fmRegex = /^---\n([\s\S]*?)\n---\n?/
-  const fmMatch = content.match(fmRegex)
-  if (!fmMatch) {
+  const fm = extractFrontmatter(content)
+  if (!fm) {
     ctx.warnings.push(`@update-frontmatter: ${node.path} has no YAML frontmatter block (must start with --- ... ---)`)
     return ''
   }
-  const fmBody = fmMatch[1] ?? ''
-  const fmFull = fmMatch[0]
-
-  // Escape regex metacharacters in the field name (kebab-case allowed) and build
-  // a regex that matches `<field>: <existing-value>` at top level (no leading
-  // whitespace — nested fields skipped).
-  const fieldRe = new RegExp(`^(${node.field.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}):[ \\t]*(.*)$`, 'm')
+  const fmBody = fm.body
+  const fmFull = fm.fullBlock
+  const fieldRe = fieldRegex(node.field)
 
   let newFmBody: string
   if (fieldRe.test(fmBody)) {

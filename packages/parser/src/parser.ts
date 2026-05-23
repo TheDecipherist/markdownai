@@ -9,7 +9,7 @@ import { getModule } from './registry.js'
 import { scanShellInlines } from './interpolation.js'
 import { splitUnquotedPipe } from './directives/pipe.js'
 import { type State, lineNum, peek, consume } from './parser-state.js'
-import { makeMarkdown, parseTransition, parseTextBlock, parseNoteBlock, parseGraphBlock } from './parser-blocks.js'
+import { makeMarkdown, parseTransition, parseTextBlock, parseNoteBlock, parseGraphBlock, parseRenderTemplateBlock } from './parser-blocks.js'
 
 const BUILTINS = new Set(['grep', 'sort', 'head', 'tail', 'wc', 'uniq'])
 
@@ -158,6 +158,7 @@ function parseDirective(raw: string, line: number, state: State, inline = false)
     if (name === 'prompt') return parseTextBlock(state, trimmed, args, line, 'prompt')
     if (name === 'constraint') return parseTextBlock(state, trimmed, args, line, 'constraint')
     if (name === 'note') return parseNoteBlock(state, trimmed, args, line)
+    if (name === 'render-template') return parseRenderTemplateBlock(state, trimmed, args, line)
     throw new ParseError(`@${name} is a block directive but has no block parser registered`, line, state.filePath)
   }
   return mod.parse(trimmed, args, ctx)

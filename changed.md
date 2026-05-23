@@ -346,5 +346,134 @@ All 51 MDD tests pass. No more `@query bash -c "..."` in any bootstrap macro.
 - mdd: 51
 - **total: 917**
 
+---
 
+## 2026-05-23 | feature | Wave 4 — Read symmetry, exec directives, hashing, section helpers
 
+Six new building blocks that fill in the asymmetries left by Wave 3. Each is small in
+isolation but together they remove the last few classes of prose / shell that MDD mode
+files needed.
+
+### `@read-frontmatter path="..." field="..." [label=...]`
+
+Read-side counterpart to `@update-frontmatter`. Top-level scalar fields return the trimmed
+value; YAML lists (inline or block) return a comma-joined string of items. Missing field
+returns empty (no warning). Missing file or missing frontmatter warns. Data-jail security.
+
+```
+@read-frontmatter path=".mdd/docs/01-mdd.md" field="status" label=s
+@if {{ s }} == "complete"
+  ...
+@endif
+```
+
+Refactor: extracted the YAML frontmatter parsing helpers from `write-ops.ts` into a new
+`frontmatter-utils.ts` so both directives share them.
+
+### `@render-template from="..." to="..." [force] + key=value body`
+
+Block directive. Reads a MarkdownAI template via the data-jail, parses it with the in-process
+parser, renders in a child engine context with `key=value` body lines injected as variables,
+then writes the result (sans the `@markdownai` header line) to `to=` via the write-jail.
+
+```
+@render-template from="${CLAUDE_SKILL_DIR}/templates/tests/unit.test.ts.template" \
+                 to="tests/unit/user-auth.test.ts"
+  feature_name=user-auth
+  has_endpoints=true
+@end
+```
+
+- Idempotent: skips if destination exists. `force` flag overwrites.
+- Plain-text templates (no `@markdownai` header) get simple `{{ key }}` substitution.
+- `@if {{ key }} == "..."` conditionals inside the template work as expected because params
+  are injected as engine envFiles.
+- Circular-import between engine and exec-ops is broken via a deferred `setEngineExecute`
+  call from `engine.ts` at module-init time.
+
+### `@test [command="..."] [label=...] [budget=N]`
+
+Runs the project's test suite. Auto-detects from `package.json` -> `scripts.test` when
+`command=` is absent. Recognizes vitest / jest / playwright / node --test output for clean
+one-line summaries on success; on failure tails the last `budget` (default 80) lines.
+
+Stores into `{{ label }}` the summary, `{{ label_exit }}` the numeric exit code, and
+`{{ label_output }}` the raw (success summary or failure tail). Same shell allow-pattern
+gating as `@query`. 5-minute timeout (test suites can be slow).
+
+### `@check [command="..."] [label=...] [budget=N]`
+
+Analogue of `@test` for non-test runners. Auto-detect priority:
+`typecheck > check > lint > build`. Recognizes tsc / eslint / prettier output shapes.
+Same gating and labeling as `@test`.
+
+### `@hash path="..." [algo=sha256] [length=N] [exclude-line=regex] [label=...]`
+
+Computes a content hash via `crypto.createHash`. `algo=` supports any algo node accepts
+(`sha256`, `sha1`, `md5`). `length=` truncates the hex digest. `exclude-line=` strips
+matching lines before hashing -- required for the self-referencing `hash:` field pattern
+in wave/initiative docs.
+
+Replaces `@query bash -c "grep -v '^hash:' file | sha256sum | cut -c1-8"` which is fragile
+on macOS (no `sha256sum` without coreutils).
+
+### `file.containsLine(path, regex)` and `file.containsSection(path, heading)`
+
+Two new helpers in the `@if` expression sandbox alongside the existing `file.exists` /
+`file.isFile` / `file.isDir`.
+
+- `file.containsLine(path, regex)` -- multiline regex test against the file's full content.
+- `file.containsSection(path, heading)` -- matches an ATX heading on its own line. If the
+  argument starts with `#`s (`"## Bugs"`) it matches only that level; without `#`s
+  (`"Bugs"`) it matches any heading level. Mid-line occurrences do NOT match.
+
+Resolves the `## Bugs` section-presence dispatch in `mdd-bug.md` and `mdd-security-rules.md`
+without prose.
+
+### Security
+
+All six follow the established security model:
+- Read directives use the data-jail (`allowed_data_paths` + immutable rules).
+- `@render-template` write goes through the write-jail (`write_enabled` + `allowed_write_paths`
+  + immutable rules).
+- `@test` / `@check` require `shell.enabled: true` AND match a `shell.allow_patterns` entry.
+- No directive can bypass the immutable always-block list (`.env`, `**/.ssh/**`, etc.).
+
+### Files touched
+
+- `packages/parser/src/types.ts` -- `ReadFrontmatterNode`, `RenderTemplateNode`, `TestNode`,
+  `CheckNode`, `HashNode`
+- `packages/parser/src/directives/{read-frontmatter,render-template,test,check,hash}.ts` -- new
+- `packages/parser/src/registry.ts` -- register 5 new modules
+- `packages/parser/src/parser-blocks.ts` -- `parseRenderTemplateBlock`
+- `packages/parser/src/parser.ts` -- dispatch `render-template` to its block parser
+- `packages/engine/src/frontmatter-utils.ts` -- new shared module factored out of write-ops
+- `packages/engine/src/write-ops.ts` -- use the shared helpers for @update-frontmatter
+- `packages/engine/src/read-ops.ts` -- new: `executeReadFrontmatter`, `executeHash`
+- `packages/engine/src/exec-ops.ts` -- new: `executeTest`, `executeCheck`,
+  `executeRenderTemplate`, `setEngineExecute`
+- `packages/engine/src/engine.ts` -- register 5 new node dispatches; inject
+  `setEngineExecute(execute, parse)` at module load to break the circular import
+- `packages/engine/src/macros.ts` -- `substituteNode` cases for 5 new node types
+- `packages/engine/src/conditions.ts` -- `file.containsLine` / `file.containsSection`
+  helpers in the `@if` sandbox
+- `packages/engine/src/__tests__/{read-frontmatter,render-template,hash,test-check,file-helpers-contains}.test.ts` -- new: 37 tests across 5 files
+
+### Test totals
+
+- engine: 619 (was 582; +37 new tests across the 5 new files)
+- parser: 160 (unchanged -- the new parser modules are minimal arg-parsers and don't need
+  new tests beyond the engine integration coverage)
+- core: 93
+- mcp: 37
+- mdd: 51 (verified green with rebuilt mai binary)
+- **total: 960**
+
+### Migration notes
+
+Non-breaking. All six additions are opt-in:
+- `@read-frontmatter` is read-only -- no security config changes needed.
+- `@render-template` requires `filesystem.write_enabled: true` (same as Wave 3 directives).
+- `@test` / `@check` require `security.shell.enabled: true` and matching `allow_patterns`.
+- `@hash` is read-only.
+- `file.containsLine` / `file.containsSection` are pure helpers in the `@if` sandbox.

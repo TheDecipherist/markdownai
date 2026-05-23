@@ -5,6 +5,7 @@ import type {
   InterpolationSpan, ShellInlineSpan, RenderNode, PromptNode, SectionNode, ConceptNode, ConstraintNode,
   ChunkBoundaryNode, NoteNode, EventNode,
 } from '@markdownai/parser'
+import { parse as parserParse } from '@markdownai/parser'
 import { render } from '@markdownai/renderer'
 import type { RenderType, RendererInput } from '@markdownai/renderer'
 import { makeContext, resolveEnv, type EngineContext } from './context.js'
@@ -14,6 +15,8 @@ import { runBuiltin, isBuiltin } from './pipe.js'
 import { runShell } from './shell.js'
 import { executeList, executeRead, executeCount, executeDate, executeTree, executeDb, executeHttp, executeQuery } from './sources.js'
 import { executeMkdir, executeCopy, executeAppendIfMissing, executeUpdateFrontmatter } from './write-ops.js'
+import { executeReadFrontmatter, executeHash } from './read-ops.js'
+import { executeTest, executeCheck, executeRenderTemplate, setEngineExecute } from './exec-ops.js'
 import { resolveInterpolations, evalExpr } from './engine-interpolate.js'
 import { FatalError, versionIsNewer, loadStdlib, executeImport, executeInclude } from './engine-include.js'
 import { executeEvent } from './event.js'
@@ -182,6 +185,10 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
   return { output, errors, warnings: base.warnings, events: base.events }
 }
 
+// Inject execute + parse into exec-ops for @render-template sub-renders.
+// This breaks the circular import (exec-ops cannot statically import engine).
+setEngineExecute(execute, parserParse)
+
 function injectAiPrefixes(body: string, ctx: EngineContext): string {
   const prefixes: string[] = []
   if (ctx.glossary.size > 0) {
@@ -249,6 +256,11 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
     case 'copy': return executeCopy(node, ctx)
     case 'append-if-missing': return executeAppendIfMissing(node, ctx)
     case 'update-frontmatter': return executeUpdateFrontmatter(node, ctx)
+    case 'read-frontmatter': return executeReadFrontmatter(node, ctx)
+    case 'render-template': return executeRenderTemplate(node, ctx)
+    case 'test': return executeTest(node, ctx)
+    case 'check': return executeCheck(node, ctx)
+    case 'hash': return executeHash(node, ctx)
     case 'prompt': return executePrompt(node, ctx)
     case 'note': return executeNote(node, ctx)
     case 'section': return `<!-- mda-section priority="${node.priority}"${node.id ? ` id="${node.id}"` : ''} -->\n${walkNodes(node.body, ctx).join('\n')}\n<!-- /mda-section -->`
