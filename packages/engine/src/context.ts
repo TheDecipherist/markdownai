@@ -32,7 +32,17 @@ export interface SecurityConfig {
   allowShell: boolean
   allowHttp: boolean
   allowDb: boolean
+  // Legacy single jail (still consulted as fallback when sourceJail/dataJail unset).
   jailRoot: string | null
+  // v2.0 split: source ops (@import/@include) and data ops (@list/@read/file.*)
+  // jail to different roots. Engine.execute() resolves these from filesystem
+  // config at start of render and stores absolute paths here.
+  // Optional for back-compat — when unset, code falls back to jailRoot.
+  sourceJail?: string | null           // dirname of entry document (default)
+  dataJail?: string | null             // process cwd (default in v2.0)
+  // Expanded allow-lists (post-${VAR} substitution). Optional for back-compat.
+  allowedSourcePaths?: string[]
+  allowedDataPaths?: string[]
   filesystemConfig?: FilesystemSecurityConfig
   shellConfig?: ShellSecurityConfig
   httpConfig?: HttpSecurityConfig

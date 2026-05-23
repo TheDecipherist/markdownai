@@ -1,11 +1,11 @@
 import { execSync } from 'node:child_process'
-import { resolve, relative, isAbsolute } from 'node:path'
+import { resolve, isAbsolute } from 'node:path'
 import { existsSync, statSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import type { InterpolationSpan, ShellInlineSpan } from '@markdownai/parser'
 import { resolveEnv, type EngineContext } from './context.js'
 import { checkShellCommand } from './security/shell.js'
-import { checkFilePath } from './security/filesystem.js'
+import { checkDataPath } from './security/filesystem.js'
 import type { ShellSecurityConfig } from './security/config.js'
 import { formatDate } from './sources.js'
 
@@ -45,31 +45,29 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
   if (dateFmtMatch) return formatDate(new Date(), dateFmtMatch[1] ?? 'ISO')
 
   const envObj: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
-  const jailRoot = ctx.security.jailRoot ?? ctx.docDir ?? null
+  // v2.0: data ops jail to dataJail (default: process cwd). Fall back to legacy
+  // jailRoot/docDir if dataJail not configured by caller.
+  const dataJail = ctx.security.dataJail ?? ctx.security.jailRoot ?? ctx.docDir ?? null
+  const allowedDataPaths = ctx.security.allowedDataPaths
+  const fsConfig = ctx.security.filesystemConfig
   const fileHelper = {
     exists: (p: string): boolean => {
-      if (!jailRoot) return false
-      if (isAbsolute(p)) return !relative(jailRoot, p).startsWith('..') && existsSync(p)
-      if (checkFilePath(p, jailRoot).level === 'blocked') return false
-      return existsSync(resolve(jailRoot, p))
+      if (!dataJail) return false
+      const check = checkDataPath(p, dataJail, allowedDataPaths, fsConfig)
+      if (check.level === 'blocked') return false
+      return existsSync(isAbsolute(p) ? p : resolve(dataJail, p))
     },
     isFile: (p: string): boolean => {
-      if (!jailRoot) return false
-      if (isAbsolute(p)) {
-        if (relative(jailRoot, p).startsWith('..')) return false
-        try { return statSync(p).isFile() } catch { return false }
-      }
-      if (checkFilePath(p, jailRoot).level === 'blocked') return false
-      try { return statSync(resolve(jailRoot, p)).isFile() } catch { return false }
+      if (!dataJail) return false
+      const check = checkDataPath(p, dataJail, allowedDataPaths, fsConfig)
+      if (check.level === 'blocked') return false
+      try { return statSync(isAbsolute(p) ? p : resolve(dataJail, p)).isFile() } catch { return false }
     },
     isDir: (p: string): boolean => {
-      if (!jailRoot) return false
-      if (isAbsolute(p)) {
-        if (relative(jailRoot, p).startsWith('..')) return false
-        try { return statSync(p).isDirectory() } catch { return false }
-      }
-      if (checkFilePath(p, jailRoot).level === 'blocked') return false
-      try { return statSync(resolve(jailRoot, p)).isDirectory() } catch { return false }
+      if (!dataJail) return false
+      const check = checkDataPath(p, dataJail, allowedDataPaths, fsConfig)
+      if (check.level === 'blocked') return false
+      try { return statSync(isAbsolute(p) ? p : resolve(dataJail, p)).isDirectory() } catch { return false }
     },
   }
   try {

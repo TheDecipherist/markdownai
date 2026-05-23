@@ -1,18 +1,19 @@
 import { runInNewContext } from 'node:vm'
 import { existsSync, statSync } from 'node:fs'
-import { resolve, relative, isAbsolute } from 'node:path'
+import { resolve, isAbsolute } from 'node:path'
 import type { EngineContext } from './context.js'
-import { checkFilePath } from './security/filesystem.js'
+import { checkDataPath } from './security/filesystem.js'
 
-function makeFileHelpers(jailRoot: string | null) {
+function makeFileHelpers(
+  dataJail: string | null,
+  allowedDataPaths: string[] | undefined,
+  fsConfig: import('./security/config.js').FilesystemSecurityConfig | undefined,
+) {
   function confined(p: string): string | null {
-    if (!jailRoot) return null
-    if (isAbsolute(p)) {
-      return relative(jailRoot, p).startsWith('..') ? null : p
-    }
-    const check = checkFilePath(p, jailRoot)
+    if (!dataJail) return null
+    const check = checkDataPath(p, dataJail, allowedDataPaths, fsConfig)
     if (check.level === 'blocked') return null
-    return resolve(jailRoot, p)
+    return isAbsolute(p) ? p : resolve(dataJail, p)
   }
   return {
     exists: (p: string): boolean => {
@@ -91,7 +92,9 @@ function buildSandbox(ctx: EngineContext): Record<string, unknown> {
   for (const [k, v] of Object.entries(envObj)) {
     if (SAFE_ENV_KEY.test(k)) rootEnv[k] = v
   }
-  const file = makeFileHelpers(ctx.security.jailRoot ?? ctx.docDir ?? null)
+  // v2.0: prefer dataJail; fall back to legacy jailRoot/docDir for old callers.
+  const dataJail = ctx.security.dataJail ?? ctx.security.jailRoot ?? ctx.docDir ?? null
+  const file = makeFileHelpers(dataJail, ctx.security.allowedDataPaths, ctx.security.filesystemConfig)
   const skill = ctx.skillContext
   const ARGUMENTS = skill?.args ?? ''
   const argsList = skill?.argsList ?? []

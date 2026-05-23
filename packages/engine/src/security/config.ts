@@ -34,6 +34,25 @@ export interface DbConnectionSecurityConfig {
 export type DbSecurityConfig = Record<string, DbConnectionSecurityConfig>
 
 export interface FilesystemSecurityConfig {
+  // Path-jail roots (v2.0+):
+  //   source_root: where @import / @include resolve from
+  //     "auto"          → dirname of the entry document (recommended default)
+  //     "cwd"           → process working directory
+  //     <absolute path> → pin to a specific directory
+  //   data_root: where @list / @read / @tree / @count / @date file= / file.*
+  //              and other data operations resolve from
+  //     "cwd"           → process working directory (recommended default; matches
+  //                       skill mode where a document operates on the user's project)
+  //     "auto"          → dirname of entry document (matches v1.x behavior)
+  //     <absolute path> → pin to a specific directory
+  source_root: string
+  data_root: string
+  // Additional whitelisted paths beyond the corresponding root. Glob patterns
+  // accepted. Variable expansion supported: ${HOME}, ${CLAUDE_SKILL_DIR}, and
+  // any process env var, evaluated at check time.
+  allowed_source_paths: string[]
+  allowed_data_paths: string[]
+  // Pre-existing fields (apply to all filesystem ops):
   additional_block_paths: string[]
   additional_block_patterns: string[]
   allow_unmasked_paths: string[]
@@ -86,6 +105,10 @@ export function defaultSecurityConfig(): SecurityJsonConfig {
     },
     db: {},
     filesystem: {
+      source_root: 'auto',
+      data_root: 'cwd',
+      allowed_source_paths: [],
+      allowed_data_paths: [],
       additional_block_paths: [],
       additional_block_patterns: [],
       allow_unmasked_paths: [],

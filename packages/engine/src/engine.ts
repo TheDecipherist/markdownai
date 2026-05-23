@@ -20,6 +20,7 @@ import { parseTraceConfig } from './trace/config.js'
 import { emitSpan } from './trace/emit.js'
 import { extractArgs } from './trace/span.js'
 import { applyMasking } from './security/masking.js'
+import { expandPatterns } from './security/path-expand.js'
 
 export type { EngineContext }
 export { FatalError }
@@ -53,6 +54,71 @@ function resolveGitMeta(cwd: string): { hash: string; short: string } | null {
   }
 }
 
+/**
+ * Resolve sourceJail and dataJail on the EngineContext.
+ *
+ * Source ops (@import / @include) jail to source_root. Data ops (@list / @read /
+ * @tree / @count / file.*) jail to data_root. Both can be configured in
+ * security.json's filesystem section:
+ *
+ *   source_root: "auto" | "cwd" | <absolute path>   (default: "auto")
+ *   data_root:   "auto" | "cwd" | <absolute path>   (default: "cwd")
+ *
+ *   "auto" → dirname(mainFile) (the document directory)
+ *   "cwd"  → process.cwd()
+ *
+ * Explicit values on ctx.security.sourceJail / dataJail (set by the caller,
+ * e.g. MCP read_file) take precedence over filesystem config.
+ *
+ * Falls back to ctx.security.jailRoot when neither config nor caller set the
+ * v2.0 fields — keeps legacy code paths working.
+ */
+function resolveJailRoots(ctx: EngineContext, mainFile: string | null): void {
+  const fsConfig = ctx.security.filesystemConfig
+  const docDir = mainFile ? dirname(mainFile) : ctx.docDir
+  const cwd = ctx.cwd
+
+  // Resolve a root spec: "auto" → docDir, "cwd" → process cwd, abs path → as-is.
+  // The default argument is used when the config field is absent (per-op default).
+  const resolveRoot = (raw: string | undefined, defaultMode: 'auto' | 'cwd'): string => {
+    const mode = raw ?? defaultMode
+    if (mode === 'auto') return docDir
+    if (mode === 'cwd') return cwd
+    return resolve(mode)
+  }
+
+  // sourceJail: explicit override > config (default "auto" = docDir)
+  if (ctx.security.sourceJail === undefined || ctx.security.sourceJail === null) {
+    ctx.security.sourceJail = resolveRoot(fsConfig?.source_root, 'auto')
+  }
+
+  // dataJail: explicit override > config (default "cwd" = process cwd)
+  // v2.0: cwd is the canonical default. Callers wanting v1.x behavior set
+  // filesystem.data_root to "auto" or assign dataJail explicitly.
+  if (ctx.security.dataJail === undefined || ctx.security.dataJail === null) {
+    ctx.security.dataJail = resolveRoot(fsConfig?.data_root, 'cwd')
+  }
+
+  // Allow-lists: pre-expand ${VAR} placeholders so check-time stays cheap.
+  if (ctx.security.allowedSourcePaths === undefined) {
+    ctx.security.allowedSourcePaths = expandAllowList(fsConfig?.allowed_source_paths, ctx)
+  }
+  if (ctx.security.allowedDataPaths === undefined) {
+    ctx.security.allowedDataPaths = expandAllowList(fsConfig?.allowed_data_paths, ctx)
+  }
+}
+
+function expandAllowList(raw: string[] | undefined, ctx: EngineContext): string[] {
+  if (!raw || raw.length === 0) return []
+  const env: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
+  const skillDir = ctx.skillContext?.skillDir
+  const sessionId = ctx.skillContext?.sessionId
+  const expandCtx: import('./security/path-expand.js').PatternExpandContext = { env }
+  if (skillDir) expandCtx.skillDir = skillDir
+  if (sessionId) expandCtx.sessionId = sessionId
+  return expandPatterns(raw, expandCtx)
+}
+
 export function execute(ast: ParseResult, options?: EngineOptions): EngineResult {
   if (!ast.isMarkdownAI && !options?.passthrough) {
     return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [], events: [] }
@@ -70,6 +136,10 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
       base.security = { ...base.security, jailRoot: dirname(mainFile) }
     }
   }
+  // v2.0: resolve source and data jails from filesystem config (if not already
+  // set by the caller). source defaults to dirname(mainFile); data defaults to
+  // process cwd. Both can be overridden via filesystem.{source,data}_root.
+  resolveJailRoots(base, mainFile)
   const errors: string[] = []
   const parts: string[] = []
 

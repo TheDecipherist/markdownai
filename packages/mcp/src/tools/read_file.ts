@@ -91,6 +91,10 @@ export function readFile(args: ReadFileArgs, cwd: string): ReadFileResult {
   const execOpts: Parameters<typeof execute>[1] = {
     filePath: fullPath,
     ctx: {
+      // v2.0: cwd is the MCP server's working directory (the user's project).
+      // Engine will derive dataJail from this and sourceJail from dirname(fullPath).
+      // See engine.resolveJailRoots() for the resolution rules.
+      cwd,
       envFiles: args.env ?? {},
       phase: args.phase ?? null,
       consumer: args.consumer ?? 'ai',

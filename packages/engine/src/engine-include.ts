@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs'
-import { resolve, dirname, join } from 'node:path'
+import { resolve, dirname, join, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { ASTNode, IncludeNode, ImportNode } from '@markdownai/parser'
 import { parse } from '@markdownai/parser'
 import { type EngineContext, type Connection } from './context.js'
 import { evalCondition } from './conditions.js'
-import { checkFilePath } from './security/filesystem.js'
+import { checkSourcePath } from './security/filesystem.js'
 
 export class FatalError extends Error {
   constructor(message: string) {
@@ -35,15 +35,17 @@ export function loadStdlib(ctx: EngineContext): void {
 }
 
 export function executeImport(node: ImportNode, ctx: EngineContext): void {
-  const jailRoot = ctx.security.jailRoot ?? ctx.docDir
-  const check = checkFilePath(node.path, jailRoot, ctx.security.filesystemConfig)
+  // Resolve the candidate path first (relative to the importing doc's dir),
+  // then security-check the absolute result against the source jail.
+  const full = isAbsolute(node.path) ? node.path : resolve(ctx.docDir, node.path)
+  const sourceJail = ctx.security.sourceJail ?? ctx.security.jailRoot ?? ctx.docDir
+  const check = checkSourcePath(full, sourceJail, ctx.security.allowedSourcePaths, ctx.security.filesystemConfig)
   if (check.level === 'blocked') {
     ctx.warnings.push(`@import: ${check.reason} (${node.path}) — skipped`)
     return
   }
   if (check.level === 'alert') ctx.warnings.push(`@import SECURITY_ALERT: ${check.reason} (${node.path})`)
 
-  const full = resolve(ctx.docDir, node.path)
   if (ctx.completedSet.has(full)) return
   if (ctx.resolutionStack.has(full)) {
     const chain = [...ctx.resolutionStack, full].join(' → ')
@@ -75,12 +77,12 @@ export function executeInclude(
 ): string {
   if (node.condition !== null && !evalCondition(node.condition, ctx)) return ''
 
-  const jailRoot = ctx.security.jailRoot ?? ctx.docDir
-  const check = checkFilePath(node.path, jailRoot, ctx.security.filesystemConfig)
+  const full = isAbsolute(node.path) ? node.path : resolve(ctx.docDir, node.path)
+  const sourceJail = ctx.security.sourceJail ?? ctx.security.jailRoot ?? ctx.docDir
+  const check = checkSourcePath(full, sourceJail, ctx.security.allowedSourcePaths, ctx.security.filesystemConfig)
   if (check.level === 'blocked') throw new FatalError(`@include blocked: ${check.reason}`)
   if (check.level === 'alert') ctx.warnings.push(`@include SECURITY_ALERT: ${check.reason} (${node.path})`)
 
-  const full = resolve(ctx.docDir, node.path)
   if (ctx.resolutionStack.has(full)) {
     const chain = [...ctx.resolutionStack, full].join(' → ')
     throw new FatalError(`Circular reference detected: ${chain}`)

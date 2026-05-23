@@ -42,3 +42,91 @@ Scope (Tier 2, if time):
 ---
 
 (entries below this line as fixes land)
+
+---
+
+## 2026-05-23 | breaking + feature | Source vs Data Root Split (Wave 1)
+
+Split MarkdownAI's single path jail into two distinct contexts:
+
+- **Source ops** (`@import`, `@include`) jail to `source_root` (default: `auto` =
+  dirname of entry document). Same as v1.x behavior.
+- **Data ops** (`@list`, `@read`, `@tree`, `@count`, `@date file=`, `file.exists`,
+  `file.isFile`, `file.isDir`) jail to `data_root` (default: `cwd` = process
+  working directory). **This is a breaking change** — v1.x jailed all data ops
+  to the document directory.
+
+### Why
+
+A skill file installed at `~/.claude/commands/mdd.md` invoked via MCP `read_file`
+runs with `cwd` = user's project. With v1.x, `@list ./project-files` from such
+a skill jailed to the install directory — the skill could not see the user's
+project. v2.0 splits the contexts so source loading stays portable (document
+directory) but data access follows the working context (cwd by default).
+
+### Config
+
+```json
+{
+  "filesystem": {
+    "source_root": "auto",        // "auto" | "cwd" | <absolute path>
+    "data_root": "cwd",           // "cwd"  | "auto" | <absolute path>
+    "allowed_source_paths": [],   // extra patterns beyond source_root
+    "allowed_data_paths": []      // extra patterns beyond data_root
+  }
+}
+```
+
+Patterns in `allowed_*_paths` support glob (`**`, `*`) and `${VAR}` substitution.
+Supported variables: `${HOME}`, `${CLAUDE_SKILL_DIR}`, `${CLAUDE_SESSION_ID}`,
+plus any process env var. Expansion happens at check time.
+
+### Security model
+
+- Immutable rules (`.env`, `**/.ssh/**`, `*.pem`, path traversal, etc.) apply
+  to both source and data ops regardless of allowlists. Cannot be bypassed.
+- `allowed_*_paths` only relaxes the jail boundary — never overrides immutable
+  blocks.
+- Variable expansion resolves to the empty string for unset vars (conservative
+  fail-closed: the empty-prefix path almost never matches).
+
+### Migration
+
+For users who want v1.x behavior (data ops jailed to document dir):
+
+```json
+{ "filesystem": { "data_root": "auto" } }
+```
+
+For users with skill files operating on a separate project (the common new use
+case): no config needed. The default `data_root: "cwd"` does the right thing.
+
+### MDD integration validated
+
+MarkdownAI's MDD shared library (`~/projects/mdd2/commands/mdd-shared.md`) was
+rewritten to replace `@query bash -c "..."` workarounds with native directives
+(`@list`, `@read`). MDD's 51-test suite stays green against the new engine.
+
+### Files touched
+
+- `packages/engine/src/security/config.ts` — added `source_root`, `data_root`,
+  `allowed_source_paths`, `allowed_data_paths` to `FilesystemSecurityConfig`
+- `packages/engine/src/security/filesystem.ts` — added `checkSourcePath`,
+  `checkDataPath` (legacy `checkFilePath` kept for stripper)
+- `packages/engine/src/security/path-expand.ts` — new: ${VAR} expansion for
+  allow-list patterns
+- `packages/engine/src/context.ts` — added `sourceJail`, `dataJail`,
+  `allowedSourcePaths`, `allowedDataPaths` to `SecurityConfig`
+- `packages/engine/src/engine.ts` — new `resolveJailRoots()` derives jails from
+  config at execute()
+- `packages/engine/src/conditions.ts` — `file.*` helpers use `dataJail`
+- `packages/engine/src/engine-interpolate.ts` — `{{ file.* }}` helpers use `dataJail`
+- `packages/engine/src/engine-include.ts` — `@import` / `@include` use `sourceJail`
+- `packages/engine/src/sources.ts` — `@list` / `@read` / `@tree` / `@count` /
+  `@date file=` / mock paths use `dataJail`
+- `packages/mcp/src/tools/read_file.ts` — passes `cwd` explicitly so dataJail
+  resolves correctly
+- `packages/engine/src/__tests__/source-data-root.test.ts` — new: 12 tests
+  covering default behavior, allowlists, ${VAR} expansion, immutable rules,
+  legacy mode
+

@@ -85,6 +85,117 @@ export function checkFilePath(
 }
 
 /**
+ * v2.0: Check a source-op path (@import / @include).
+ *
+ * Allowed when:
+ *   - path is relative and resolves inside sourceJail, OR
+ *   - path (relative or absolute) matches a pattern in allowedSourcePaths.
+ *
+ * Built-in immutable rules (FILESYSTEM_ALWAYS_BLOCK_*) and user-configured
+ * additional_block_* always apply regardless of allowlists.
+ */
+export function checkSourcePath(
+  filePath: string,
+  sourceJail: string,
+  allowedSourcePaths: string[] | undefined,
+  config?: FilesystemSecurityConfig
+): FilesystemCheckResult {
+  return checkJailedPath(filePath, sourceJail, allowedSourcePaths, config, 'source')
+}
+
+/**
+ * v2.0: Check a data-op path (@list / @read / @tree / @count / file.*).
+ *
+ * Allowed when:
+ *   - path is relative and resolves inside dataJail, OR
+ *   - path (relative or absolute) matches a pattern in allowedDataPaths.
+ *
+ * Built-in immutable rules and user-configured additional_block_* always apply.
+ */
+export function checkDataPath(
+  filePath: string,
+  dataJail: string,
+  allowedDataPaths: string[] | undefined,
+  config?: FilesystemSecurityConfig
+): FilesystemCheckResult {
+  return checkJailedPath(filePath, dataJail, allowedDataPaths, config, 'data')
+}
+
+function checkJailedPath(
+  filePath: string,
+  jailRoot: string,
+  allowedPaths: string[] | undefined,
+  config: FilesystemSecurityConfig | undefined,
+  opType: 'source' | 'data'
+): FilesystemCheckResult {
+  // 1. Resolve to absolute path. Relative paths anchor on the jail; absolute
+  //    stay as-is so they can be checked against allowlists.
+  const absolute = isAbsolute(filePath) ? filePath : resolve(jailRoot, filePath)
+  const expandedAbs = expandHome(absolute)
+  const name = basename(absolute)
+
+  // 2. Always_block_paths and patterns are immutable — apply first so allowlists
+  //    cannot bypass them.
+  for (const pattern of FILESYSTEM_ALWAYS_BLOCK_PATHS) {
+    if (matchGlob(expandHome(pattern), expandedAbs)) {
+      return { level: 'blocked', reason: `Built-in blocked path: ${pattern}` }
+    }
+  }
+  for (const pattern of FILESYSTEM_ALWAYS_BLOCK_PATTERNS) {
+    if (matchGlob(pattern, name)) {
+      return { level: 'blocked', reason: `Built-in blocked file pattern: ${pattern}` }
+    }
+  }
+  if (config?.additional_block_paths?.length) {
+    for (const pattern of config.additional_block_paths) {
+      if (matchGlob(expandHome(pattern), expandedAbs)) {
+        return { level: 'blocked', reason: `User blocked path: ${pattern}` }
+      }
+    }
+  }
+  if (config?.additional_block_patterns?.length) {
+    for (const pattern of config.additional_block_patterns) {
+      if (matchGlob(pattern, name)) {
+        return { level: 'blocked', reason: `User blocked file pattern: ${pattern}` }
+      }
+    }
+  }
+
+  // 3. Inside the jail? Allowed (subject to alert check below).
+  const rel = relative(jailRoot, absolute)
+  const insideJail = !rel.startsWith('..') && !isAbsolute(rel)
+  if (insideJail) {
+    return classifyAlert(name, opType)
+  }
+
+  // 4. Outside the jail — only allowed if it matches an allowlist pattern.
+  if (allowedPaths && allowedPaths.length > 0) {
+    for (const pattern of allowedPaths) {
+      const expandedPattern = expandHome(pattern)
+      if (matchGlob(expandedPattern, expandedAbs)) {
+        return classifyAlert(name, opType)
+      }
+    }
+  }
+
+  return {
+    level: 'blocked',
+    reason: opType === 'source'
+      ? `Path outside source root (sourceJail=${jailRoot}); add to filesystem.allowed_source_paths to permit`
+      : `Path outside data root (dataJail=${jailRoot}); add to filesystem.allowed_data_paths to permit`,
+  }
+}
+
+function classifyAlert(name: string, _opType: 'source' | 'data'): FilesystemCheckResult {
+  for (const pattern of FILESYSTEM_ALWAYS_ALERT_PATTERNS) {
+    if (matchGlob(pattern, name)) {
+      return { level: 'alert', reason: `Sensitive file type accessed: ${pattern}` }
+    }
+  }
+  return { level: 'allowed', reason: '' }
+}
+
+/**
  * Check an absolute path against built-in always_block rules only.
  * Use this for paths that are legitimately absolute (e.g. CLI entry-point args)
  * where blocking all absolute paths would break normal usage, but sensitive
