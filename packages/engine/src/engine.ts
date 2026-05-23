@@ -17,6 +17,7 @@ import { executeList, executeRead, executeCount, executeDate, executeTree, execu
 import { executeMkdir, executeCopy, executeAppendIfMissing, executeUpdateFrontmatter } from './write-ops.js'
 import { executeReadFrontmatter, executeHash } from './read-ops.js'
 import { executeTest, executeCheck, executeRenderTemplate, setEngineExecute } from './exec-ops.js'
+import { executeForeach, executeSet, setIterEngine } from './iter-ops.js'
 import { resolveInterpolations, evalExpr } from './engine-interpolate.js'
 import { FatalError, versionIsNewer, loadStdlib, executeImport, executeInclude } from './engine-include.js'
 import { executeEvent } from './event.js'
@@ -188,6 +189,7 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
 // Inject execute + parse into exec-ops for @render-template sub-renders.
 // This breaks the circular import (exec-ops cannot statically import engine).
 setEngineExecute(execute, parserParse)
+setIterEngine(walkNodes, resolveInterpolations)
 
 function injectAiPrefixes(body: string, ctx: EngineContext): string {
   const prefixes: string[] = []
@@ -261,6 +263,8 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
     case 'test': return executeTest(node, ctx)
     case 'check': return executeCheck(node, ctx)
     case 'hash': return executeHash(node, ctx)
+    case 'foreach': return executeForeach(node, ctx)
+    case 'set': return executeSet(node, ctx)
     case 'prompt': return executePrompt(node, ctx)
     case 'note': return executeNote(node, ctx)
     case 'section': return `<!-- mda-section priority="${node.priority}"${node.id ? ` id="${node.id}"` : ''} -->\n${walkNodes(node.body, ctx).join('\n')}\n<!-- /mda-section -->`

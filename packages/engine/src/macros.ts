@@ -118,6 +118,19 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
         path: subStr(node.path, args),
         args: subArgs(node.args, args),
       }
+    case 'foreach':
+      return {
+        ...node,
+        literalSource: node.literalSource === null ? null : subStr(node.literalSource, args),
+        body: node.body.map(n => substituteNode(n, args)),
+        args: subArgs(node.args, args),
+      }
+    case 'set':
+      return {
+        ...node,
+        literalExpr: node.literalExpr === null ? null : subStr(node.literalExpr, args),
+        args: subArgs(node.args, args),
+      }
     case 'render':
       return { ...node as RenderNode, args: subArgs(node.args, args) }
     case 'connect':

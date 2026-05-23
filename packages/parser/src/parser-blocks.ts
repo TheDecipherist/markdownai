@@ -1,7 +1,7 @@
 import type {
   ASTNode, MarkdownNode, TransitionNode, TransitionAction,
   PromptNode, ConstraintNode, NoteNode, GraphNode, ShellInlineSpan,
-  RenderTemplateNode,
+  RenderTemplateNode, ForeachNode,
 } from './types.js'
 import { ParseError } from './types.js'
 
@@ -97,6 +97,20 @@ export function parseRenderTemplateBlock(
   }
   if (!closed) throw new ParseError('Unclosed @render-template block — expected @end', line, state.filePath)
   node.params = params
+  return node
+}
+
+export function parseForeachBlock(
+  state: State,
+  openLine: string,
+  args: string,
+  line: number,
+  walkBody: (state: State, closeTag: string) => ASTNode[],
+): ForeachNode {
+  const mod = getModule('foreach')!
+  const ctx = { line, filePath: state.filePath, inImport: state.inImport }
+  const node = mod.parse(openLine, args, ctx) as ForeachNode
+  node.body = walkBody(state, 'end')
   return node
 }
 

@@ -477,3 +477,103 @@ Non-breaking. All six additions are opt-in:
 - `@test` / `@check` require `security.shell.enabled: true` and matching `allow_patterns`.
 - `@hash` is read-only.
 - `file.containsLine` / `file.containsSection` are pure helpers in the `@if` sandbox.
+
+---
+
+## 2026-05-23 | feature | Wave 5 Part A — Iteration, value-binding, list-addressing, frontmatter-helper
+
+Four primitives required for the MDD Wave 5 conversion (mode files lose their
+remaining "for each", "if ... then update field", "read this list and check"
+prose — see `~/projects/mdd2/wave-5-grunt-elimination` plan).
+
+### `@foreach <var> in <source>`
+
+Block directive that iterates a list source. Source can be any directive
+returning lines (`@list`, `@read`, `@query`), a list-typed
+`@read-frontmatter` field, a `{{ label }}` interpolation, or a comma-separated
+literal. Each iteration binds `ctx.envFiles[<var>]` to the current item and
+runs `substituteParams` on the body so `{{ <var> }}` substitutes into nested
+directive args (e.g. `@read-frontmatter path="{{ doc }}"`). Outer bindings
+restore after the loop ends; nested foreach works.
+
+### `@set <var> = <expression>`
+
+Inline directive that binds `<var>` to the result of the right-hand side.
+Supports literal strings (auto-unquoted), directive invocations
+(`@set today = @date format="YYYY-MM-DD"`), and `{{ }}` interpolations.
+Equivalent in spirit to the existing `label=` on source directives but works
+for cases where the RHS isn't a single directive (concatenation, literal,
+ternary).
+
+### `@update-frontmatter field="list[N].sub"` / `field="list[append]"`
+
+Extended `@update-frontmatter` to address block-list items by index and to
+append new items. Examples:
+
+```
+@update-frontmatter path="doc.md" field="tags[append]"               value="new-tag"
+@update-frontmatter path="doc.md" field="tags[1]"                    value="emerald"
+@update-frontmatter path="doc.md" field="satisfies_contracts[0].status" value="done"
+@update-frontmatter path="doc.md" field="known_issues[append]"       value="bug X"
+```
+
+Creates the field if absent for `[append]`. Bounds-warns on `[N]` for an
+out-of-range index. Only block-list YAML is supported (no inline list mutation
+except the special case of `field: []` for `[append]`). The `[N].sub` form
+replaces (or adds) a sub-field on the indexed block-mapping item.
+
+### `file.frontmatterField(path, field)` helper
+
+New helper in the `@if` expression sandbox. Returns the field's value (string),
+empty string if missing or file absent. Allows inline conditionals without a
+separate `@read-frontmatter ... label=` line:
+
+```
+@if file.frontmatterField(".mdd/docs/01-mdd.md", "status") == "complete"
+  ...
+@endif
+```
+
+### Files touched
+
+- `packages/parser/src/types.ts` -- `ForeachNode`, `SetNode`
+- `packages/parser/src/directives/foreach.ts` -- new
+- `packages/parser/src/directives/set.ts` -- new
+- `packages/parser/src/registry.ts` -- register both
+- `packages/parser/src/parser-blocks.ts` -- `parseForeachBlock`
+- `packages/parser/src/parser.ts` -- dispatch `foreach` to block parser
+- `packages/engine/src/iter-ops.ts` -- new: `executeForeach`, `executeSet`,
+  `setIterEngine` (deferred engine pointer, mirroring exec-ops's pattern)
+- `packages/engine/src/engine.ts` -- dispatch `foreach`/`set`; inject
+  `setIterEngine(walkNodes, resolveInterpolations)` at module init
+- `packages/engine/src/macros.ts` -- `substituteNode` cases for `foreach` /
+  `set` (substitutes `literalSource` / `literalExpr` and recursively
+  substitutes body of foreach so inner uses of macro params resolve)
+- `packages/engine/src/write-ops.ts` -- `updateListField()` helper for
+  list-index addressing; routed from `executeUpdateFrontmatter`
+- `packages/engine/src/conditions.ts` -- `file.frontmatterField(path, field)`
+  in the sandbox alongside `file.exists` / `isFile` / `isDir` / `containsLine` /
+  `containsSection`
+- `packages/engine/src/__tests__/foreach.test.ts` -- new: 9 tests
+- `packages/engine/src/__tests__/set.test.ts` -- new: 7 tests
+- `packages/engine/src/__tests__/update-frontmatter-list.test.ts` -- new: 7 tests
+- `packages/engine/src/__tests__/file-frontmatter-helper.test.ts` -- new: 4 tests
+- `packages/engine/src/__tests__/test-check.test.ts` -- updated ShellSecurityConfig
+  test fixtures to include `allow_network` / `require_confirmation` (added
+  upstream since Wave 4 but the older fixtures still passed via tsbuildinfo
+  caching; this commit forces a clean check)
+
+### Test totals
+
+- engine: 646 (was 619; +27 across the four new files)
+- parser: 160
+- core: 93
+- mcp: 37
+- mdd: 51 (verified green with rebuilt mai binary)
+- **total: 987**
+
+### Migration notes
+
+Non-breaking. All four additions are opt-in. Existing `@update-frontmatter`
+calls with scalar `field=` work exactly as before — list-index syntax only
+activates when `field=` matches the `name[N].sub` or `name[append]` pattern.

@@ -3,6 +3,7 @@ import { existsSync, statSync, readFileSync } from 'node:fs'
 import { resolve, isAbsolute } from 'node:path'
 import type { EngineContext } from './context.js'
 import { checkDataPath } from './security/filesystem.js'
+import { readFrontmatterField } from './frontmatter-utils.js'
 
 function makeFileHelpers(
   dataJail: string | null,
@@ -38,6 +39,15 @@ function makeFileHelpers(
         const re = new RegExp(pattern, 'm')
         return re.test(content)
       } catch { return false }
+    },
+    frontmatterField: (p: string, field: string): string => {
+      const abs = confined(p)
+      if (abs === null || !existsSync(abs)) return ''
+      try {
+        const content = readFileSync(abs, 'utf8')
+        const v = readFrontmatterField(content, field)
+        return v ?? ''
+      } catch { return '' }
     },
     containsSection: (p: string, heading: string): boolean => {
       const abs = confined(p)

@@ -24,6 +24,8 @@ import renderTemplate from './directives/render-template.js'
 import test from './directives/test.js'
 import check from './directives/check.js'
 import hash from './directives/hash.js'
+import foreach from './directives/foreach.js'
+import setDir from './directives/set.js'
 import render from './directives/render.js'
 import ifDir from './directives/if.js'
 import graph from './directives/graph.js'
@@ -40,6 +42,7 @@ const modules: ParseModule[] = [
   header, include, importDir, env, define, call, phase, connect,
   list, read, query, db, http, tree, date, count, mkdir, copy, appendIfMissing,
   updateFrontmatter, readFrontmatter, renderTemplate, test, check, hash,
+  foreach, setDir,
   render, ifDir, graph, pipe,
   prompt, section, chunkBoundary, defineConcept, constraint, note, eventDir,
 ]

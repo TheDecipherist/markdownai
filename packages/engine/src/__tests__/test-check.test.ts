@@ -36,6 +36,8 @@ describe('@test and @check', () => {
     enabled: true,
     allow_patterns: ['true', 'false', 'echo *', 'sh -c *'],
     deny_patterns: [],
+    allow_network: false,
+    require_confirmation: false,
     audit_log: false,
   }
 
@@ -74,6 +76,8 @@ exit={{ t_exit }}
         enabled: true,
         allow_patterns: ['npm run *'],
         deny_patterns: [],
+        allow_network: false,
+        require_confirmation: false,
         audit_log: false,
       }
       const result = render(
@@ -128,6 +132,8 @@ exit={{ t_exit }}
         enabled: true,
         allow_patterns: ['npm run *'],
         deny_patterns: [],
+        allow_network: false,
+        require_confirmation: false,
         audit_log: false,
       }
       const result = render(
@@ -160,6 +166,8 @@ exit={{ c_exit }}
         enabled: true,
         allow_patterns: ['npm run *'],
         deny_patterns: [],
+        allow_network: false,
+        require_confirmation: false,
         audit_log: false,
       }
       const result = render(

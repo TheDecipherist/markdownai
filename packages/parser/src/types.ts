@@ -202,6 +202,23 @@ export interface HashNode extends ASTNodeBase {
   args: Record<string, string>  // optional: algo=, length=, exclude-line=, label=
 }
 
+export interface ForeachNode extends ASTNodeBase {
+  type: 'foreach'
+  varName: string           // identifier bound to each item inside the body
+  source: ASTNode | null    // a directive node whose output is the list (list / read / read-frontmatter / query)
+  literalSource: string | null  // raw "{{ label }}" or comma list when no directive node was parseable
+  body: ASTNode[]
+  args: Record<string, string>
+}
+
+export interface SetNode extends ASTNodeBase {
+  type: 'set'
+  varName: string           // identifier to bind
+  source: ASTNode | null    // a directive node whose output becomes the value
+  literalExpr: string | null  // raw expression for arithmetic / interpolation
+  args: Record<string, string>
+}
+
 export interface RenderNode extends ASTNodeBase {
   type: 'render'
   args: Record<string, string>
@@ -326,6 +343,8 @@ export type ASTNode =
   | TestNode
   | CheckNode
   | HashNode
+  | ForeachNode
+  | SetNode
   | RenderNode
   | ConditionalNode
   | PipeNode
