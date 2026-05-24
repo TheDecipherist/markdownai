@@ -326,6 +326,15 @@ const value = evalExpression('date format="YYYY-MM-DD"', ctx)
 
 `v1.0` also fixed two parser issues that affected conditions: `||` (logical OR) is now correctly distinguished from `|` (pipe), and `${VAR}` placeholders in `@include` / `@import` paths are expanded against `HOME`, `CLAUDE_SKILL_DIR`, `CLAUDE_SESSION_ID`, and process env before the path is jailed.
 
+**Dynamic include paths** - `{{ expression }}` segments in an `@include` path are evaluated at runtime using the same sandbox as `@if` conditions. `arg0`, `ARGUMENTS`, `env.*`, and any `@foreach` loop variable work directly in the path:
+
+```markdown
+@include ./{{arg0}}-mode.md
+@include ./{{arg0 || 'default'}}-section.md
+```
+
+This replaces `@if`/`@elseif` chains that differ only in which file they include. The expanded path goes through the same jail check as a static include - no security exceptions.
+
 ## Directive Inventory by Module
 
 The engine's execute step dispatches each AST node to a specialized op module. v1.0 added several modules:
