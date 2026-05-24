@@ -1,9 +1,9 @@
 {
   "docs/00-frontmatter-spec.md": "5c71e2314256e5b06f843e7286340294363e03150961abf923a69e0b3411d45c",
-  "docs/01-parser.md": "9867a7655ce0e92758f2fd8632b6a7164fbe9d4184069613fa528c5ee24fa381",
-  "docs/02-renderer.md": "66a8f585489a8109eec08559f625823fd47ae81e5b8a7afd8111f233fec62dab",
-  "docs/03-engine.md": "a91a7ce29cff7203409efa3cd0359b0115b993f4146a250670f06004a092fdb7",
-  "docs/04-cli-core.md": "8e046cabfe59f8f29c1fdb4f382a17236179e7876f45e775624edff8d856baa8",
+  "docs/01-parser.md": "2899291b0d86084ad049a71e75c9e65ff228e3510c366bf792c23be88d76f4d8",
+  "docs/02-renderer.md": "a7fe0d65c4661ae8f2fa910532af2ab7ae317ab100b70c511aa4b3e1eccaccde",
+  "docs/03-engine.md": "b4b68897a9d7b249c15bbc32e6ae3e3a07cf1ca3a3b9ec1dd2604e6c99b334a8",
+  "docs/04-cli-core.md": "81b1f8870648fc5b3c195ec2c385d93e4c1ebaa5e1c689f7345668956199e3e7",
   "docs/05-lang-header.md": "6733055969326349a10a22f1a99e77233e2eeb3914cad1f504218c3e8f4f1e60",
   "docs/06-lang-interpolation.md": "1458591e6d78111d3b1d07a8e73117b3f391777cea2c4b6c63da62f77dd97377",
   "docs/07-lang-env.md": "55554da13ba1708bcd135ac5de83dacd303a6d0ed825d93dcb1c1ea202d390e1",
@@ -21,7 +21,7 @@
   "docs/19-lang-sources-http.md": "8182b42738f962f10fe7df89caa620bb2a29069dd6e3650cd6273a1a480e4aff",
   "docs/20-lang-sources-query.md": "cf27546cba88957bfa14345620ae1b09cc9322132c19d6203346db4ea6597034",
   "docs/21-lang-phases.md": "6df536924a650aa48f9c6ca01d1b205ddc92d1bc478880cc834bd84dbe0771dc",
-  "docs/22-security-config.md": "e4341e27c06631530febffcbb74cacac797ffa41c217ea5bbab2d93b0cb271fb",
+  "docs/22-security-config.md": "4e07b835ee514a9a9f16b162d27c5a8f67502f6bbce5febcf56dc47abac7270f",
   "docs/23-security-filesystem.md": "9c7af83fc21f7277f7c2432c114412fd00b4439673ac439c77849950148c560d",
   "docs/24-security-shell.md": "aa1c98be6043cd2fbb5e94918a60ef496caa3a60a7270aaec8d571180671f8b2",
   "docs/25-security-database.md": "3486f3a96cf796e1bd081e1ab9983af8cb66ba23abf1ff7eeb3c438069db8566",
@@ -83,6 +83,13 @@
   "docs/81-lang-event.md": "2e86012ccf527355edcd9766264f0a3f1d16a8785aa97352cfdab4f8d9a1383b",
   "docs/82-engine-directive-tracing.md": "ed355e7087c4df88372fa32ac3abe7994494b53df944cbc913b525b1a6114048",
   "ops/release.md": "6525813379720b614481a15065619d38a17f49a5d1b9f934e69e487445e105f1",
-  "_generated": "2026-05-23T03:59:17Z",
-  "_manual_version": 3
+  "_generated": "2026-05-24T05:04:02.936981Z",
+  "_manual_version": 4,
+  "docs/84-lang-frontmatter-ops.md": "099e56d0ffc1bfc5aaa5e41e4fccc12cf19293c8f8ad950027f16f82ff45541d",
+  "docs/83-lang-foreach-set.md": "2b396be5fac9b7bbb45797e9ac88f66a788899de7c57229d4e66b161e8d7e262",
+  "docs/88-lang-write-directives.md": "bbef031e3835d60ec8d6c3aaee7c2e3e36be306f6bb0bf3867af4b4172e9c195",
+  "docs/87-lang-hash.md": "e768f3644c0c39f38bf7983b26a42fe819acc698d0973419f9fab108e8b85203",
+  "docs/86-lang-test-check.md": "6e823a23877bc2b26aee4ed0c7d40e959d47bab290d5971916dc46125d07fe65",
+  "docs/89-mcp-constraints.md": "b23cdaaf7215e3721ea51cba7919af9be3e025fd90b8998865034cc68f7644d4",
+  "docs/85-lang-render-template.md": "b2fc4a483b274cc7dad3bfb6bd21f73bb1805bf4da1fc55d9fed277c382a4ee7"
 }

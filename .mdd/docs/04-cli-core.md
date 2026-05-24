@@ -12,6 +12,8 @@ source_files:
   - packages/core/src/commands/parse.ts
   - packages/core/src/commands/eval.ts
   - packages/core/src/index.ts
+  - packages/core/src/env-loader.ts
+  - packages/core/src/cli-register-security.ts
 routes: []
 models: []
 test_files: []

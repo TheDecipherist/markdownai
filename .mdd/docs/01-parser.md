@@ -31,6 +31,11 @@ source_files:
   - packages/parser/src/directives/graph.ts
   - packages/parser/src/directives/pipe.ts
   - packages/parser/src/__tests__/parser.test.ts
+  - packages/parser/src/index.ts
+  - packages/parser/src/parser-blocks.ts
+  - packages/parser/src/args.ts
+  - packages/parser/src/interpolation.ts
+  - packages/parser/src/parser-state.ts
 routes: []
 models: []
 test_files:

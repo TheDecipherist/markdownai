@@ -7,6 +7,7 @@ source_files:
   - packages/engine/src/security/config.ts
   - packages/engine/src/security/audit.ts
   - packages/engine/src/security/modes.ts
+  - packages/engine/src/security/path-expand.ts
 wave: markdownai-core-wave-3
 wave_status: complete
 initiative: markdownai-core
