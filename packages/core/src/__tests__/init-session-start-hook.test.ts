@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import {
   SESSION_START_HOOK_SCRIPT,
+  SESSION_END_HOOK_SCRIPT,
   CLAUDE_MD_ALLOWED_DIRECTIVES,
   CLAUDE_MD_REFUSED_DIRECTIVES,
   findRefusedClaudeMdDirectives,
@@ -67,9 +68,6 @@ describe('findRefusedClaudeMdDirectives', () => {
   })
 
   it('does NOT flag @test inside a code fence (parser treats fenced content as literal)', () => {
-    // The detection mirrors the parser rule: directives are only recognised
-    // at line-start. Inside backticks the parser treats them as inline code,
-    // and so should the refusal scanner.
     const source = [
       'Example syntax:',
       '`@test command="..."`',
@@ -138,20 +136,23 @@ describe('buildSessionStartRefusalMessage', () => {
 
 describe('SessionStart hook (end-to-end via spawn)', () => {
   let projectDir: string
-  let hookPath: string
+  let startHookPath: string
+  let endHookPath: string
 
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), 'mai-sshook-'))
-    hookPath = join(projectDir, 'hook.mjs')
-    writeFileSync(hookPath, SESSION_START_HOOK_SCRIPT, 'utf8')
+    startHookPath = join(projectDir, 'sessionStart.mjs')
+    endHookPath = join(projectDir, 'sessionEnd.mjs')
+    writeFileSync(startHookPath, SESSION_START_HOOK_SCRIPT, 'utf8')
+    writeFileSync(endHookPath, SESSION_END_HOOK_SCRIPT, 'utf8')
   })
 
   afterEach(() => {
     try { rmSync(projectDir, { recursive: true, force: true }) } catch { /* ignore */ }
   })
 
-  function runHookWith(stdinJson: object): { code: number; stderr: string; stdout: string } {
-    const proc = spawnSync('node', [hookPath], {
+  function runStart(stdinJson: object): { code: number; stderr: string; stdout: string } {
+    const proc = spawnSync('node', [startHookPath], {
       input: JSON.stringify(stdinJson),
       encoding: 'utf8',
     })
@@ -162,25 +163,54 @@ describe('SessionStart hook (end-to-end via spawn)', () => {
     }
   }
 
-  it('exits 0 silently when no CLAUDE.md.mai exists in the project', () => {
-    const out = runHookWith({ cwd: projectDir })
+  function runEnd(stdinJson: object): { code: number; stderr: string; stdout: string } {
+    const proc = spawnSync('node', [endHookPath], {
+      input: JSON.stringify(stdinJson),
+      encoding: 'utf8',
+    })
+    return {
+      code: proc.status ?? -1,
+      stderr: proc.stderr ?? '',
+      stdout: proc.stdout ?? '',
+    }
+  }
+
+  it('exits 0 silently when CLAUDE.md does not exist', () => {
+    const out = runStart({ cwd: projectDir })
     expect(out.code).toBe(0)
     expect(out.stderr).toBe('')
     expect(existsSync(join(projectDir, 'CLAUDE.md'))).toBe(false)
+    expect(existsSync(join(projectDir, 'CLAUDE.mai'))).toBe(false)
   })
 
-  it('renders CLAUDE.md.mai to CLAUDE.md when source has only allowed directives', () => {
-    writeFileSync(join(projectDir, 'CLAUDE.md.mai'), [
+  it('exits 0 silently when CLAUDE.md is plain markdown (no @markdownai)', () => {
+    writeFileSync(join(projectDir, 'CLAUDE.md'), '# Plain Markdown\n\nNo directives here.\n', 'utf8')
+    const out = runStart({ cwd: projectDir })
+    expect(out.code).toBe(0)
+    expect(out.stderr).toBe('')
+    // CLAUDE.md unchanged, no backup created
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')).toBe('# Plain Markdown\n\nNo directives here.\n')
+    expect(existsSync(join(projectDir, 'CLAUDE.mai'))).toBe(false)
+  })
+
+  it('backs up CLAUDE.md to CLAUDE.mai and renders CLAUDE.md in place when source has only allowed directives', () => {
+    const source = [
       '@markdownai v1.0',
       '@date format="YYYY-MM-DD" label=today',
       '# Project Rules',
       '',
       'Today is {{ today }}.',
-    ].join('\n'), 'utf8')
+    ].join('\n')
+    writeFileSync(join(projectDir, 'CLAUDE.md'), source, 'utf8')
 
-    const out = runHookWith({ cwd: projectDir })
+    const out = runStart({ cwd: projectDir })
     expect(out.code).toBe(0)
-    expect(existsSync(join(projectDir, 'CLAUDE.md'))).toBe(true)
+
+    // Backup exists and contains original source with directives
+    expect(existsSync(join(projectDir, 'CLAUDE.mai'))).toBe(true)
+    expect(readFileSync(join(projectDir, 'CLAUDE.mai'), 'utf8')).toBe(source)
+
+    // CLAUDE.md is now rendered output - no directive syntax left
     const rendered = readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')
     expect(rendered).toMatch(/Today is 20\d\d-\d\d-\d\d\./)
     expect(rendered).toContain('# Project Rules')
@@ -188,49 +218,60 @@ describe('SessionStart hook (end-to-end via spawn)', () => {
     expect(rendered).not.toContain('{{ today }}')
   })
 
-  it('refuses to render when source uses @phase (and explains why)', () => {
-    writeFileSync(join(projectDir, 'CLAUDE.md.mai'), [
-      '@markdownai v1.0',
-      '@phase intro',
-      'Intro content.',
-      '@end',
-    ].join('\n'), 'utf8')
+  it('refreshes CLAUDE.mai backup on every session start (latest source wins)', () => {
+    // First session
+    const v1 = '@markdownai v1.0\n@date format="YYYY-MM-DD" label=today\nv1 today {{ today }}\n'
+    writeFileSync(join(projectDir, 'CLAUDE.md'), v1, 'utf8')
+    runStart({ cwd: projectDir })
+    expect(readFileSync(join(projectDir, 'CLAUDE.mai'), 'utf8')).toBe(v1)
 
-    const out = runHookWith({ cwd: projectDir })
+    // Simulate SessionEnd restoring the source
+    runEnd({ cwd: projectDir })
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')).toBe(v1)
+
+    // User edits CLAUDE.md (the source)
+    const v2 = '@markdownai v1.0\n@date format="YYYY-MM-DD" label=today\nv2 today {{ today }}\n'
+    writeFileSync(join(projectDir, 'CLAUDE.md'), v2, 'utf8')
+
+    // Next session - backup must now match v2
+    runStart({ cwd: projectDir })
+    expect(readFileSync(join(projectDir, 'CLAUDE.mai'), 'utf8')).toBe(v2)
+  })
+
+  it('refuses to render when source uses @phase (and explains why) - both files preserved', () => {
+    const source = '@markdownai v1.0\n@phase intro\nIntro content.\n@end\n'
+    writeFileSync(join(projectDir, 'CLAUDE.md'), source, 'utf8')
+
+    const out = runStart({ cwd: projectDir })
     expect(out.code).toBe(0)  // never blocks session start
     expect(out.stderr).toMatch(/refusing to render/i)
     expect(out.stderr).toContain('@phase')
     expect(out.stderr).toMatch(/lazy-load construct/)
-    // CLAUDE.md must NOT be created when render is refused
-    expect(existsSync(join(projectDir, 'CLAUDE.md'))).toBe(false)
+
+    // CLAUDE.md MUST be left untouched - it still has the directives
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')).toBe(source)
+    // And no backup file created (refusal is pre-backup)
+    expect(existsSync(join(projectDir, 'CLAUDE.mai'))).toBe(false)
   })
 
   it('refuses to render when source uses @test (slow / runs test runner)', () => {
-    writeFileSync(join(projectDir, 'CLAUDE.md.mai'), [
-      '@markdownai v1.0',
-      '@test command="pnpm test"',
-    ].join('\n'), 'utf8')
-
-    const out = runHookWith({ cwd: projectDir })
+    writeFileSync(join(projectDir, 'CLAUDE.md'), '@markdownai v1.0\n@test command="pnpm test"\n', 'utf8')
+    const out = runStart({ cwd: projectDir })
     expect(out.code).toBe(0)
     expect(out.stderr).toContain('@test')
     expect(out.stderr).toMatch(/runs the project test suite/)
   })
 
   it('refuses to render when source uses @mkdir (filesystem write)', () => {
-    writeFileSync(join(projectDir, 'CLAUDE.md.mai'), [
-      '@markdownai v1.0',
-      '@mkdir .mdd',
-    ].join('\n'), 'utf8')
-
-    const out = runHookWith({ cwd: projectDir })
+    writeFileSync(join(projectDir, 'CLAUDE.md'), '@markdownai v1.0\n@mkdir .mdd\n', 'utf8')
+    const out = runStart({ cwd: projectDir })
     expect(out.code).toBe(0)
     expect(out.stderr).toContain('@mkdir')
     expect(out.stderr).toMatch(/filesystem write/)
   })
 
   it('lists multiple refused directives at once', () => {
-    writeFileSync(join(projectDir, 'CLAUDE.md.mai'), [
+    writeFileSync(join(projectDir, 'CLAUDE.md'), [
       '@markdownai v1.0',
       '@phase a',
       '@test',
@@ -238,25 +279,162 @@ describe('SessionStart hook (end-to-end via spawn)', () => {
       '@end',
     ].join('\n'), 'utf8')
 
-    const out = runHookWith({ cwd: projectDir })
+    const out = runStart({ cwd: projectDir })
     expect(out.code).toBe(0)
     expect(out.stderr).toContain('@phase')
     expect(out.stderr).toContain('@test')
     expect(out.stderr).toContain('@http')
   })
 
+  it('crash-recovery: previous session ended dirty (CLAUDE.md is rendered, CLAUDE.mai is the source)', () => {
+    // Simulate previous SessionStart finished but SessionEnd never fired
+    const source = '@markdownai v1.0\n@date format="YYYY-MM-DD" label=t\nDate: {{ t }}\n'
+    writeFileSync(join(projectDir, 'CLAUDE.mai'), source, 'utf8')
+    writeFileSync(join(projectDir, 'CLAUDE.md'), 'Date: 2024-01-01\n', 'utf8')
+
+    const out = runStart({ cwd: projectDir })
+    expect(out.code).toBe(0)
+    expect(out.stderr).toMatch(/recovered CLAUDE\.md from CLAUDE\.mai/)
+
+    // CLAUDE.mai still holds the source (refreshed from itself, identical)
+    expect(readFileSync(join(projectDir, 'CLAUDE.mai'), 'utf8')).toBe(source)
+    // CLAUDE.md re-rendered fresh with today's date
+    const rendered = readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')
+    expect(rendered).toMatch(/Date: 20\d\d-\d\d-\d\d/)
+    expect(rendered).not.toContain('@date')
+  })
+
+  it('no-op when both CLAUDE.md and CLAUDE.mai exist but neither is a MarkdownAI doc', () => {
+    writeFileSync(join(projectDir, 'CLAUDE.md'), 'plain\n', 'utf8')
+    writeFileSync(join(projectDir, 'CLAUDE.mai'), 'also plain\n', 'utf8')
+    const out = runStart({ cwd: projectDir })
+    expect(out.code).toBe(0)
+    // Files untouched
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')).toBe('plain\n')
+    expect(readFileSync(join(projectDir, 'CLAUDE.mai'), 'utf8')).toBe('also plain\n')
+  })
+
+  it('detects MarkdownAI doc behind YAML frontmatter', () => {
+    const source = [
+      '---',
+      'description: project rules',
+      '---',
+      '@markdownai v1.0',
+      '@date format="YYYY-MM-DD" label=t',
+      'Today is {{ t }}.',
+    ].join('\n')
+    writeFileSync(join(projectDir, 'CLAUDE.md'), source, 'utf8')
+
+    const out = runStart({ cwd: projectDir })
+    expect(out.code).toBe(0)
+    expect(existsSync(join(projectDir, 'CLAUDE.mai'))).toBe(true)
+    expect(readFileSync(join(projectDir, 'CLAUDE.mai'), 'utf8')).toBe(source)
+    const rendered = readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')
+    expect(rendered).toMatch(/Today is 20\d\d-\d\d-\d\d\./)
+    expect(rendered).not.toContain('@date')
+  })
+
   it('falls back to process.cwd() when stdin cwd is missing', () => {
-    // No CLAUDE.md.mai in process.cwd(), so hook should silently exit 0.
-    const out = runHookWith({})
+    const out = runStart({})
     expect(out.code).toBe(0)
   })
 
-  it('never blocks session start - returns exit 0 even on internal errors', () => {
-    // Empty stdin (no JSON) should not crash with non-zero exit
-    const proc = spawnSync('node', [hookPath], {
-      input: 'not-valid-json',
+  it('never blocks session start - returns exit 0 even on malformed stdin', () => {
+    const proc = spawnSync('node', [startHookPath], { input: 'not-valid-json', encoding: 'utf8' })
+    expect(proc.status).toBe(0)
+  })
+})
+
+describe('SessionEnd hook (end-to-end via spawn)', () => {
+  let projectDir: string
+  let endHookPath: string
+
+  beforeEach(() => {
+    projectDir = mkdtempSync(join(tmpdir(), 'mai-eshook-'))
+    endHookPath = join(projectDir, 'sessionEnd.mjs')
+    writeFileSync(endHookPath, SESSION_END_HOOK_SCRIPT, 'utf8')
+  })
+
+  afterEach(() => {
+    try { rmSync(projectDir, { recursive: true, force: true }) } catch { /* ignore */ }
+  })
+
+  function runEnd(stdinJson: object): { code: number; stderr: string; stdout: string } {
+    const proc = spawnSync('node', [endHookPath], {
+      input: JSON.stringify(stdinJson),
       encoding: 'utf8',
     })
+    return {
+      code: proc.status ?? -1,
+      stderr: proc.stderr ?? '',
+      stdout: proc.stdout ?? '',
+    }
+  }
+
+  it('exits 0 silently when no CLAUDE.mai exists (no MarkdownAI project)', () => {
+    const out = runEnd({ cwd: projectDir })
+    expect(out.code).toBe(0)
+    expect(out.stderr).toBe('')
+  })
+
+  it('restores CLAUDE.md from CLAUDE.mai backup', () => {
+    const source = '@markdownai v1.0\n@date format="YYYY-MM-DD" label=t\nDate: {{ t }}\n'
+    writeFileSync(join(projectDir, 'CLAUDE.mai'), source, 'utf8')
+    writeFileSync(join(projectDir, 'CLAUDE.md'), 'rendered output\n', 'utf8')
+
+    const out = runEnd({ cwd: projectDir })
+    expect(out.code).toBe(0)
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')).toBe(source)
+    // Backup itself is preserved
+    expect(readFileSync(join(projectDir, 'CLAUDE.mai'), 'utf8')).toBe(source)
+  })
+
+  it('creates CLAUDE.md from backup if the rendered file was deleted', () => {
+    const source = '@markdownai v1.0\nHello.\n'
+    writeFileSync(join(projectDir, 'CLAUDE.mai'), source, 'utf8')
+    // No CLAUDE.md present (e.g. deleted by user mid-session)
+
+    const out = runEnd({ cwd: projectDir })
+    expect(out.code).toBe(0)
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')).toBe(source)
+  })
+
+  it('falls back to process.cwd() when stdin cwd is missing', () => {
+    const out = runEnd({})
+    expect(out.code).toBe(0)
+  })
+
+  it('never blocks session shutdown - returns exit 0 on malformed stdin', () => {
+    const proc = spawnSync('node', [endHookPath], { input: 'not-valid-json', encoding: 'utf8' })
     expect(proc.status).toBe(0)
+  })
+
+  it('full lifecycle: start backs up + renders, end restores - user always sees source', () => {
+    // Need both hooks for this test
+    const startHookPath = join(projectDir, 'sessionStart.mjs')
+    writeFileSync(startHookPath, SESSION_START_HOOK_SCRIPT, 'utf8')
+    const runStart = (json: object) => spawnSync('node', [startHookPath], { input: JSON.stringify(json), encoding: 'utf8' })
+
+    const source = '@markdownai v1.0\n@date format="YYYY-MM-DD" label=t\nToday: {{ t }}\n'
+    writeFileSync(join(projectDir, 'CLAUDE.md'), source, 'utf8')
+
+    // Session 1
+    runStart({ cwd: projectDir })
+    const rendered1 = readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')
+    expect(rendered1).toMatch(/Today: 20\d\d-\d\d-\d\d/)
+    expect(rendered1).not.toContain('@date')
+
+    runEnd({ cwd: projectDir })
+    // User opens CLAUDE.md - sees source again
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')).toBe(source)
+
+    // Session 2
+    runStart({ cwd: projectDir })
+    const rendered2 = readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')
+    expect(rendered2).toMatch(/Today: 20\d\d-\d\d-\d\d/)
+    expect(rendered2).not.toContain('@date')
+
+    runEnd({ cwd: projectDir })
+    expect(readFileSync(join(projectDir, 'CLAUDE.md'), 'utf8')).toBe(source)
   })
 })

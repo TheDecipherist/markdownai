@@ -1094,3 +1094,159 @@ commit is unaffected.
 - User guide: same.
 - `markdownai-instructions/` index (in `~/projects/mdd2`): add an
   entry pointing at this section.
+
+---
+
+## 2026-05-23 | breaking + bug-fix | SessionStart/End hooks: CLAUDE.md is the canonical source (in-place backup + restore)
+
+The earlier `CLAUDE.md.mai` design was wrong. Claude Code always reads
+`<cwd>/CLAUDE.md` - that's the file the user maintains, and it's the file
+Claude reads. Forcing the user to maintain a separate `.mai` source meant
+their natural file (`CLAUDE.md` with directives) never got rendered.
+
+### The corrected flow
+
+- `CLAUDE.md` is the **canonical source**. The user puts `@markdownai`
+  directives directly in it. They edit one file, the file they already
+  know about.
+- `CLAUDE.mai` is a **hook-managed backup**, never edited by the user.
+
+**SessionStart hook:**
+1. Read `<cwd>/CLAUDE.md`.
+2. If it's not a MarkdownAI doc but `CLAUDE.mai` backup exists, a previous
+   session ended dirty - restore `CLAUDE.md` from `CLAUDE.mai` first.
+3. If it's still not a MarkdownAI doc, exit 0 (plain CLAUDE.md, no-op).
+4. Validate refused directives. If any, leave both files alone, print
+   refusal message, exit 0.
+5. Copy `CLAUDE.md` -> `CLAUDE.mai` (backup the source).
+6. Render `CLAUDE.md` via `mai render`, overwrite `CLAUDE.md` with output.
+7. Claude Code's session init reads the rendered `CLAUDE.md`.
+
+**SessionEnd hook (companion):**
+1. If `CLAUDE.mai` exists, copy it back to `CLAUDE.md` (restore source).
+2. The user's next edit sees the source-of-truth version (with directives).
+
+### Why SessionEnd is best-effort, SessionStart is authoritative
+
+Claude Code's `SessionEnd` hook does NOT fire reliably on SIGTERM, SIGHUP,
+terminal close, or crash. The pair (SessionStart, SessionEnd) is not
+guaranteed. So `SessionStart` owns crash recovery: when CLAUDE.md is in
+its rendered form (no `@markdownai` header) but `CLAUDE.mai` exists, the
+hook detects the dirty state and restores before re-running the
+backup+render cycle. The restore happens exactly once - subsequent
+sessions converge on the steady state.
+
+This also handles Claude Code's `source=clear` and `source=compact`
+SessionStart events (which fire mid-process, not at terminal start):
+CLAUDE.md is currently rendered output from earlier in the same process,
+CLAUDE.mai is the backup; crash-recovery branch restores then re-renders
+with fresh data. No source-aware branching needed in the hook.
+
+### Why the in-place design
+
+The user's mental model is unchanged: one file (`CLAUDE.md`), edited
+normally. Between sessions, opening `CLAUDE.md` shows the source. During
+a session, Claude sees the rendered output. `CLAUDE.mai` is invisible to
+the workflow - it's the hook's scratch space.
+
+The trade-off: editing `CLAUDE.md` mid-session has no effect (Claude Code
+loads it once at session init, and SessionEnd will overwrite mid-session
+edits with the backup). This is acceptable because Claude Code's behavior
+already makes mid-session CLAUDE.md edits non-functional - it doesn't
+re-read the system prompt within a session.
+
+### Refusal stays at the gate
+
+If `CLAUDE.md` contains a refused directive (`@phase`, `@test`, `@http`,
+`@mkdir`, `@update-frontmatter`, etc.), the hook **does not back up** and
+**does not render**. Both files are left exactly as they are. Claude
+Code will load the raw `CLAUDE.md` with directive syntax visible - that's
+the user's signal that they wrote something the hook can't accept.
+The refusal message lists exactly which tokens, the category, the three
+rules (instant, synchronous, read-only), and the allowed-set summary.
+
+### Implementation
+
+- `SESSION_START_HOOK_SCRIPT` rewritten for the new flow. Reads
+  `CLAUDE.md`, handles crash recovery, validates refused directives,
+  backs up, renders, overwrites.
+- `SESSION_END_HOOK_SCRIPT` is a new constant. Restores `CLAUDE.md` from
+  `CLAUDE.mai` if the backup exists. Best-effort; no-op otherwise.
+- `ensureSessionEndHookFile()` writes the script alongside the existing
+  start hook installer.
+- `updateClientHooks()` now registers all three hooks (PreToolUse,
+  SessionStart, SessionEnd) idempotently in `settings.json`.
+- `runInit()` calls all three installers and passes all three hook paths
+  to `updateClientHooks()`.
+
+### Tests (35 in `init-session-start-hook.test.ts`, replacing the prior 24)
+
+`findRefusedClaudeMdDirectives` (7) + refused catalogue (4) + refusal
+message shape (4) - unchanged. Plus rewritten/new spawn tests:
+
+- `runStart` 13 tests: no CLAUDE.md no-op; plain markdown no-op; render
+  with backup; backup refreshes per session (latest source wins);
+  @phase/@test/@mkdir refused (each preserves both files); multi-refused
+  listing; **crash recovery** (rendered CLAUDE.md + backup -> restore +
+  re-render); both-non-MAI no-op; YAML frontmatter then `@markdownai`
+  detected; fallback cwd; malformed stdin exits 0.
+- `runEnd` 6 tests: no backup no-op; restore from backup; restore when
+  rendered file deleted; fallback cwd; malformed stdin exits 0;
+  full lifecycle round-trip (start renders, end restores, repeat).
+
+### Hook lifecycle research that drove the design
+
+Claude Code docs (verified via the claude-code-guide agent):
+
+- SessionStart fires with `source` in {`startup`, `resume`, `clear`,
+  `compact`}. All four converge on the same hook flow because crash
+  recovery handles "CLAUDE.md already rendered, backup exists".
+- SessionEnd fires with `reason` in {`clear`, `resume`, `logout`,
+  `prompt_input_exit`, `bypass_permissions_disabled`, `other`}.
+  NOT guaranteed on SIGKILL, SIGHUP, terminal close, or crash.
+- Stop fires per turn (not session boundary) - not used.
+
+### Files touched
+
+- `packages/core/src/commands/init.ts`:
+  - `SESSION_START_HOOK_SCRIPT` rewritten (in-place backup + render,
+    crash recovery, refusal-preserves-both-files).
+  - `SESSION_END_HOOK_SCRIPT` new constant.
+  - `ensureSessionEndHookFile()` new.
+  - `updateClientHooks()` takes a third hook path; registers SessionEnd
+    entry idempotently.
+  - `runInit()` installs and registers all three hooks.
+  - `buildSessionStartRefusalMessage()` reworded: "CLAUDE.md left
+    untouched" instead of the prior "existing CLAUDE.md".
+- `packages/core/src/__tests__/init-session-start-hook.test.ts`:
+  rewritten end-to-end suite for the new flow (35 tests).
+
+### Test totals
+
+- parser: 160 (unchanged)
+- engine: 658 (unchanged)
+- renderer: 45 (unchanged)
+- mcp: 52 (unchanged)
+- core: 150 (was 139; +11 net for end-hook + crash-recovery + lifecycle)
+- **total: 1065** (was 1060)
+
+### Migration notes
+
+**Breaking for users who already adopted the prior `CLAUDE.md.mai`
+convention.** Two-step migration:
+
+1. Rename `CLAUDE.md.mai` -> `CLAUDE.md` (overwrite the existing
+   rendered file - it'll be regenerated on next session).
+2. Re-run `mai init` to register the SessionEnd hook in `settings.json`.
+
+Users who haven't adopted the feature yet: no migration. Put directives
+in `CLAUDE.md`, run `mai init`, the hook handles the rest.
+
+### Docs to update
+
+- README: replace the `CLAUDE.md.mai` section with the canonical
+  `CLAUDE.md` + `.mai` backup design. The directive compatibility
+  matrix is unchanged.
+- User guide: same.
+- `markdownai-instructions/` index (in `~/projects/mdd2`): update the
+  CLAUDE.md hook pointer to describe the new flow.
