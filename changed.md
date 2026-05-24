@@ -1250,3 +1250,269 @@ in `CLAUDE.md`, run `mai init`, the hook handles the rest.
 - User guide: same.
 - `markdownai-instructions/` index (in `~/projects/mdd2`): update the
   CLAUDE.md hook pointer to describe the new flow.
+
+---
+
+## 2026-05-23 | breaking + feature | FINAL: SessionStart auto-injects CLAUDE-MarkdownAI.md as additionalContext (zero file mutation)
+
+The prior two CLAUDE.md hook designs are superseded by this one. Reasoning:
+both prior designs mutated `CLAUDE.md` on disk (either via the source-file
+split or via in-place rendering with a backup). Disk mutation of a tracked
+file creates real risks: accidental commits of rendered output, stale
+state if a session ends uncleanly, surprise diffs in editors and pre-commit
+hooks, ambiguity over which version is "the file". None of that is worth
+saving one tool call at session start.
+
+The final design is:
+
+  - Claude Code reads the user's `CLAUDE.md` as it always has. The hooks
+    NEVER touch this file.
+  - A separate file at `<cwd>/CLAUDE-MarkdownAI.md` (opt-in: the file
+    only exists if the user creates it) holds `@markdownai` directives
+    that resolve live project state (today's date, current branch, doc
+    inventory, etc.).
+  - The `SessionStart` hook spawns `mai render CLAUDE-MarkdownAI.md`,
+    captures the rendered plain-markdown output, and emits it as a JSON
+    payload on stdout:
+
+        {
+          "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": "<rendered markdown>"
+          }
+        }
+
+    Claude Code injects `additionalContext` into the session at start,
+    same weight as CLAUDE.md (system-level background). It lives only
+    in conversation context for that session - never written to disk.
+  - The `PreToolUse` hook (unchanged from earlier today) intercepts any
+    direct `Read` of a MarkdownAI document and redirects Claude to the
+    MCP server's tools. This applies to `CLAUDE-MarkdownAI.md` too:
+    if Claude tries to re-Read it mid-session (e.g. to refresh data),
+    the redirect message tells it the content is already in context
+    AND points at `mcp__markdownai__read_file` for fresh fetches.
+
+### What the user does
+
+  1. Create `<project>/CLAUDE-MarkdownAI.md`. Put any flat `@markdownai`
+     directives in it (no `@phase` - that's for MCP-served lazy-load
+     docs, not for session-init injection).
+  2. Run `mai init` once. Both hooks are installed and registered in
+     `settings.json` idempotently.
+  3. That's it. CLAUDE.md is untouched and stays whatever the user wrote.
+
+If `CLAUDE-MarkdownAI.md` doesn't exist, the hook is a silent no-op.
+
+### Directive guidance for CLAUDE-MarkdownAI.md
+
+Use flat, instant directives because the render is one shot at session
+start:
+
+  - `@date`, `@count`, `@list`, `@read`, `@read-frontmatter`, `@hash`,
+    `@tree` - all fast filesystem ops
+  - `@if` / `@elseif` / `@else` / `@endif` / `@foreach` / `@set` -
+    control flow / value binding
+  - `@env` - env-var read through the security gate
+  - `@call` / `@import` / `@include` - macro and content composition
+  - `@define` / `@define-concept` / `@constraint` / `@note` / `@prompt`
+    / `@section` - structural
+
+AVOID in CLAUDE-MarkdownAI.md:
+
+  - `@phase` / `@on complete` - phase semantics are MCP-driven; in
+    one-shot render mode every phase fires at once anyway, defeating
+    the lazy-load benefit. If you want phased project context, put
+    it in `.mai/<name>.md` and call `mcp__markdownai__list_phases` +
+    `resolve_phase` from inside the session.
+  - `@http`, `@test`, `@check`, `@query`, `@db` - slow / async / can
+    hang. They will run on every session start and delay the session.
+    Allowed if you accept the cost; the hook does not enforce.
+  - `@mkdir`, `@copy`, `@append-if-missing`, `@update-frontmatter`,
+    `@render-template` - filesystem writes. Allowed if you intend them
+    (the hook does not enforce - this is your file, you choose), but
+    surprising for a session-init render that should mostly read.
+
+These are RECOMMENDATIONS, not enforcement. The prior design had a
+refusal mechanism that blocked certain directives; we dropped it
+because the new flow renders via the same `mai render` path a user
+runs from the terminal, and there's no special "system prompt vs
+not" distinction to enforce. Use what works; we just call out the
+pitfalls.
+
+### The hook flow
+
+  Claude Code session begins (source = startup | resume | clear | compact)
+       |
+       v
+  SessionStart hook fires
+       |
+       v
+  Hook reads <cwd>/CLAUDE-MarkdownAI.md
+    - missing? exit 0, no stdout, no injection
+    - present? spawn `mai render <path>` (30s timeout)
+        - spawn error (e.g. mai not on PATH)? warn to stderr, exit 0
+        - render fails (non-zero exit)? warn to stderr, exit 0
+        - empty render output? exit 0, no injection
+        - success? emit JSON additionalContext on stdout, exit 0
+       |
+       v
+  Claude Code injects additionalContext (if any) into session context
+       |
+       v
+  Claude sees rendered MarkdownAI context alongside CLAUDE.md
+       |
+       v
+  Session continues - any later direct Read of a MAI doc hits the
+  PreToolUse hook, which routes Claude to the MCP server tools
+
+The hook never exits non-zero. Session is never blocked by render
+failure, missing files, or malformed input.
+
+### Why additionalContext beats the prior in-place render
+
+  - **No file mutation**: zero risk of accidental commits, zero
+    surprise diffs, zero pre-commit-hook conflict.
+  - **No crash recovery needed**: nothing on disk to restore. Next
+    session starts clean regardless of how the prior one ended.
+  - **Same weight as CLAUDE.md**: Claude Code wraps additionalContext
+    in a system-reminder, persistent for the session, authoritative.
+  - **CLAUDE.md stays user-owned**: the user maintains their CLAUDE.md
+    exactly as they always have. The MarkdownAI feature is opt-in
+    via a separate file.
+
+Trade-off: one `mai` process spawn at session start (~50-200ms typical
+for flat directive sets). Acceptable; cache-friendly directives (@date,
+@count, etc.) are sub-10ms.
+
+### Implementation
+
+- `SESSION_START_HOOK_SCRIPT` rewritten as a small mjs script
+  (top-level await, single try/catch). Spawns `mai render`, wraps
+  output in `hookSpecificOutput` JSON, writes to stdout.
+- `ensureSessionStartHookFile()` installs the script to
+  `~/.markdownai/hooks/sessionStart.mjs` idempotently.
+- `updateClientHooks(configPath, hookPath, sessionStartHookPath)`
+  merges both PreToolUse and SessionStart entries into `settings.json`,
+  matching existing entries by substring (`preToolUse` /
+  `sessionStart`).
+- `runInit()` installs both hooks. The success message now says
+  "MarkdownAI hooks" (plural).
+- `REDIRECT_MESSAGE` (PreToolUse) gains a `NOTE on CLAUDE-MarkdownAI.md
+  specifically` paragraph: if the blocked file is `CLAUDE-MarkdownAI.md`,
+  Claude is told the rendered content is already in context AND given
+  the exact MCP call to fetch a fresh render if needed.
+
+The prior helpers (`CLAUDE_MD_ALLOWED_DIRECTIVES`,
+`CLAUDE_MD_REFUSED_DIRECTIVES`, `findRefusedClaudeMdDirectives`,
+`buildSessionStartRefusalMessage`, `SESSION_END_HOOK_SCRIPT`,
+`ensureSessionEndHookFile`) are removed. They were specific to the
+in-place-render design and have no role in the new flow.
+
+### Tests (11 in `init-session-start-hook.test.ts`, replacing the prior 35)
+
+The hook script is much simpler and so is the test surface:
+
+1. No CLAUDE-MarkdownAI.md present -> exit 0, no stdout, no stderr,
+   no CLAUDE.md written, no backup files written.
+2. CLAUDE.md untouched when CLAUDE-MarkdownAI.md is present (byte-
+   for-byte unchanged after the hook runs).
+3. Emits valid JSON envelope with `hookSpecificOutput.hookEventName:
+   "SessionStart"` and `additionalContext: <rendered>` on stdout.
+4. Empty render output -> exit 0, no JSON emitted (nothing to inject).
+5. `mai render` fails -> exit 0, stderr explains, no stdout.
+6. `mai` not on PATH -> exit 0, stderr says cannot invoke, no stdout.
+7. Missing stdin cwd -> falls back to `process.cwd()`.
+8. Malformed stdin -> exit 0.
+9. Non-existent cwd -> exit 0, no crash.
+10. Multi-line / unicode preserved through the JSON round-trip.
+11. Quotes / backslashes / newlines in rendered content stringify
+    correctly (validates JSON.stringify of arbitrary mai stdout).
+
+Tests use a stub `mai` script dropped into a per-test tmp dir and
+prepended to PATH, so they're deterministic on any host (no
+dependency on `mai` being globally installed during CI).
+
+### Files touched
+
+- `packages/core/src/commands/init.ts`:
+  - `REDIRECT_MESSAGE` gains the CLAUDE-MarkdownAI.md note.
+  - New `SESSION_START_HOOK_SCRIPT` constant (replaces prior version).
+  - New `ensureSessionStartHookFile()` helper.
+  - `updateClientHooks()` takes `sessionStartHookPath` and registers
+    the SessionStart entry idempotently.
+  - `runInit()` installs both hooks.
+  - Removed: `CLAUDE_MD_ALLOWED_DIRECTIVES`,
+    `CLAUDE_MD_REFUSED_DIRECTIVES`, `findRefusedClaudeMdDirectives`,
+    `buildSessionStartRefusalMessage`, `SESSION_END_HOOK_SCRIPT`,
+    `ensureSessionEndHookFile`.
+- `packages/core/src/__tests__/init-session-start-hook.test.ts`:
+  rewritten end-to-end for the new flow (11 tests).
+
+### Test totals
+
+- parser: 160 (unchanged)
+- engine: 658 (unchanged)
+- renderer: 45 (unchanged)
+- mcp: 52 (unchanged)
+- core: 126 (was 150; -24 net, suite is smaller because the simpler
+  hook has fewer code paths to test)
+- **total: 1041** (was 1065)
+
+### Hook lifecycle research that drove the design
+
+`additionalContext` confirmed via Claude Code docs:
+
+- SessionStart hooks can output JSON `{ hookSpecificOutput: {
+  hookEventName: "SessionStart", additionalContext: <string> } }`
+  on stdout. The string is injected into Claude's session context
+  before the first user prompt, wrapped in a system reminder,
+  same weight as CLAUDE.md.
+- Fires on all four `source` values (`startup`, `resume`, `clear`,
+  `compact`).
+- No documented size limit; CLAUDE.md itself caps at 200 lines /
+  25KB per the same docs, so we treat that as the practical
+  upper bound for the rendered content too.
+- stderr is NOT seen by Claude - it's for human warnings only.
+
+### Migration notes
+
+**Breaking for users who already adopted either of the prior two
+CLAUDE.md hook designs.**
+
+If you had a `CLAUDE.md.mai` source file (first design):
+
+  1. Rename `CLAUDE.md.mai` -> `CLAUDE-MarkdownAI.md`.
+  2. Restore your original `CLAUDE.md` (it currently holds rendered
+     output; replace it with whatever you actually want Claude to see
+     as your project rules).
+  3. Re-run `mai init` to register the new SessionStart hook.
+
+If you had the in-place backup design (second design):
+
+  1. `cp CLAUDE.mai CLAUDE.md` to restore your source.
+  2. Move the `@markdownai` directives OUT of CLAUDE.md and into a new
+     `CLAUDE-MarkdownAI.md`.
+  3. Delete `CLAUDE.mai` (the backup file is no longer used).
+  4. Re-run `mai init` to register the corrected SessionStart hook
+     and drop the SessionEnd hook from settings.json (Claude Code will
+     ignore the dead entry but you can clean it up manually).
+
+Users with no prior adoption: just create `CLAUDE-MarkdownAI.md`
+and run `mai init`. No migration.
+
+### Docs to update
+
+Three places carry the CLAUDE.md hook documentation. Update all of
+them when this branch ships:
+
+- **README** (`~/projects/markdownai/README.md`): replace any
+  description of `CLAUDE.md.mai`, `CLAUDE.mai` backup, or the
+  in-place render design with the `CLAUDE-MarkdownAI.md` +
+  `additionalContext` design described here. Keep the
+  recommended-directives list; drop the "refused directives" table
+  (no enforcement now).
+- **User guide** (`docs/user-guide.html` / source `.md`): same
+  change as README.
+- **markdownai-instructions index** (in `~/projects/mdd2`): update
+  the CLAUDE.md hook pointer to describe the new flow. The MCP
+  tool reference is unchanged.

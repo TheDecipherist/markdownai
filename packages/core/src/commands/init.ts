@@ -74,6 +74,14 @@ export const REDIRECT_MESSAGE = [
   'the result back into the document text, then return rendered text to you.',
   'Direct file reads bypass the engine and leave you with raw source.',
   '',
+  'NOTE on CLAUDE-MarkdownAI.md specifically:',
+  '  If the blocked file is named `CLAUDE-MarkdownAI.md`, its rendered content',
+  '  was already injected into your session context by the SessionStart hook',
+  '  at the start of this session - look in your existing context, do not',
+  '  re-fetch. If the content is stale (e.g. long session, file changed),',
+  '  use `mcp__markdownai__read_file` with `{ path: "CLAUDE-MarkdownAI.md",',
+  '  cwd: "<project root>" }` to fetch a fresh render.',
+  '',
   'Route this read through the markdownai MCP server. The available tools:',
   '',
   '1. mcp__markdownai__list_phases',
@@ -280,6 +288,97 @@ function ensureHookFile(hookDir: string, hookPath: string): void {
   }
 }
 
+/**
+ * The SessionStart hook script. Installed to ~/.markdownai/hooks/sessionStart.mjs
+ * by `mai init`. Runs at session start (source: `startup` | `resume` | `clear` |
+ * `compact`) and injects the rendered content of `<cwd>/CLAUDE-MarkdownAI.md`
+ * into Claude's session context via the `hookSpecificOutput.additionalContext`
+ * JSON channel.
+ *
+ * Design intent:
+ *   - The user's CLAUDE.md is NEVER touched. The hook makes zero filesystem
+ *     writes - the rendered content lives only in conversation context for
+ *     this session.
+ *   - `CLAUDE-MarkdownAI.md` is a separate file the user creates and edits.
+ *     It contains `@markdownai` directives that resolve at session start.
+ *   - All directives in `CLAUDE-MarkdownAI.md` are rendered in one shot via
+ *     `mai render`. Use flat directives (`@date`, `@count`, `@list`,
+ *     `@read-frontmatter`, `@if`, `@foreach`, `@set`, `@env`, `@call`, etc.)
+ *     - NOT `@phase`, which is for MCP-served lazy-load documents.
+ *   - Direct Read of `CLAUDE-MarkdownAI.md` is intercepted by the PreToolUse
+ *     hook (it's a MarkdownAI doc). Claude must use the MCP server if it
+ *     ever needs to re-fetch the rendered content mid-session.
+ *
+ * No-op when:
+ *   - `CLAUDE-MarkdownAI.md` doesn't exist (project hasn't adopted the feature)
+ *   - `mai` is not on PATH (warn to stderr, exit 0)
+ *   - `mai render` fails (warn to stderr, exit 0; Claude sees no extra context)
+ *
+ * Never blocks session start - always exits 0.
+ */
+export const SESSION_START_HOOK_SCRIPT = `#!/usr/bin/env node
+// MarkdownAI SessionStart hook - installed by mai init
+//
+// Renders <cwd>/CLAUDE-MarkdownAI.md via the mai CLI and injects the result
+// into Claude's session context via hookSpecificOutput.additionalContext.
+//
+// CLAUDE.md is never touched. CLAUDE-MarkdownAI.md is a separate file the
+// user creates with @markdownai directives. The render output lives only
+// in conversation context for this session - never written to disk.
+//
+// No-op when CLAUDE-MarkdownAI.md doesn't exist or mai render fails.
+// Never blocks session start (always exits 0).
+import { createInterface } from 'node:readline'
+import { existsSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { join } from 'node:path'
+
+let raw = ''
+if (process.stdin.isTTY) process.exit(0)
+for await (const line of createInterface({ input: process.stdin })) raw += line
+
+try {
+  const data = raw ? JSON.parse(raw) : {}
+  const cwd = data.cwd || data.tool_input?.cwd || process.cwd()
+  const filePath = join(cwd, 'CLAUDE-MarkdownAI.md')
+
+  if (!existsSync(filePath)) process.exit(0)
+
+  const result = spawnSync('mai', ['render', filePath], {
+    encoding: 'utf8',
+    cwd,
+    timeout: 30_000,
+  })
+
+  if (result.error) {
+    // mai CLI not on PATH (ENOENT) or another spawn-level failure.
+    process.stderr.write('MarkdownAI SessionStart hook: cannot invoke "mai render" (' + String(result.error) + '). Session continues without CLAUDE-MarkdownAI.md context.\\n')
+    process.exit(0)
+  }
+
+  if (result.status !== 0) {
+    process.stderr.write('MarkdownAI SessionStart hook: mai render failed for CLAUDE-MarkdownAI.md. Session continues without injected context.\\n')
+    if (result.stderr) process.stderr.write(result.stderr + '\\n')
+    process.exit(0)
+  }
+
+  const rendered = result.stdout || ''
+  if (rendered.trim() === '') process.exit(0)
+
+  const payload = {
+    hookSpecificOutput: {
+      hookEventName: 'SessionStart',
+      additionalContext: rendered,
+    },
+  }
+  process.stdout.write(JSON.stringify(payload))
+  process.exit(0)
+} catch (err) {
+  process.stderr.write('MarkdownAI SessionStart hook error: ' + String(err) + '\\n')
+  process.exit(0)
+}
+`
+
 function ensureSessionStartHookFile(hookDir: string, hookPath: string): void {
   mkdirSync(hookDir, { recursive: true })
   const hookAlreadyExists = existsSync(hookPath) &&
@@ -289,354 +388,12 @@ function ensureSessionStartHookFile(hookDir: string, hookPath: string): void {
   }
 }
 
-function ensureSessionEndHookFile(hookDir: string, hookPath: string): void {
-  mkdirSync(hookDir, { recursive: true })
-  const hookAlreadyExists = existsSync(hookPath) &&
-    readFileSync(hookPath, 'utf8').includes('MarkdownAI SessionEnd hook')
-  if (!hookAlreadyExists) {
-    writeFileSync(hookPath, SESSION_END_HOOK_SCRIPT, 'utf8')
-  }
-}
-
-/**
- * Directives that are SAFE to use in CLAUDE.md.
- *
- * CLAUDE.md is loaded into Claude's system prompt at session start (one shot,
- * synchronous). The directives allowed here must:
- *   - resolve INSTANTLY (no network, no shell, no test runners)
- *   - have NO SIDE EFFECTS on disk (no @mkdir/@copy/@update-frontmatter/...)
- *   - not depend on lazy/phase-based loading (@phase / @on are for MCP only)
- *
- * The render is one shot per session start - it must not hang, must not
- * mutate the project, and must not require Claude-mediated steps.
- */
-export const CLAUDE_MD_ALLOWED_DIRECTIVES = [
-  '@markdownai',        // header
-  '@date',              // current date - instant
-  '@count',             // file/dir count - fast fs op
-  '@list',              // directory listing - fast fs op
-  '@read',              // file read - fast
-  '@read-frontmatter',  // file read + regex - fast
-  '@hash',              // file read + crypto - fast
-  '@tree',              // directory walk - fast
-  '@if',                // condition eval - instant
-  '@elseif', '@else', '@endif',
-  '@foreach',           // iteration - depends on body but iteration itself is instant
-  '@set',               // value binding - instant
-  '@env',               // env var read - instant
-  '@call',              // macro invocation (body must also follow these rules)
-  '@import',            // load macros from another file - fast
-  '@include',           // inline file content - fast
-  '@define', '@define-concept', '@constraint', '@note', '@prompt', '@section',
-  '@chunk-boundary',
-  '@end',               // closing tag
-] as const
-
-/**
- * Directives that are REFUSED in CLAUDE.md. The hook checks the source for
- * any of these (at line start) and refuses to render if found, leaving the
- * existing CLAUDE.md intact and printing a clear explanation.
- *
- * Each refused directive has a category so the hook message can explain
- * exactly why each one is blocked.
- */
-export const CLAUDE_MD_REFUSED_DIRECTIVES: Record<string, string> = {
-  // Lazy / phase constructs - meaningless in a one-shot session-init render
-  '@phase': 'phase (lazy-load construct; CLAUDE.md is one-shot, not phased)',
-  '@on':    'on-complete transition (only meaningful inside @phase blocks)',
-  // Slow / async - violate the "instant + synchronous" rule
-  '@test':  'test (runs the project test suite - too slow for session init)',
-  '@check': 'check (runs typecheck/lint - too slow for session init)',
-  '@http':  'http (network call - async and can hang)',
-  '@query': 'query (arbitrary shell - can be slow or block)',
-  '@db':    'db (database query - async and can hang)',
-  // Side-effecting writes - CLAUDE.md is for READING project state, not changing it
-  '@mkdir':              'mkdir (filesystem write; CLAUDE.md must be read-only)',
-  '@copy':               'copy (filesystem write)',
-  '@append-if-missing':  'append-if-missing (filesystem write)',
-  '@update-frontmatter': 'update-frontmatter (filesystem write)',
-  '@render-template':    'render-template (filesystem write)',
-}
-
-/**
- * Scan CLAUDE.md source for any refused directives appearing at line-start
- * (the only position where the parser recognizes them as live directives).
- * Returns the list of refused tokens found, in the order they appear in the
- * source.
- *
- * Exported for unit tests.
- */
-export function findRefusedClaudeMdDirectives(source: string): string[] {
-  const found = new Set<string>()
-  const lines = source.split('\n')
-  for (const line of lines) {
-    const trimmed = line.trimStart()
-    for (const directive of Object.keys(CLAUDE_MD_REFUSED_DIRECTIVES)) {
-      // Match `@foo ` or `@foo` at end of line - bare directive token, not
-      // inline mention. The parser uses the same rule.
-      if (trimmed === directive || trimmed.startsWith(`${directive} `)) {
-        found.add(directive)
-        break
-      }
-    }
-  }
-  return [...found]
-}
-
-/**
- * The full message printed when the SessionStart hook refuses to render
- * CLAUDE.md because the source contains directives not allowed in CLAUDE.md.
- * Lists the offending tokens and the full allowed/refused rules.
- */
-export function buildSessionStartRefusalMessage(refused: string[]): string {
-  const lines = [
-    'MarkdownAI SessionStart hook: refusing to render CLAUDE.md.',
-    '',
-    'The source contains directives that are NOT allowed in CLAUDE.md:',
-    ...refused.map(d => `  ${d}  -  ${CLAUDE_MD_REFUSED_DIRECTIVES[d]}`),
-    '',
-    'CLAUDE.md is loaded into Claude\'s system prompt at session start.',
-    'The render must be instant, synchronous, and side-effect-free, because:',
-    '  - Session init blocks on the hook; slow directives delay every session.',
-    '  - CLAUDE.md is loaded into the prompt directly; writes to disk are not',
-    '    its job and could surprise the user every time they open Claude Code.',
-    '  - @phase / @on are MCP lazy-load constructs; CLAUDE.md is one-shot.',
-    '',
-    'Allowed directives in CLAUDE.md:',
-    '  @date, @count, @list, @read, @read-frontmatter, @hash, @tree,',
-    '  @if / @elseif / @else / @endif, @foreach, @set, @env,',
-    '  @call (macro body must also follow these rules),',
-    '  @import / @include, @define / @define-concept / @constraint,',
-    '  @note / @prompt / @section.',
-    '',
-    'For test runs, settings reads, network calls, shell commands, or file',
-    'writes, use a mode file served via the MCP server instead. CLAUDE.md is',
-    'for getting Claude its bearings; everything else lives in mode files.',
-    '',
-    'CLAUDE.md left untouched (still contains the raw directives Claude will',
-    'see). Session will start normally. Fix the source and reopen the session.',
-    '',
-  ]
-  return lines.join('\n')
-}
-
-/**
- * The SessionStart hook script. Installed to ~/.markdownai/hooks/sessionStart.mjs
- * by `mai init`. Runs before Claude Code's session init loads the system
- * prompt - this is the place to render directives in CLAUDE.md.
- *
- * The source-of-truth file is always <cwd>/CLAUDE.md. Claude Code reads
- * CLAUDE.md regardless of what we do; we cannot rename or redirect it. So:
- *
- *   1. If CLAUDE.md is a MarkdownAI document (bare @markdownai or YAML-
- *      frontmatter-then-@markdownai), back it up to <cwd>/CLAUDE.mai so the
- *      source survives the render.
- *   2. Render CLAUDE.md via the mai CLI. The output is plain markdown with
- *      every directive substituted.
- *   3. Overwrite CLAUDE.md with the rendered output. Claude Code reads this
- *      plain markdown into its system prompt.
- *   4. The companion SessionEnd hook restores CLAUDE.md from CLAUDE.mai once
- *      the session ends, so the user's next edit pass sees the source again.
- *
- * Crash safety: if a previous session ended without the SessionEnd hook
- * firing (e.g. process killed), CLAUDE.md is left in its rendered form on
- * disk. On the next SessionStart, CLAUDE.md will not look like a MarkdownAI
- * document, but CLAUDE.mai still holds the source - in that case the hook
- * restores from CLAUDE.mai first before the new backup+render cycle.
- *
- * Refused directives: if the source uses any directive that isn't instantly
- * resolvable, synchronous, and read-only, the hook prints a clear refusal
- * message and leaves CLAUDE.md alone. Session always starts (exit 0).
- */
-export const SESSION_START_HOOK_SCRIPT = `#!/usr/bin/env node
-// MarkdownAI SessionStart hook - installed by mai init
-//
-// Flow:
-//   - CLAUDE.md is the canonical source (the file the user edits and the file
-//     Claude Code reads).
-//   - On session start: backup CLAUDE.md -> CLAUDE.mai, render CLAUDE.md
-//     in place (overwriting it with plain markdown).
-//   - On session end (companion hook): restore CLAUDE.md from CLAUDE.mai.
-//
-// Crash recovery: if CLAUDE.md is not a MarkdownAI document but CLAUDE.mai
-// exists, a prior session must have ended uncleanly. Restore from CLAUDE.mai
-// first, then proceed normally.
-//
-// Refuse: if the source uses any directive that isn't instant, synchronous,
-// and read-only, leave CLAUDE.md alone and print a clear error.
-import { createInterface } from 'node:readline'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
-import { join } from 'node:path'
-
-const REFUSED = ${JSON.stringify(CLAUDE_MD_REFUSED_DIRECTIVES)}
-
-function isMarkdownAIDocument(content) {
-  const lines = content.split('\\n')
-  let i = 0
-  while (i < lines.length && (lines[i] ?? '').trim() === '') i++
-  if (i >= lines.length) return false
-  if ((lines[i] ?? '').trimStart().startsWith('@markdownai')) return true
-  if ((lines[i] ?? '').trim() === '---') {
-    for (let j = i + 1; j < lines.length; j++) {
-      if ((lines[j] ?? '').trim() === '---') {
-        let k = j + 1
-        while (k < lines.length && (lines[k] ?? '').trim() === '') k++
-        return k < lines.length && (lines[k] ?? '').trimStart().startsWith('@markdownai')
-      }
-    }
-  }
-  return false
-}
-
-function findRefused(source) {
-  const found = new Set()
-  for (const line of source.split('\\n')) {
-    const trimmed = line.trimStart()
-    for (const directive of Object.keys(REFUSED)) {
-      if (trimmed === directive || trimmed.startsWith(directive + ' ')) {
-        found.add(directive)
-        break
-      }
-    }
-  }
-  return [...found]
-}
-
-const REFUSAL_HEADER = ${JSON.stringify(buildSessionStartRefusalMessage([]).split('\n').slice(0, 3).join('\n') + '\n')}
-const REFUSAL_FOOTER = ${JSON.stringify(buildSessionStartRefusalMessage([]).split('\n').slice(3).join('\n'))}
-
-function buildRefusalMessage(refused) {
-  const bullets = refused.map(d => '  ' + d + '  -  ' + REFUSED[d]).join('\\n')
-  return REFUSAL_HEADER + bullets + '\\n' + REFUSAL_FOOTER
-}
-
-let raw = ''
-if (process.stdin.isTTY) process.exit(0)
-for await (const line of createInterface({ input: process.stdin })) raw += line
-
-try {
-  const data = raw ? JSON.parse(raw) : {}
-  const cwd = data.cwd || data.tool_input?.cwd || process.cwd()
-  const claudeMdPath = join(cwd, 'CLAUDE.md')
-  const backupPath = join(cwd, 'CLAUDE.mai')
-
-  if (!existsSync(claudeMdPath)) process.exit(0)
-
-  let source = ''
-  try { source = readFileSync(claudeMdPath, 'utf8') } catch { process.exit(0) }
-
-  // Crash recovery: CLAUDE.md is in its rendered form (no @markdownai header)
-  // but CLAUDE.mai backup exists, so a previous session ended uncleanly.
-  // Restore from the backup before the new render cycle.
-  if (!isMarkdownAIDocument(source) && existsSync(backupPath)) {
-    let backup = ''
-    try { backup = readFileSync(backupPath, 'utf8') } catch { process.exit(0) }
-    if (!isMarkdownAIDocument(backup)) {
-      // Backup is also not MarkdownAI - nothing to do.
-      process.exit(0)
-    }
-    try { writeFileSync(claudeMdPath, backup, 'utf8') } catch (err) {
-      process.stderr.write('MarkdownAI SessionStart hook: failed to restore CLAUDE.md from CLAUDE.mai backup: ' + String(err) + '\\n')
-      process.exit(0)
-    }
-    source = backup
-    process.stderr.write('MarkdownAI SessionStart hook: recovered CLAUDE.md from CLAUDE.mai (previous session ended without restoring the source).\\n')
-  }
-
-  // Plain markdown CLAUDE.md (no directives, no prior backup) - no-op.
-  if (!isMarkdownAIDocument(source)) process.exit(0)
-
-  // Validate refused directives BEFORE touching the backup. If the source is
-  // invalid, leave both files alone.
-  const refused = findRefused(source)
-  if (refused.length > 0) {
-    process.stderr.write(buildRefusalMessage(refused))
-    process.exit(0)
-  }
-
-  // Backup CLAUDE.md -> CLAUDE.mai. This is the source-preservation step;
-  // CLAUDE.mai is the SessionEnd hook's restore point.
-  try { writeFileSync(backupPath, source, 'utf8') } catch (err) {
-    process.stderr.write('MarkdownAI SessionStart hook: failed to write CLAUDE.mai backup: ' + String(err) + '\\n')
-    process.exit(0)
-  }
-
-  // Render via the mai CLI. Timeout caps any directive that takes too long.
-  const result = spawnSync('mai', ['render', claudeMdPath], {
-    encoding: 'utf8',
-    cwd,
-    timeout: 30_000,
-  })
-  if (result.status !== 0) {
-    process.stderr.write('MarkdownAI SessionStart hook: mai render failed for CLAUDE.md. Source preserved in CLAUDE.mai.\\n')
-    if (result.stderr) process.stderr.write(result.stderr + '\\n')
-    process.exit(0)
-  }
-
-  // Overwrite CLAUDE.md with rendered output. Claude Code reads this on
-  // session init. The source is safe in CLAUDE.mai; SessionEnd restores.
-  writeFileSync(claudeMdPath, result.stdout, 'utf8')
-  process.exit(0)
-} catch (err) {
-  process.stderr.write('MarkdownAI SessionStart hook error: ' + String(err) + '\\n')
-  process.exit(0)
-}
-`
-
-/**
- * The SessionEnd hook script. Restores <cwd>/CLAUDE.md from its <cwd>/CLAUDE.mai
- * backup once the Claude Code session ends, so the user always opens the
- * source-of-truth file (with @markdownai directives) for their next edit.
- *
- * If CLAUDE.mai doesn't exist, this is a project that never used MarkdownAI
- * in CLAUDE.md - no-op. The hook never blocks session shutdown.
- */
-export const SESSION_END_HOOK_SCRIPT = `#!/usr/bin/env node
-// MarkdownAI SessionEnd hook - installed by mai init
-//
-// Companion to the SessionStart hook. Restores CLAUDE.md from its
-// CLAUDE.mai backup so the user always opens the source-of-truth version
-// of CLAUDE.md (the one with @markdownai directives) for their next edit.
-//
-// No-op for projects that don't have a CLAUDE.mai backup file.
-import { createInterface } from 'node:readline'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-
-let raw = ''
-if (process.stdin.isTTY) process.exit(0)
-for await (const line of createInterface({ input: process.stdin })) raw += line
-
-try {
-  const data = raw ? JSON.parse(raw) : {}
-  const cwd = data.cwd || data.tool_input?.cwd || process.cwd()
-  const claudeMdPath = join(cwd, 'CLAUDE.md')
-  const backupPath = join(cwd, 'CLAUDE.mai')
-
-  if (!existsSync(backupPath)) process.exit(0)
-
-  let backup = ''
-  try { backup = readFileSync(backupPath, 'utf8') } catch { process.exit(0) }
-  if (backup === '') process.exit(0)
-
-  try { writeFileSync(claudeMdPath, backup, 'utf8') } catch (err) {
-    process.stderr.write('MarkdownAI SessionEnd hook: failed to restore CLAUDE.md from CLAUDE.mai: ' + String(err) + '\\n')
-    process.exit(0)
-  }
-  process.exit(0)
-} catch (err) {
-  process.stderr.write('MarkdownAI SessionEnd hook error: ' + String(err) + '\\n')
-  process.exit(0)
-}
-`
-
 interface HookUpdateResult {
   alreadyInstalled: boolean
   error?: string
 }
 
-function updateClientHooks(configPath: string, hookPath: string, sessionStartHookPath: string, sessionEndHookPath: string): HookUpdateResult {
+function updateClientHooks(configPath: string, hookPath: string, sessionStartHookPath: string): HookUpdateResult {
   let config: Record<string, unknown> = {}
   if (existsSync(configPath)) {
     try {
@@ -647,7 +404,8 @@ function updateClientHooks(configPath: string, hookPath: string, sessionStartHoo
   }
   const hooks = (config['hooks'] as Record<string, unknown> | undefined) ?? {}
 
-  // PreToolUse: block direct Read of MarkdownAI documents
+  // PreToolUse: block direct Read of MarkdownAI documents and redirect
+  // Claude to the MCP server tools.
   const preEntries = Array.isArray(hooks['PreToolUse']) ? hooks['PreToolUse'] as unknown[] : []
   const preAlreadyInstalled = preEntries.some((entry: unknown) => {
     const e = entry as Record<string, unknown>
@@ -658,7 +416,7 @@ function updateClientHooks(configPath: string, hookPath: string, sessionStartHoo
     hooks['PreToolUse'] = [...preEntries, { matcher: 'Read', hooks: [{ type: 'command', command: `node ${hookPath}` }] }]
   }
 
-  // SessionStart: backup CLAUDE.md -> CLAUDE.mai, render CLAUDE.md in place
+  // SessionStart: render CLAUDE-MarkdownAI.md and inject as additionalContext
   const startEntries = Array.isArray(hooks['SessionStart']) ? hooks['SessionStart'] as unknown[] : []
   const startAlreadyInstalled = startEntries.some((entry: unknown) => {
     const e = entry as Record<string, unknown>
@@ -669,18 +427,7 @@ function updateClientHooks(configPath: string, hookPath: string, sessionStartHoo
     hooks['SessionStart'] = [...startEntries, { hooks: [{ type: 'command', command: `node ${sessionStartHookPath}` }] }]
   }
 
-  // SessionEnd: restore CLAUDE.md from CLAUDE.mai backup
-  const endEntries = Array.isArray(hooks['SessionEnd']) ? hooks['SessionEnd'] as unknown[] : []
-  const endAlreadyInstalled = endEntries.some((entry: unknown) => {
-    const e = entry as Record<string, unknown>
-    const subhooks = Array.isArray(e['hooks']) ? e['hooks'] as Array<Record<string, unknown>> : []
-    return subhooks.some(h => typeof h['command'] === 'string' && h['command'].includes('sessionEnd'))
-  })
-  if (!endAlreadyInstalled) {
-    hooks['SessionEnd'] = [...endEntries, { hooks: [{ type: 'command', command: `node ${sessionEndHookPath}` }] }]
-  }
-
-  const alreadyInstalled = preAlreadyInstalled && startAlreadyInstalled && endAlreadyInstalled
+  const alreadyInstalled = preAlreadyInstalled && startAlreadyInstalled
   if (!alreadyInstalled) {
     config['hooks'] = hooks
     mkdirSync(dirname(configPath), { recursive: true })
@@ -703,12 +450,10 @@ export function runInit(options: InitOptions = {}): InitResult {
   const hookDir = join(homedir(), '.markdownai', 'hooks')
   const hookPath = join(hookDir, 'preToolUse.mjs')
   const sessionStartHookPath = join(hookDir, 'sessionStart.mjs')
-  const sessionEndHookPath = join(hookDir, 'sessionEnd.mjs')
   ensureHookFile(hookDir, hookPath)
   ensureSessionStartHookFile(hookDir, sessionStartHookPath)
-  ensureSessionEndHookFile(hookDir, sessionEndHookPath)
 
-  const result = updateClientHooks(configPath, hookPath, sessionStartHookPath, sessionEndHookPath)
+  const result = updateClientHooks(configPath, hookPath, sessionStartHookPath)
   if (result.error) {
     return { success: false, clientDetected: clientType, configPath, alreadyInstalled: false, message: result.error }
   }
@@ -718,7 +463,7 @@ export function runInit(options: InitOptions = {}): InitResult {
     configPath,
     alreadyInstalled: result.alreadyInstalled,
     message: result.alreadyInstalled
-      ? `MarkdownAI hook already installed in ${configPath}`
-      : `MarkdownAI hook installed in ${configPath}`,
+      ? `MarkdownAI hooks already installed in ${configPath}`
+      : `MarkdownAI hooks installed in ${configPath}`,
   }
 }
