@@ -96,6 +96,7 @@ The parser produces a flat array of typed nodes. Every node has a `type` field a
 | `DefineNode` | `@define` | Macro definition block |
 | `CallNode` | `@call` | Macro invocation |
 | `ConditionalNode` | `@if / @elseif / @else / @endif` | Conditional block with branches |
+| `SwitchNode` | `@switch / @case / @default / @endswitch` | Multi-branch conditional - first matching case wins |
 | `PhaseNode` | `@phase` | Phase block with `@on complete` transitions |
 | `EventNode` | `@event` | Named signal dispatch with data payload and transport list |
 | `PipeNode` | `source | transform | @render` | Pipe chain |
@@ -120,7 +121,7 @@ The parser produces a flat array of typed nodes. Every node has a `type` field a
 
 ### Block structure
 
-Block directives (`@define`, `@phase`, `@if`, `@prompt`, `@note`, `@section`) open with the directive and close with `@end` or `@endif`. The parser tracks nesting and returns each block as a single node with its children.
+Block directives (`@define`, `@phase`, `@if`, `@prompt`, `@note`, `@section`) open with the directive and close with `@end` or `@endif`. The `@switch` block opens with `@switch {{expr}}` and closes with `@endswitch`; `@case` and `@default` mark its branches. The parser tracks nesting and returns each block as a single node with its children.
 
 ```ts
 const ast = parse(`@markdownai

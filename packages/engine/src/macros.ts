@@ -2,7 +2,7 @@ import type {
   ASTNode, ConditionalBranch, PipeStage,
   IncludeNode, ImportNode, ListNode, ReadNode, TreeNode, CountNode,
   QueryNode, DbNode, HttpNode, DateNode, RenderNode, ConnectNode, CallNode,
-  SectionNode, PromptNode, NoteNode, ConceptNode, ConstraintNode,
+  SectionNode, PromptNode, NoteNode, ConceptNode, ConstraintNode, SwitchNode,
 } from '@markdownai/parser'
 import { scanInterpolations } from '@markdownai/parser'
 
@@ -42,6 +42,16 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
         body: substituteParams(b.body, args),
       }))
       return { ...node, branches }
+    }
+    case 'switch': {
+      const cases = (node as SwitchNode).cases.map(c => ({
+        ...c,
+        body: substituteParams(c.body, args),
+      }))
+      const defaultBody = (node as SwitchNode).defaultBody !== null
+        ? substituteParams((node as SwitchNode).defaultBody!, args)
+        : null
+      return { ...(node as SwitchNode), cases, defaultBody }
     }
     case 'include':
       return { ...node as IncludeNode, path: subStr(node.path, args) }

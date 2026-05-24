@@ -110,6 +110,7 @@
     <a href="#include">@include Content</a>
     <a href="#import">@import Definitions</a>
     <a href="#conditionals">@if Conditionals</a>
+    <a href="#switch">@switch</a>
     <a href="#pipe">Pipe and @render</a>
     <div class="toc-group">Data Sources</div>
     <a href="#list">@list</a>
@@ -193,6 +194,7 @@ mai init</code></pre>
         <a href="#include">@include Content</a>
         <a href="#import">@import Definitions</a>
         <a href="#conditionals">@if Conditionals</a>
+        <a href="#switch">@switch</a>
         <a href="#pipe">Pipe and @render</a>
         <span class="toc-group">Data Sources</span>
         <a href="#list">@list</a>
@@ -780,6 +782,50 @@ This doc is shipped.
           <p>
             <strong>Always supply <code>--env</code> when stripping or rendering documents with conditionals.</strong> Run <code>mai validate</code> first to catch unset variables before they silently evaluate to false.
           </p>
+        </div>
+      </section>
+
+      <!-- ===== SWITCH ===== -->
+      <section id="switch">
+        <h2>@switch - Multi-Branch Conditional</h2>
+
+        <p>
+          When you have more than a couple of branches, <code>@switch</code> is cleaner than a chain of <code>@if</code>/<code>@elseif</code>. It evaluates one expression and renders the first <code>@case</code> whose value matches.
+        </p>
+
+        <pre><code class="language-markdown">@switch {{argsList[0]}}
+  @case "build"
+    Running build mode...
+  @case "audit"
+    Running audit mode...
+  @case "status"
+    Running status check...
+  @default
+    Unknown command. Try: build, audit, status.
+@endswitch</code></pre>
+
+        <p>
+          Both the switch expression and each <code>@case</code> value support <code>&#123;&#123; &#125;&#125;</code> dynamic expressions - the same sandbox as <code>@if</code>, so <code>env.*</code>, <code>argsList</code>, <code>arg0</code>, <code>@foreach</code> loop variables, and all other context values work.
+        </p>
+
+        <pre><code class="language-markdown">@switch {{env.APP_ENV}}
+  @case "production"
+    Live data - changes are permanent.
+  @case {{env.STAGING_LABEL}}
+    Staging environment.
+  @default
+    Development mode.
+@endswitch</code></pre>
+
+        <div class="info-box">
+          <strong>Rules:</strong>
+          <ul>
+            <li>First matching case wins - no fall-through.</li>
+            <li><code>@default</code> is optional; if absent and nothing matches, the block produces empty output.</li>
+            <li><code>@case "default"</code> matches the string <code>"default"</code> - it does <em>not</em> trigger the <code>@default</code> block.</li>
+            <li>Nesting works: <code>@switch</code> inside <code>@foreach</code>, <code>@if</code>, or another <code>@switch</code>.</li>
+            <li>Closes with <code>@endswitch</code>.</li>
+          </ul>
         </div>
       </section>
 
