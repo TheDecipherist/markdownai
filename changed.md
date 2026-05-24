@@ -921,3 +921,176 @@ through - but the previous behavior was the bug.
 `~/projects/mdd2/commands/mdd.md` - the file the hook previously failed
 to detect because of its YAML frontmatter. With this fix in place, direct
 `Read` on it now returns the full MCP tool catalogue.
+
+---
+
+## 2026-05-23 | feature | SessionStart hook: render `CLAUDE.md.mai` -> `CLAUDE.md` before session init
+
+CLAUDE.md is loaded by Claude Code's session init (as system-prompt
+content), not by Claude's tool calls. That means the PreToolUse hook
+shipped earlier today cannot pre-render directives in CLAUDE.md - by the
+time Claude has access to its tools the file is already in the prompt.
+But CLAUDE.md is exactly the place that benefits most from live data
+(current branch, today's date, the active feature inventory, etc.). So
+mai now ships a second hook on the `SessionStart` lifecycle.
+
+### Convention
+
+The user maintains a source file at `<project>/CLAUDE.md.mai` containing
+MarkdownAI directives. The hook fires before session init, runs
+`mai render CLAUDE.md.mai`, and writes the output to `<project>/CLAUDE.md`.
+Claude Code's session init then reads the freshly rendered CLAUDE.md
+into the system prompt as usual.
+
+Why a separate source file (rather than rendering CLAUDE.md in place):
+the render would overwrite its own source on every session. Keeping the
+`.mai` source separate preserves it and makes the relationship clear.
+
+### Directive compatibility matrix
+
+CLAUDE.md is a one-shot system-prompt augmentation. Directives used in
+the source MUST follow three rules:
+
+1. **Instantly resolvable** - no network, no shell, no test runners.
+2. **Synchronous** - no async, no callbacks, no waiting.
+3. **Read-only** - no filesystem writes (CLAUDE.md is for surfacing
+   project state, not changing it).
+
+#### Allowed (instant + synchronous + read-only)
+
+| Directive | Notes |
+|---|---|
+| `@date` | current date / timestamp |
+| `@count` | file or line count |
+| `@list` | directory listing |
+| `@read` | file contents or specific JSON/YAML/CSV value |
+| `@read-frontmatter` | single YAML field from a doc |
+| `@hash` | content hash |
+| `@tree` | directory tree |
+| `@if` / `@elseif` / `@else` / `@endif` | conditional branching |
+| `@foreach` | iteration over a list source |
+| `@set` | bind a value to a variable |
+| `@env` | env var read (through the security gate) |
+| `@call` | invoke a macro (the macro body must also follow these rules) |
+| `@import` | load macros from another file |
+| `@include` | inline another file's content |
+| `@define` / `@define-concept` / `@constraint` | compile-time / no runtime side effect |
+| `@note` / `@prompt` / `@section` / `@chunk-boundary` | content structure |
+| `{{ ... }}` interpolation | resolves variables/labels set above |
+
+#### Refused (the hook will not render and explains why)
+
+| Directive | Reason refused |
+|---|---|
+| `@phase` | lazy-load construct; CLAUDE.md is one-shot, not phased - use mode files served via MCP for phase-by-phase work |
+| `@on` | on-complete transition - only meaningful inside `@phase` |
+| `@test` | runs the project test suite - too slow for session init |
+| `@check` | runs typecheck/lint - too slow for session init |
+| `@http` | network call - async and can hang |
+| `@query` | arbitrary shell - can be slow or block |
+| `@db` | database query - async and can hang |
+| `@mkdir` | filesystem write |
+| `@copy` | filesystem write |
+| `@append-if-missing` | filesystem write |
+| `@update-frontmatter` | filesystem write |
+| `@render-template` | filesystem write |
+
+If `CLAUDE.md.mai` contains any refused directive, the hook leaves the
+existing `CLAUDE.md` untouched, prints a clear message to stderr listing
+each refused directive with the category description, and exits 0. The
+session always starts; the render is the only thing that's skipped.
+
+### The hook flow
+
+```
+Claude Code starts a session
+    |
+    v
+SessionStart hooks fire (in order)
+    |
+    v
+mai SessionStart hook:
+  - look for <cwd>/CLAUDE.md.mai
+  - if missing, exit 0 silently
+  - read source, scan for refused directives
+  - if refused: print message to stderr, exit 0 (skip render)
+  - else: spawn `mai render <cwd>/CLAUDE.md.mai`, capture stdout
+  - on render error: print stderr, exit 0 (skip render)
+  - on success: write stdout to <cwd>/CLAUDE.md
+    |
+    v
+Claude Code reads CLAUDE.md into the system prompt
+    |
+    v
+Session continues
+```
+
+The hook never exits non-zero. Session init is never blocked by a
+broken `.mai` source or render failure - the existing CLAUDE.md is
+preserved and the session starts.
+
+### Implementation
+
+- `SESSION_START_HOOK_SCRIPT` const in `init.ts` holds the hook source
+  (mjs, with top-level await). Embedded refused-directive table is
+  inlined via JSON.stringify of `CLAUDE_MD_REFUSED_DIRECTIVES`.
+- `runInit()` now installs both hooks. New
+  `ensureSessionStartHookFile()` writes the script; `updateClientHooks()`
+  was extended to register a `SessionStart` entry in `settings.json`
+  alongside the existing `PreToolUse` entry. Both registrations are
+  idempotent (matched by the substring `preToolUse` or `sessionStart`).
+- Exported helpers: `findRefusedClaudeMdDirectives(source)` (pure
+  function for unit tests) and `buildSessionStartRefusalMessage(refused)`
+  (constructs the stderr text).
+
+### Tests (24 new in `init-session-start-hook.test.ts`)
+
+- 7 tests on `findRefusedClaudeMdDirectives` (line-start detection,
+  multiple directives, write directives, allowed-set passthrough,
+  mid-line prose mention ignored, inside backticks ignored, empty doc).
+- 4 tests on `CLAUDE_MD_REFUSED_DIRECTIVES` table completeness (every
+  phase/transition, every slow/async runner, every write directive
+  listed; no allowed directive in the refused table).
+- 4 tests on `buildSessionStartRefusalMessage` shape (per-directive
+  bullet line, three-rules explanation, allowed-set summary,
+  reassurance line).
+- 9 spawn integration tests (no source -> silent exit 0; allowed-only
+  source renders to CLAUDE.md; @phase refused; @test refused;
+  @mkdir refused; multiple refused listed together; fallback cwd;
+  never blocks on invalid stdin; render error doesn't block session).
+
+### Files touched
+
+- `packages/core/src/commands/init.ts` - new constants
+  (`CLAUDE_MD_ALLOWED_DIRECTIVES`, `CLAUDE_MD_REFUSED_DIRECTIVES`,
+  `SESSION_START_HOOK_SCRIPT`); new exported helpers
+  (`findRefusedClaudeMdDirectives`, `buildSessionStartRefusalMessage`);
+  new `ensureSessionStartHookFile()`; `updateClientHooks()` extended
+  to install both hooks idempotently; `runInit()` calls both.
+- `packages/core/src/__tests__/init-session-start-hook.test.ts` -
+  new: 24 tests.
+
+### Test totals
+
+- parser: 160 (unchanged)
+- engine: 658 (unchanged)
+- core: 139 (was 115; +24 SessionStart hook tests)
+- mcp: 52 (unchanged)
+- mdd: 51 (verified green)
+- **total: 1060** (was 1036)
+
+### Migration notes
+
+Non-breaking. Existing users (no `CLAUDE.md.mai` source) see no change -
+the SessionStart hook detects the absence and silently exits. Users who
+want the new behavior create a `CLAUDE.md.mai` source and re-run
+`mai init` to install the new hook. The PreToolUse hook from the prior
+commit is unaffected.
+
+### Docs to update
+
+- README: add a section on the `CLAUDE.md.mai` convention and the
+  directive compatibility matrix.
+- User guide: same.
+- `markdownai-instructions/` index (in `~/projects/mdd2`): add an
+  entry pointing at this section.
