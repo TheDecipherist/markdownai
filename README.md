@@ -108,6 +108,7 @@ The result is documentation that cannot lie - because it doesn't store facts, it
   - [@include - Content Inclusion](#include---content-inclusion)
   - [@import - Definition Import](#import---definition-import)
   - [@if - Conditionals and Expression System](#if---conditionals-and-expression-system)
+  - [@switch - Multi-Branch Conditional](#switch---multi-branch-conditional)
   - [Pipe Operator and @render](#pipe-operator-and-render)
 - [Data Sources](#data-sources)
   - [@list - Filesystem and Structured Data](#list---filesystem-and-structured-data)
@@ -409,6 +410,45 @@ v1.0 adds three content-aware helpers:
 ```
 
 `containsLine` is a multiline regex test against the whole file. `containsSection` matches an ATX heading on its own line - pass `#`s to require a specific level. `frontmatterField` returns the scalar value of a YAML frontmatter key, or empty string if missing.
+
+---
+
+### @switch - Multi-Branch Conditional
+
+When you have more than two or three branches, `@switch` is cleaner than a chain of `@if`/`@elseif`:
+
+```markdown
+@switch {{argsList[0]}}
+  @case "build"
+    Running build mode...
+  @case "audit"
+    Running audit mode...
+  @case "status"
+    Running status check...
+  @default
+    Unknown command. Try: build, audit, status.
+@endswitch
+```
+
+Both the switch expression and each `@case` value support `{{ }}` dynamic expressions - the same sandbox as `@if`, so env vars, `argsList`, `arg0`, foreach loop variables, and all other context values work:
+
+```markdown
+@switch {{env.APP_ENV}}
+  @case "production"
+    Live data - changes are permanent.
+  @case {{env.STAGING_LABEL}}
+    Staging environment.
+  @default
+    Development mode.
+@endswitch
+```
+
+Rules:
+- First matching case wins - no fall-through
+- `@default` is optional; if absent and nothing matches, the block produces empty output
+- `@case "default"` matches the string `"default"` - it does NOT trigger the `@default` block
+- Nesting works: `@switch` inside `@foreach`, `@if`, or another `@switch`
+- Closes with `@endswitch`
 
 ---
 

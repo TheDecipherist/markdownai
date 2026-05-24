@@ -234,6 +234,18 @@ export interface ConditionalNode extends ASTNodeBase {
   branches: ConditionalBranch[]
 }
 
+export interface SwitchCase {
+  caseExpression: string
+  body: ASTNode[]
+}
+
+export interface SwitchNode extends ASTNodeBase {
+  type: 'switch'
+  expression: string
+  cases: SwitchCase[]
+  defaultBody: ASTNode[] | null
+}
+
 export type PipeStage =
   | { type: 'source'; node: ASTNode }
   | { type: 'builtin'; command: string }
@@ -347,6 +359,7 @@ export type ASTNode =
   | SetNode
   | RenderNode
   | ConditionalNode
+  | SwitchNode
   | PipeNode
   | GraphNode
   | MarkdownNode

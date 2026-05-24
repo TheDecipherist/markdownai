@@ -2,7 +2,7 @@ import type {
   ASTNode, ParseResult, ParseOptions, ParseContext,
   HeaderNode, PassthroughNode, DefineNode,
   PhaseNode, ConditionalNode, ConditionalBranch, PipeNode, PipeStage,
-  RenderNode, SectionNode,
+  RenderNode, SectionNode, SwitchNode, SwitchCase,
 } from './types.js'
 import { ParseError } from './types.js'
 import { getModule } from './registry.js'
@@ -99,6 +99,37 @@ function parseIfBlock(state: State, condition: string, line: number): Conditiona
   return { type: 'conditional', line, branches }
 }
 
+function parseSwitchBlock(state: State, expression: string, line: number): SwitchNode {
+  const cases: SwitchCase[] = []
+  let defaultBody: ASTNode[] | null = null
+  let current: ASTNode[] | null = null
+  let switchClosed = false
+
+  while (state.pos < state.lines.length) {
+    const raw = peek(state)!
+    const trimmed = raw.trim()
+    if (trimmed === '@endswitch') { consume(state); switchClosed = true; break }
+    if (trimmed.startsWith('@case ')) {
+      const caseExpr = trimmed.slice('@case '.length).trim()
+      const newCase: SwitchCase = { caseExpression: caseExpr, body: [] }
+      cases.push(newCase)
+      current = newCase.body
+      consume(state)
+    } else if (trimmed === '@default') {
+      defaultBody = []
+      current = defaultBody
+      consume(state)
+    } else if (current !== null) {
+      const child = parseNextNode(state)
+      if (child) current.push(child)
+    } else {
+      consume(state)
+    }
+  }
+  if (!switchClosed) throw new ParseError(`Unclosed @switch block — expected @endswitch`, line, state.filePath)
+  return { type: 'switch', line, expression, cases, defaultBody }
+}
+
 function parseSectionBlock(state: State, openLine: string, line: number): SectionNode {
   const mod = getModule('section')!
   const args = openLine.replace(/^@section\s*/, '')
@@ -160,6 +191,7 @@ function parseDirective(raw: string, line: number, state: State, inline = false)
     if (name === 'note') return parseNoteBlock(state, trimmed, args, line)
     if (name === 'render-template') return parseRenderTemplateBlock(state, trimmed, args, line)
     if (name === 'foreach') return parseForeachBlock(state, trimmed, args, line, collectBody)
+    if (name === 'switch') return parseSwitchBlock(state, args.trim(), line)
     throw new ParseError(`@${name} is a block directive but has no block parser registered`, line, state.filePath)
   }
   return mod.parse(trimmed, args, ctx)

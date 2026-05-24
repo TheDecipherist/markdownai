@@ -1,7 +1,7 @@
 import { resolve, dirname } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import type {
-  ASTNode, ParseResult, ConnectNode, DefineNode, CallNode, PhaseNode, ConditionalNode, PipeNode,
+  ASTNode, ParseResult, ConnectNode, DefineNode, CallNode, PhaseNode, ConditionalNode, SwitchNode, PipeNode,
   InterpolationSpan, ShellInlineSpan, RenderNode, PromptNode, SectionNode, ConceptNode, ConstraintNode,
   ChunkBoundaryNode, NoteNode, EventNode,
 } from '@markdownai/parser'
@@ -10,7 +10,7 @@ import { render } from '@markdownai/renderer'
 import type { RenderType, RendererInput } from '@markdownai/renderer'
 import { makeContext, resolveEnv, type EngineContext } from './context.js'
 import { substituteParams } from './macros.js'
-import { evalCondition } from './conditions.js'
+import { evalCondition, evalExpression } from './conditions.js'
 import { runBuiltin, isBuiltin } from './pipe.js'
 import { runShell } from './shell.js'
 import { executeList, executeRead, executeCount, executeDate, executeTree, executeDb, executeHttp, executeQuery } from './sources.js'
@@ -238,6 +238,7 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
     case 'call': return handleCall(node, ctx)
     case 'phase': return handlePhase(node, ctx)
     case 'conditional': return handleConditional(node, ctx)
+    case 'switch': return handleSwitch(node, ctx)
     case 'pipe': return executePipe(node, ctx)
     case 'include': return executeInclude(node, ctx, walkNodes)
     case 'import': { executeImport(node, ctx); return '' }
@@ -394,6 +395,26 @@ function handleConditional(node: ConditionalNode, ctx: EngineContext): string {
   for (const branch of node.branches) {
     if (branch.condition === null || evalCondition(branch.condition, ctx)) return walkNodes(branch.body, ctx).join('\n').trimStart()
   }
+  return ''
+}
+
+const SWITCH_INTERP_RE = /\{\{\s*([\s\S]*?)\s*\}\}/g
+
+function evalSwitchValue(expr: string, ctx: EngineContext): string {
+  const expanded = expr.replace(SWITCH_INTERP_RE, (_, inner: string) => {
+    return JSON.stringify(evalExpression(inner.trim(), ctx))
+  })
+  return evalExpression(expanded, ctx)
+}
+
+function handleSwitch(node: SwitchNode, ctx: EngineContext): string {
+  const switchVal = evalSwitchValue(node.expression, ctx)
+  for (const c of node.cases) {
+    if (evalSwitchValue(c.caseExpression, ctx) === switchVal) {
+      return walkNodes(c.body, ctx).join('\n').trimStart()
+    }
+  }
+  if (node.defaultBody !== null) return walkNodes(node.defaultBody, ctx).join('\n').trimStart()
   return ''
 }
 

@@ -335,6 +335,21 @@ const value = evalExpression('date format="YYYY-MM-DD"', ctx)
 
 This replaces `@if`/`@elseif` chains that differ only in which file they include. The expanded path goes through the same jail check as a static include - no security exceptions.
 
+**@switch / @case / @default** - Multi-branch conditional that evaluates an expression and renders the first matching `@case` body. Both the switch expression and each case value support `{{ }}` dynamic expressions using the same sandbox:
+
+```markdown
+@switch {{argsList[0]}}
+  @case "build"
+    Build mode content
+  @case "audit"
+    Audit mode content
+  @default
+    Unknown command.
+@endswitch
+```
+
+First match wins, no fall-through. `@default` is optional - if absent and nothing matches, the block returns empty output. The block closes with `@endswitch`. Works nested inside `@foreach`, `@if`, or other `@switch` blocks.
+
 ## Directive Inventory by Module
 
 The engine's execute step dispatches each AST node to a specialized op module. v1.0 added several modules:
