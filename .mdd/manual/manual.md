@@ -2,14 +2,14 @@
 
 > documentation that cannot lie.
 
-**Version:** 0.0.24  
-**Generated:** 2026-05-22
+**Version:** 1.0.0  
+**Generated:** 2026-05-24
 
 MarkdownAI is a superset of Markdown that makes your documents "live." Instead of writing documentation that drifts from reality the moment your code or data changes, MarkdownAI documents fetch their information directly from the sources that power your application - databases, APIs, the filesystem, environment variables, shell commands - and render fresh, accurate output every time you run them.
 
 The result is documentation that is always current and always honest. When you run `mai render`, the document reflects what your system actually is, not what it was when someone last bothered to update it.
 
-MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes any `.md` file that begins with the `@markdownai` header directive. Everything else in the file is standard Markdown, extended with directives that let you fetch, filter, transform, and display live data. It is organized as a six-package npm monorepo and supports 83 features across the language, security, caching, AI-native, MCP integration, VS Code extension, and @db query system - all documented in this manual.
+MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes any `.md` file that begins with the `@markdownai` header directive. Everything else in the file is standard Markdown, extended with directives that let you fetch, filter, transform, and display live data. It is organized as a six-package npm monorepo and supports 90 features across the language, security, caching, AI-native, MCP integration, VS Code extension, and @db query system - all documented in this manual.
 
 ---
 
@@ -44,6 +44,12 @@ MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes 
    - [match Operator — Regex Matching in Expressions](#match-operator---regex-matching-in-expressions)
    - [@note Directive](#note-directive)
    - [@event Directive](#language---event-directive)
+   - [@foreach and @set — Iteration and Variable Assignment](#foreach-and-set---iteration-and-variable-assignment)
+   - [@read-frontmatter and @update-frontmatter — Frontmatter Access](#read-frontmatter-and-update-frontmatter---frontmatter-access)
+   - [@render-template — Document Scaffolding](#render-template---document-scaffolding)
+   - [@test and @check — Code Quality Directives](#test-and-check---code-quality-directives)
+   - [@hash — Content Verification](#hash---content-verification)
+   - [Write Directives — @mkdir, @copy, @append-if-missing](#write-directives---mkdir-copy-append-if-missing)
    - **Security**
    - [Security Config, Runtime Modes, Audit Log](#security--config-file-runtime-modes-audit-log)
    - [Filesystem Confinement and Content Masking](#security--filesystem-confinement-and-content-masking)
@@ -73,6 +79,7 @@ MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes 
    - [MCP E2E — All 8 Tools End-to-End](#mcp-e2e--all-8-tools-end-to-end-planned--not-yet-implemented)
    - [MCP E2E — Security Enforcement at MCP Boundary](#mcp-e2e--security-enforcement-at-mcp-boundary-planned--not-yet-implemented)
    - [MCP E2E — AI-Native Integration and Realistic Claude Workflow](#mcp-e2e--ai-native-integration-and-realistic-claude-workflow-planned--not-yet-implemented)
+   - [MCP get_constraints Tool](#mcp-get_constraints-tool)
    - **Integration**
    - [MDD + MarkdownAI Integration](#mdd--markdownai-integration)
    - [MDD Token Economics and Accuracy Analysis](#mdd-token-economics-and-accuracy-analysis)
@@ -3955,6 +3962,370 @@ All 24 directive types are traced. Args are always run through `applyMasking()` 
 Off by default. No directive exists to turn it on from inside a document.
 
 <!-- /mdd-section: 82-engine-directive-tracing -->
+
+<!-- mdd-section: 83-lang-foreach-set -->
+### @foreach and @set - Iteration and Variable Assignment
+
+These two directives let you work with lists and variables directly inside your documents. `@foreach` repeats a block of content once for each item in a list. `@set` stores a value under a name so you can use it anywhere in the document without rewriting it.
+
+#### What It Does
+
+`@foreach` takes a list of items and runs the same block of text once for each one, substituting the current item wherever you put the variable placeholder. The list can come from a folder of files, a comma-separated string you write inline, or the output of another directive. After the loop finishes, everything returns to its previous state - nothing leaks out.
+
+`@set` saves a value to a name you choose. Once set, you can drop `{{ name }}` anywhere in the document and the actual value will appear when the document renders. This is useful for version numbers, titles, or any value you want to write once and reuse many times.
+
+#### How To Use It
+
+For `@foreach`, write the directive on its own line followed by your content block, then close it with `@end`. The word between `in` and your source is the variable name you choose - it will hold the current item during each pass through the loop.
+
+For `@set`, write the directive on its own line with the variable name, an equals sign, and the value or source. After that line, use `{{ yourVariableName }}` anywhere below it in the document to insert the stored value.
+
+#### Examples
+
+Repeat a line for each file found in a folder:
+
+```
+@foreach item in @list path="./items"
+  - {{ item }}
+@end
+```
+
+Loop over a short list written directly in the document:
+
+```
+@foreach name in "Alice,Bob,Carol"
+  Hello {{ name }}!
+@end
+```
+
+Store a document title and a version number, then use them later:
+
+```
+@set title = "Release Notes"
+@set version = {{ package.version }}
+
+# {{ title }} - v{{ version }}
+
+This document covers everything new in version {{ version }}.
+```
+
+<!-- /mdd-section: 83-lang-foreach-set -->
+
+<!-- mdd-section: 84-lang-frontmatter-ops -->
+### @read-frontmatter and @update-frontmatter - Frontmatter Access
+
+These two directives let you read and write the YAML frontmatter fields of any markdown file in your project. Use them to surface live metadata - like a document's status or tags - directly inside another document, or to keep frontmatter fields up to date automatically as your workflow progresses.
+
+#### What It Does
+
+`@read-frontmatter` pulls a single field from a file's frontmatter block and places its value at the directive's position in the document. If the field holds a list, the values appear joined by commas. If the field does not exist in the target file, the directive returns an empty string rather than an error. You can also capture the value into a named variable using `label=`, which lets you reference it later in the document as `{{ variableName }}`.
+
+`@update-frontmatter` writes a new value to a frontmatter field in a file on disk. The change is made in place, so the rest of the file stays exactly as it was. If the field already holds the value you are writing, nothing changes - the operation is safe to run more than once. Only scalar fields (plain strings, numbers, booleans) can be written; list fields are read-only.
+
+#### How To Use It
+
+To read a field and display it inline, provide the file path and the field name:
+
+```
+@read-frontmatter path="path/to/file.md" field="fieldName"
+```
+
+To capture the value into a variable for use later in the same document, add a label:
+
+```
+@read-frontmatter path="path/to/file.md" field="fieldName" label=myVar
+```
+
+Then reference it anywhere below with `{{ myVar }}`.
+
+To write a value back to a file's frontmatter, provide the path, field name, and the new value:
+
+```
+@update-frontmatter path="path/to/file.md" field="fieldName" value="newValue"
+```
+
+All paths must stay within your document root. Paths that attempt to navigate outside it are blocked by the engine.
+
+#### Examples
+
+Display a document's current status inline:
+
+```
+Parser status: @read-frontmatter path=".mdd/docs/01-parser.md" field="status"
+```
+
+Renders as something like: `Parser status: in-progress`
+
+Capture tags from another doc and use them later:
+
+```
+@read-frontmatter path=".mdd/docs/01-parser.md" field="tags" label=parserTags
+
+Related tags: {{ parserTags }}
+```
+
+Mark a feature doc as complete when a phase finishes:
+
+```
+@update-frontmatter path=".mdd/docs/01-parser.md" field="status" value="complete"
+```
+
+<!-- /mdd-section: 84-lang-frontmatter-ops -->
+
+<!-- mdd-section: 85-lang-render-template -->
+### @render-template - Document Scaffolding
+
+`@render-template` takes a template file, fills in the values you provide, and writes the finished document to a new file. Use it to create feature docs, config files, READMEs, or any file that follows a repeatable structure.
+
+#### What It Does
+
+When you run `@render-template`, MarkdownAI reads the template you point it at, replaces every `{{ key }}` placeholder with the matching value from the directive body, and saves the result to the destination you specify. The output goes to its own file - nothing is inserted into your current document. By default the directive skips the write if the destination already exists, so running a document twice will not overwrite work you have already done.
+
+#### How To Use It
+
+Write the directive with a `from` path (the template) and a `to` path (where the output should land). Add one `key=value` line per placeholder you want to fill. Close the block with `@end`.
+
+```
+@render-template from="<template-file>" to="<output-file>"
+  key1=value1
+  key2=value2
+@end
+```
+
+Add `force` after the `to` path to overwrite an existing file. Add `if-missing` to make the skip-if-exists behaviour explicit.
+
+#### Configuration
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `from` | string | required | Path to the template file containing `{{ key }}` placeholders |
+| `to` | string | required | Path where the rendered output file will be written |
+| `force` | flag | off | Overwrite the destination file even if it already exists |
+| `if-missing` | flag | on | Skip the write if the destination already exists (default behaviour) |
+
+#### Examples
+
+Scaffold a new feature doc from a standard template:
+
+```
+@render-template from="templates/feature-doc.md" to=".mdd/docs/04-search.md"
+  id=04-search
+  title=Search
+  status=draft
+@end
+```
+
+Regenerate a config file on every run:
+
+```
+@render-template from="templates/app-config.json" to="config.json" force
+  env=production
+  port=3000
+@end
+```
+
+<!-- /mdd-section: 85-lang-render-template -->
+
+<!-- mdd-section: 86-lang-test-check -->
+### @test and @check - Code Quality Directives
+
+`@test` and `@check` run your project's quality checks and embed the results directly in the document. Drop either directive into any `.md` file and the output appears inline every time the document renders.
+
+#### What It Does
+
+`@test` runs your test suite and shows a summary of what passed and failed. It reads `package.json` to find the test command automatically, and it understands the output formats of vitest, jest, playwright, and node:test well enough to produce a clean summary rather than raw terminal noise.
+
+`@check` runs code quality tools - type checking, linting, formatting, and build validation. It looks for commands in your `package.json` in a fixed order: `typecheck` first, then `check`, then `lint`, then `build`. If none of those exist, it falls back to running `tsc --noEmit` directly. Like `@test`, it embeds the result in the document automatically.
+
+Both directives require shell execution to be enabled for the current working directory in your security config. If it is not enabled, the directive will produce an error rather than silently skipping.
+
+#### How To Use It
+
+Place `@test` or `@check` on its own line anywhere in the document where you want the results to appear. No configuration is required for basic use - both directives find the right command on their own.
+
+To override the auto-detected command, add `command="..."`. To save the result for use elsewhere in the document, add `label=name`. To set a timeout, add `budget=N` where N is seconds.
+
+#### Configuration
+
+| Option | Description |
+|--------|-------------|
+| `command="..."` | Override the auto-detected command with a custom one |
+| `label=name` | Store the result as `{{ name }}` for use elsewhere in the document |
+| `budget=N` | Stop execution after N seconds if the command has not finished |
+
+#### Examples
+
+Basic usage - let the directive find the command itself:
+
+```
+@test
+
+@check
+```
+
+Custom command with a label and timeout:
+
+```
+@test command="npm run test:unit" label=unitResults budget=60
+
+@check command="npx tsc --noEmit" label=typeErrors
+```
+
+<!-- /mdd-section: 86-lang-test-check -->
+
+<!-- mdd-section: 87-lang-hash -->
+### @hash - Content Verification
+
+The `@hash` directive computes a cryptographic hash of a file and writes the result directly into your document. Use it to verify file integrity, fingerprint documents, or embed a checksum alongside the content it describes.
+
+#### What It Does
+
+When MarkdownAI renders your document, `@hash` reads the target file, computes a hash of its contents, and replaces the directive with the hex digest. You can truncate the digest to a short prefix for readability, choose between SHA-256, SHA-1, or MD5, and optionally exclude lines that match a pattern before hashing. The exclude-line option is what makes self-referencing possible: a document can hash itself while skipping the line that holds the hash value, so the result stays stable across renders.
+
+#### How To Use It
+
+Place `@hash` on its own line wherever you want the hash to appear. Provide the file path using the `path` option. All other options are optional.
+
+If you want to reference the hash elsewhere in the same document, add a `label` option. This stores the result as a variable you can call with `{{ labelName }}` anywhere below the directive.
+
+#### Configuration
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `path` | string | required | Path to the file to hash |
+| `algo` | `sha256`, `sha1`, `md5` | `sha256` | Hash algorithm to use |
+| `length` | number | full digest | Truncate the hex digest to the first N characters |
+| `exclude-line` | regex string | none | Skip lines matching this pattern before hashing |
+| `label` | string | none | Store the result as `{{ name }}` for reuse |
+
+#### Examples
+
+Basic integrity check - embed the SHA-256 hash of a source file:
+
+```
+@hash path="src/core/engine.ts"
+```
+
+Short prefix for readable labels:
+
+```
+@hash path="src/core/engine.ts" algo=sha1 length=8
+```
+
+Self-referencing document hash - the file hashes itself while ignoring the line that holds the result:
+
+```
+@hash path=".mdd/docs/01-parser.md" exclude-line="^hash:" label=docHash
+
+hash: {{ docHash }}
+```
+
+<!-- /mdd-section: 87-lang-hash -->
+
+<!-- mdd-section: 88-lang-write-directives -->
+### Write Directives - @mkdir, @copy, @append-if-missing
+
+These three directives let a MarkdownAI document set up files and folders as part of its own execution. Instead of telling a developer to manually create directories or copy template files, the document does it for them.
+
+#### What It Does
+
+`@mkdir` creates a folder at a path you specify. `@copy` copies a file from one location to another, with an option to skip the copy if the destination already exists. `@append-if-missing` adds a line to a text file only if that line is not already there - useful for keeping config files like `.gitignore` correct without duplicating entries. All three directives are restricted to a configured write root, so they cannot touch files outside the project.
+
+#### How To Use It
+
+**@mkdir** - Creates the directory at the given path. Safe to call multiple times - if the folder already exists, nothing happens.
+
+```
+@mkdir path=".mdd/docs"
+@mkdir .mdd/audits
+@mkdir path="output/reports" recursive=false
+```
+
+**@copy** - Copies a file from `from` to `to`. Supports environment variable expansion in the `from` path.
+
+```
+@copy from="${CLAUDE_SKILL_DIR}/templates/hook.ts" to="./hooks/post-commit.ts"
+@copy from="src/config.example.json" to="src/config.json" if-missing
+```
+
+Without `if-missing`, the copy always runs and overwrites the destination. With `if-missing`, the copy is skipped if the destination file already exists.
+
+**@append-if-missing** - Appends a line of text to a file only if that exact text is not already in the file. Creates the file if it does not exist yet.
+
+```
+@append-if-missing path=".gitignore" text=".env"
+@append-if-missing path=".gitignore" text=".mdd/audits/"
+```
+
+#### Examples
+
+Bootstrap a project structure in a single document run:
+
+```
+@mkdir .mdd/docs
+@mkdir .mdd/audits
+@copy from="${CLAUDE_SKILL_DIR}/templates/claude.md" to="./CLAUDE.md" if-missing
+@append-if-missing path=".gitignore" text=".env"
+@append-if-missing path=".gitignore" text=".mdd/audits/"
+```
+
+Scaffold a feature hook idempotently:
+
+```
+@mkdir hooks
+@copy from="${CLAUDE_SKILL_DIR}/templates/pre-commit.ts" to="./hooks/pre-commit.ts" if-missing
+@append-if-missing path=".gitignore" text="hooks/*.local.ts"
+```
+
+<!-- /mdd-section: 88-lang-write-directives -->
+
+<!-- mdd-section: 89-mcp-constraints -->
+### MCP get_constraints Tool
+
+The `get_constraints` tool reads a MarkdownAI document and returns every `@constraint` directive defined in that file, sorted from most to least severe. Use it to programmatically inspect the rules a document enforces before running any automated process against it.
+
+#### What It Does
+
+When you call `get_constraints`, the MCP server scans the specified document for all `@constraint` directives and groups them by severity level: critical, high, medium, and low. It returns the full sorted list along with two status flags - `isMarkdownAI` confirms whether the file is a valid MarkdownAI document, and `blocked` tells you whether the document's current phase gate is preventing progress. All inputs are validated before the tool runs, so malformed paths or oversized payloads are rejected before any file is read.
+
+#### How To Use It
+
+Call `get_constraints` through any MCP client connected to the `@markdownai/mcp` server. Pass the path to the document you want to inspect as the `filePath` argument. The path should be relative to your project root.
+
+#### API Endpoints
+
+| Method | Tool Name | Description | Auth |
+|--------|-----------|-------------|------|
+| MCP Tool Call | `get_constraints` | Extract and sort all `@constraint` directives from a MarkdownAI document | MCP session |
+
+#### Examples
+
+Tool call:
+
+```json
+{
+  "name": "get_constraints",
+  "arguments": {
+    "filePath": ".mdd/docs/01-parser.md"
+  }
+}
+```
+
+Response:
+
+```json
+{
+  "constraints": [
+    { "text": "Parser must not spawn processes", "severity": "critical" },
+    { "text": "No eval() anywhere", "severity": "critical" },
+    { "text": "No file > 300 lines", "severity": "high" }
+  ],
+  "isMarkdownAI": true,
+  "blocked": false
+}
+```
+
+<!-- /mdd-section: 89-mcp-constraints -->
 
 <!-- mdd-section: ops/release -->
 ### Release Runbook

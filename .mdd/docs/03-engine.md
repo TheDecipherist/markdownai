@@ -14,6 +14,14 @@ source_files:
   - packages/engine/src/shell.ts
   - packages/engine/src/cache.ts
   - packages/engine/src/index.ts
+  - packages/engine/src/sources.ts
+  - packages/engine/src/sources-file-utils.ts
+  - packages/engine/src/engine-include.ts
+  - packages/engine/src/exec-ops.ts
+  - packages/engine/src/iter-ops.ts
+  - packages/engine/src/read-ops.ts
+  - packages/engine/src/write-ops.ts
+  - packages/engine/src/frontmatter-utils.ts
 routes: []
 models: []
 test_files: []

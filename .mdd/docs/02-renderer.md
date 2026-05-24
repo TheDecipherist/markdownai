@@ -19,6 +19,8 @@ source_files:
   - packages/renderer/src/formats/json.ts
   - packages/renderer/src/renderer.ts
   - packages/renderer/src/index.ts
+  - packages/renderer/src/types.ts
+  - packages/renderer/src/ai-filter.ts
 routes: []
 models: []
 test_files: []
