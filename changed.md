@@ -641,8 +641,68 @@ on it; the Wave 4 / Wave 5 directive tests pass unchanged.
 
 ### Linked MDD site
 
-`~/projects/mdd2/commands/mdd-shared.md` → the `detect-stack` macro
+`~/projects/mdd2/commands/mdd-shared.md` -> the `detect-stack` macro
 (which would otherwise have to fall back to bash-via-`@query`). Documented
 in `~/projects/mdd2/markdownai-comments.md` under "Still Open (engine
-bugs surfaced during Wave 5 parity verification)" — marked resolved by
+bugs surfaced during Wave 5 parity verification)" - marked resolved by
 this commit.
+
+---
+
+## 2026-05-23 | bug-fix | @include and @import expand ${VAR} placeholders
+
+Surfaced during MDD Wave 6 when mdd-plan.md tried to include the bundled
+initiative / wave / manifest templates via `@include ${CLAUDE_SKILL_DIR}/templates/...`.
+The path was treated as a literal, producing ENOENT against
+`<docDir>/${CLAUDE_SKILL_DIR}/templates/initiative.md`. Skill-dir-relative
+templates were the entire point of bundling them, so this was a real gap.
+
+### Root cause
+
+`engine-include.ts` ran `node.path` straight through `resolve()` without
+calling `expandPattern()`. The write directives (@copy, @mkdir,
+@append-if-missing, @update-frontmatter) already expanded the same set;
+@include and @import had been overlooked.
+
+### Fix
+
+Added `expandImportPath()` helper in `engine-include.ts` that builds a
+`PatternExpandContext` from `ctx.env`, `ctx.envFiles`, and
+`ctx.skillContext` and runs `expandPattern()` on the raw path. The
+expansion happens BEFORE the security-jail check, so an expanded path
+that lands outside the source jail still has to be in `allowed_source_paths`
+to load. Conservative fail-closed semantics for unset variables match the
+write-directive convention.
+
+### Files touched
+
+- `packages/engine/src/engine-include.ts` - new `expandImportPath()` helper;
+  both `executeImport()` and `executeInclude()` now expand before resolving.
+- `packages/engine/src/__tests__/include-import-skill-dir.test.ts` - new: 4
+  regression tests covering @include with `${CLAUDE_SKILL_DIR}`, @import
+  with `${CLAUDE_SKILL_DIR}`, the unset-variable fail-closed path, and the
+  relative-path parity case.
+
+### Test totals
+
+- engine: 656 (was 652; +4 new tests)
+- parser: 160
+- core: 93
+- mcp: 37
+- mdd: 51
+- **total: 997**
+
+### Migration notes
+
+Non-breaking. Existing relative and allowed-absolute paths work
+identically. The new behavior only activates when the path contains a
+`${VAR}` placeholder, which previously failed outright.
+
+### Linked MDD site
+
+`~/projects/mdd2/commands/mdd-plan.md` Phase PI3 (`@include
+${CLAUDE_SKILL_DIR}/templates/initiative.md`), Phase PW4
+(`@include ${CLAUDE_SKILL_DIR}/templates/wave.md`), Phase PE2
+(`@include ${CLAUDE_SKILL_DIR}/templates/wave-manifest.md`). All three
+sites now route their inline doc skeleton through the bundled template
+instead of duplicating the content in-line.

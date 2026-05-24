@@ -6,6 +6,25 @@ import { parse } from '@markdownai/parser'
 import { type EngineContext, type Connection } from './context.js'
 import { evalCondition } from './conditions.js'
 import { checkSourcePath } from './security/filesystem.js'
+import { expandPattern } from './security/path-expand.js'
+
+/**
+ * Expand ${VAR} placeholders in @import / @include source paths.
+ *
+ * Without this, `@include ${CLAUDE_SKILL_DIR}/templates/foo.md` is treated
+ * as a literal path containing the unexpanded variable and fails. The
+ * write directives (@copy, @mkdir, @append-if-missing) already expand the
+ * same set; this brings the source directives to parity.
+ */
+function expandImportPath(rawPath: string, ctx: EngineContext): string {
+  const env: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
+  const expandCtx: import('./security/path-expand.js').PatternExpandContext = { env }
+  const skillDir = ctx.skillContext?.skillDir
+  const sessionId = ctx.skillContext?.sessionId
+  if (skillDir) expandCtx.skillDir = skillDir
+  if (sessionId) expandCtx.sessionId = sessionId
+  return expandPattern(rawPath, expandCtx)
+}
 
 export class FatalError extends Error {
   constructor(message: string) {
@@ -35,9 +54,11 @@ export function loadStdlib(ctx: EngineContext): void {
 }
 
 export function executeImport(node: ImportNode, ctx: EngineContext): void {
-  // Resolve the candidate path first (relative to the importing doc's dir),
-  // then security-check the absolute result against the source jail.
-  const full = isAbsolute(node.path) ? node.path : resolve(ctx.docDir, node.path)
+  // Expand ${VAR} patterns (CLAUDE_SKILL_DIR, HOME, env vars) before
+  // resolving. Otherwise paths like ${CLAUDE_SKILL_DIR}/templates/foo.md
+  // would be treated as literal directories.
+  const expanded = expandImportPath(node.path, ctx)
+  const full = isAbsolute(expanded) ? expanded : resolve(ctx.docDir, expanded)
   const sourceJail = ctx.security.sourceJail ?? ctx.security.jailRoot ?? ctx.docDir
   const check = checkSourcePath(full, sourceJail, ctx.security.allowedSourcePaths, ctx.security.filesystemConfig)
   if (check.level === 'blocked') {
@@ -77,7 +98,8 @@ export function executeInclude(
 ): string {
   if (node.condition !== null && !evalCondition(node.condition, ctx)) return ''
 
-  const full = isAbsolute(node.path) ? node.path : resolve(ctx.docDir, node.path)
+  const expanded = expandImportPath(node.path, ctx)
+  const full = isAbsolute(expanded) ? expanded : resolve(ctx.docDir, expanded)
   const sourceJail = ctx.security.sourceJail ?? ctx.security.jailRoot ?? ctx.docDir
   const check = checkSourcePath(full, sourceJail, ctx.security.allowedSourcePaths, ctx.security.filesystemConfig)
   if (check.level === 'blocked') throw new FatalError(`@include blocked: ${check.reason}`)
