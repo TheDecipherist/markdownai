@@ -47,6 +47,9 @@ export function resolvePhase(
   const phaseExists = ast.nodes.some(n => isPhaseNode(n) && n.name === phase)
   if (!phaseExists) return { content: '', warnings: [`Phase not found: ${phase}`], found: false }
 
-  const result = execute(ast, { filePath: full, ctx: { envFiles: env ?? {}, phase } })
+  // Pipe `cwd` into ctx so data ops (@list, @read, @read-frontmatter,
+  // file.isFile, etc.) jail against the project root the MCP client passed,
+  // not against mai-serve's own working directory.
+  const result = execute(ast, { filePath: full, ctx: { cwd, envFiles: env ?? {}, phase } })
   return { content: result.output, warnings: result.warnings, found: true }
 }

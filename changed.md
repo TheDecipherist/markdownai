@@ -801,3 +801,123 @@ design was wrong.
 rewrite to drop `_output` and rename `{{ label }}` references where the
 intent was the summary line specifically. Tracked separately on the
 MDD side.
+
+---
+
+## 2026-05-23 | bug-fix + feature | Ironclad PreToolUse hook + cwd-aware resolvePhase + MCP phase-rendering invariant tests
+
+Three correctness fixes that close the loop on the "Claude never sees a
+directive" invariant.
+
+### 1. PreToolUse hook: YAML-aware detection + complete tool catalogue
+
+The `mai init` PreToolUse hook (`packages/core/src/commands/init.ts`) had
+two gaps that left a bypass open:
+
+- **Detection only matched bare `@markdownai` at line 0.** Files with
+  leading YAML frontmatter (`---\n...\n---\n@markdownai`) - the standard
+  Claude Code slash-command shape - slipped through. MDD's `mdd.md` entry
+  point uses exactly this pattern, so Claude could `Read` it directly and
+  see the unrendered source.
+- **Block message was one unhelpful line:** `Use the markdownai MCP tool
+  to read this file.` Claude had to guess which tool, what args, what
+  order.
+
+Fix: new `isMarkdownAIDocument()` pure function (exported for unit tests)
+that walks past an optional leading `---...---` frontmatter block and
+requires the next non-blank line to start with `@markdownai`. Mirrors the
+parser's own frontmatter handling.
+
+Message: rewritten as a self-contained catalogue of every MCP tool (all 9
+- list_phases, resolve_phase, next_phase, read_file, execute_directive,
+call_macro, get_constraints, get_env, invalidate_cache) with the exact
+`args:` / `returns:` shapes and a "use this when" line per tool, plus a
+5-step typical workflow. Exported as `REDIRECT_MESSAGE` so tests can
+assert its contents.
+
+The HOOK_SCRIPT template literal embeds `REDIRECT_MESSAGE` via
+`JSON.stringify(...)` so we don't have to escape nested backticks.
+HOOK_SCRIPT is now exported too so tests can spawn it without touching
+the user's real `~/.markdownai/hooks/` directory.
+
+22 new tests in `packages/core/src/__tests__/init-hook.test.ts`:
+- 9 detection tests (bare header, frontmatter+header, padded, plain
+  markdown, mid-doc mention, unclosed frontmatter, empty file)
+- 5 message-shape tests (every MCP tool name present, resolve_phase
+  flagged as PRIMARY, "why blocked" rationale, workflow numbered steps,
+  no-retry instruction)
+- 8 spawn integration tests (blocks bare-header `.md`, blocks
+  frontmatter+header `.md`, allows plain `.md`, allows Edit on MDAI
+  files, allows non-`.md` reads, handles missing tool_input, handles
+  missing file, handles MCP-style `read_file` tool name)
+
+### 2. resolvePhase now passes `cwd` into engine context
+
+`packages/mcp/src/tools/resolve_phase.ts` called `execute(ast, { ctx: {
+envFiles, phase } })` without setting `ctx.cwd`. The engine fell back to
+`process.cwd()` (mai-serve's own working directory), so data ops -
+`@list`, `@read`, `@read-frontmatter`, `file.isFile`, `file.isDir`,
+`file.containsLine`, `file.containsSection`, `file.frontmatterField` -
+jailed against the wrong root. A `file.isFile("foo")` from a phase in
+project X would check against the server's directory Y, never finding
+the file even when it exists in X.
+
+Fix: one-line change to set `ctx.cwd: cwd` so data ops jail against the
+project root the MCP client passed in the `cwd` arg. This is also what
+every other tool (`call_macro`, `execute_directive`) already did;
+`resolvePhase` had been overlooked.
+
+### 3. MCP phase-rendering invariant tests
+
+New `packages/mcp/src/__tests__/phase-rendering.test.ts` (15 tests)
+asserts the receiving end of the invariant: when `resolve_phase` is
+called, every directive in the phase body fires and the rendered
+`content` contains zero `@directive` syntax. Coverage:
+
+- `list_phases` returns every phase name + transitions
+- `@date` / `@count` / `@read-frontmatter` / `@set` / `@call` substitute
+  inline via `label=` + `{{ var }}`
+- `@if` collapses to only the matching branch
+- `@foreach` unrolls the body and removes all loop syntax from output
+- Mixed-directive phase (`@date` + `@count` + `@read-frontmatter` +
+  `@foreach` + `@if`) all fire in one render
+- Phase isolation (only the requested phase's body, never another)
+- The zero-directive-syntax invariant: a maximalist phase using 8
+  directives renders with zero `@date / @count / @set / @if / @else /
+  @elseif / @endif / @foreach / @read-frontmatter / @list` markers in
+  the output
+- `next_phase` follows `@on complete -> @phase <name>` transitions
+
+### Files touched
+
+- `packages/core/src/commands/init.ts` - YAML-aware detection,
+  REDIRECT_MESSAGE constant, HOOK_SCRIPT now uses isMarkdownAIDocument
+  function and JSON.stringify-embedded message; HOOK_SCRIPT,
+  REDIRECT_MESSAGE, and isMarkdownAIDocument exported.
+- `packages/core/src/__tests__/init-hook.test.ts` - new: 22 tests.
+- `packages/mcp/src/tools/resolve_phase.ts` - one-line cwd-piping fix.
+- `packages/mcp/src/__tests__/phase-rendering.test.ts` - new: 15 tests.
+
+### Test totals
+
+- parser: 160 (unchanged)
+- engine: 658 (unchanged)
+- core: 115 (was 93; +22 hook tests)
+- mcp: 52 (was 37; +15 phase-rendering tests)
+- mdd: 51 (verified green)
+- **total: 1036** (was 999)
+
+### Migration notes
+
+Non-breaking for existing callers. The resolvePhase change makes data ops
+behave correctly when they previously silently failed; any caller that
+relied on the bug (data ops against mai-serve's cwd instead of the
+project cwd) was almost certainly broken anyway. The hook change is
+strictly more restrictive - it now blocks files it previously let
+through - but the previous behavior was the bug.
+
+### Linked MDD site
+
+`~/projects/mdd2/commands/mdd.md` - the file the hook previously failed
+to detect because of its YAML frontmatter. With this fix in place, direct
+`Read` on it now returns the full MCP tool catalogue.
