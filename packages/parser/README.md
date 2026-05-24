@@ -106,6 +106,17 @@ The parser produces a flat array of typed nodes. Every node has a `type` field a
 | `MarkdownNode` | (plain text) | Non-directive markdown content |
 | `InterpolationNode` | `{{ expression }}` | Inline expression |
 | `ShellInlineNode` | `` !`command` `` | Shell inline (Claude Code syntax) |
+| `ForeachNode` | `@foreach var in <source>` ... `@end` | Iteration block. Source is a nested node (directive / list-typed read-frontmatter / interpolation / literal CSV). Body is a list of child nodes that re-evaluate per iteration. (v1.0+) |
+| `SetNode` | `@set name = ...` | Bind a variable to a literal, a directive's rendered output, or an interpolated string. (v1.0+) |
+| `ReadFrontmatterNode` | `@read-frontmatter path field` | Targeted YAML-field read. Captures `path`, `field`, optional `label`. (v1.0+) |
+| `HashNode` | `@hash path algo length exclude-line` | Content hash. Captures `path`, `algo`, optional `length`, optional `exclude-line` regex, optional `label`. (v1.0+) |
+| `TestNode` | `@test command label budget` | Test runner invocation. Captures `command` (optional, auto-detects from `package.json` `scripts.test`), `label`, optional `budget`. (v1.0+) |
+| `CheckNode` | `@check command label` | Typecheck / lint / build runner. Same shape as `TestNode` but auto-detects from `typecheck` / `check` / `lint` / `build` scripts. (v1.0+) |
+| `MkdirNode` | `@mkdir path recursive` | Directory creation. Recursive flag defaults true. (v1.0+) |
+| `CopyNode` | `@copy from to if-missing` | File copy. `if-missing` flag makes it idempotent. (v1.0+) |
+| `AppendIfMissingNode` | `@append-if-missing path text` | Idempotent line append. (v1.0+) |
+| `UpdateFrontmatterNode` | `@update-frontmatter path field value` | YAML field set. Supports `field[append]`, `field[N]`, nested `field[N].sub` addressing parsed into the node. (v1.0+) |
+| `RenderTemplateNode` | `@render-template from to ...` ... `@end` | Block directive. Captures `from`, `to`, optional `force`, and a body of key=value lines that become template parameters. (v1.0+) |
 
 ### Block structure
 

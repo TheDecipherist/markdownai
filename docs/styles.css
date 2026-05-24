@@ -893,6 +893,22 @@ pre[class*="language-"] code {
   margin-bottom: 1.5rem;
 }
 
+/* ===== Inline v1.0 / version badge ===== */
+.badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  padding: 0.15rem 0.45rem;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  background: rgba(8, 145, 178, 0.12);
+  color: #67e8f9;
+  border: 1px solid rgba(8, 145, 178, 0.35);
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
 /* ===== Agent Scale Table ===== */
 .scale-table {
   width: 100%;

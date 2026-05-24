@@ -25,6 +25,19 @@ MarkdownAI is a superset of Markdown that makes documents live. Add `@markdownai
 
 This org contains the full MarkdownAI toolchain as a set of focused, composable packages.
 
+## v1.0
+
+- **Iteration:** `@foreach` and `@set` turn documents into programs.
+- **Filesystem writes:** `@mkdir`, `@copy`, `@append-if-missing`, `@update-frontmatter`, `@render-template` behind a `write_enabled` security gate.
+- **Execution:** `@test` and `@check` inline the full runner output and expose exit code plus recognized summary as separate labels.
+- **Targeted reads:** `@read-frontmatter` for single YAML fields, `@hash` for content hashing.
+- **`@if` content helpers:** `file.containsLine`, `file.containsSection`, `file.frontmatterField`.
+- **Three-jail path security:** independent `source_root`, `data_root`, and `write_root`. Data ops now default to the process working directory. **Breaking change** for 0.x users - set `filesystem.data_root = "auto"` to restore the old behavior.
+- **SessionStart hook:** `mai init` installs a hook that renders `<project>/CLAUDE-MarkdownAI.md` on every session and injects it into Claude Code's context. Your `CLAUDE.md` is never modified.
+- **Ironclad PreToolUse hook:** detects MarkdownAI documents behind YAML frontmatter (Claude Code slash commands) and ships the full 9-tool MCP catalogue inline in its redirect message.
+
+See [`changed.md`](https://github.com/TheDecipherist/markdownai/blob/main/changed.md) for the full change log.
+
 ---
 
 ## Packages

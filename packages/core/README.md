@@ -91,6 +91,7 @@ mai render report.md --env .env.production      # use production env
 mai render report.md --consumer ai              # AI-optimized output
 mai render report.md --strict                   # fail on any warning
 mai render report.md --passthrough              # pass plain .md files through unchanged
+mai render skill.md --skill-args "audit auth"   # render as a Claude Code skill (v1.0+)
 ```
 
 **Flags:**
@@ -99,6 +100,24 @@ mai render report.md --passthrough              # pass plain .md files through u
 - `--budget <N>` - token budget for AI-format output (drops low-priority sections to fit)
 - `--phase <name>` - render only a specific named phase
 - `--passthrough` - pass plain (non-MarkdownAI) files through unchanged instead of erroring; useful when looping over directories with mixed files
+
+**Skill rendering (v1.0+):** four flags let you render a document as a Claude Code slash command locally, with the same context the MCP `read_file` tool would supply. Useful for testing skill files without going through the MCP server.
+
+| Flag | Effect |
+|------|--------|
+| `--skill-args "<args>"` | Sets `ARGUMENTS`, parses `argsList`, populates `arg0` / `arg1` / `arg2` / `arg3`. When set, the CLI defaults `filesystem.data_root` to `"cwd"` (skill mode). Without `--skill-args`, the default stays `"auto"` for backward compatibility. |
+| `--skill-dir <path>` | Sets `CLAUDE_SKILL_DIR`. Reference it from `@include ${CLAUDE_SKILL_DIR}/templates/...` and `allowed_source_paths` patterns. |
+| `--skill-effort <low\|medium\|high>` | Sets `EFFORT`. Read with `{{ EFFORT }}` or branch on it with `@if {{ EFFORT }} == "high"`. |
+| `--skill-session-id <uuid>` | Sets `CLAUDE_SESSION_ID`. Useful when a skill needs to scope cache or output paths per session. |
+
+```bash
+# Render a skill the same way the MCP server would
+mai render ~/.claude/commands/mdd.md \
+  --skill-args "audit user-auth" \
+  --skill-dir ~/.claude/commands \
+  --skill-effort high \
+  --skill-session-id 11111111-2222-3333-4444-555555555555
+```
 
 ---
 
@@ -202,7 +221,7 @@ After starting, configure your AI client to connect. See [`@markdownai/mcp`](htt
 
 ### `mai init`
 
-Auto-detect your AI client and install the PreToolUse hook so it automatically routes MarkdownAI documents through the engine.
+Auto-detect your AI client and install both MarkdownAI hooks. Idempotent - safe to re-run.
 
 ```bash
 mai init                           # auto-detect client
@@ -211,7 +230,12 @@ mai init --client cursor           # explicit Cursor
 mai init --global-claude-md        # append MarkdownAI guidance to ~/.claude/CLAUDE.md
 ```
 
-After `mai init`, every `.md` file with a `@markdownai` header that your AI reads is automatically rendered before the AI sees it.
+Two hooks are installed:
+
+- **PreToolUse hook** - intercepts `Read` of any MarkdownAI document (bare `@markdownai` or YAML frontmatter then `@markdownai`) and returns a redirect message with the full MCP tool catalogue. The AI fetches rendered content through the MCP server instead of reading directive syntax directly.
+- **SessionStart hook (v1.0+)** - if your project has a `CLAUDE-MarkdownAI.md` file at the project root, the hook renders it on every session start and injects the rendered output into the AI's session context. Your `CLAUDE.md` is never touched. The render lives only in conversation context for that session.
+
+Both hooks are installed at `~/.markdownai/hooks/` and registered in `~/.claude/settings.json` (or `~/.cursor/settings.json`). The registration matches existing entries by command substring before adding, so re-running `mai init` doesn't duplicate entries.
 
 `--global-claude-md` appends a section to your global `~/.claude/CLAUDE.md` that teaches Claude to prefer MarkdownAI syntax when writing new `.md` files and to use the CLI when no MCP server is running. Safe to run multiple times - idempotent.
 

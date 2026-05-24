@@ -109,7 +109,7 @@ To enable developer tracing, add a `MARKDOWNAI_TRACE` env var to the server conf
 
 Trace output is JSON-Lines: one span per line, written for every directive the engine executes. All directive args are masked before serialization. See `@markdownai/engine` for the full span format.
 
-## The 8 MCP tools
+## The 9 MCP tools
 
 Once the server is configured, Claude can call these tools directly during a session.
 
@@ -281,6 +281,47 @@ Clears cached rendered output for a specific file, or for all files if no path i
   "arguments": {}
 }
 ```
+
+---
+
+### `get_constraints`
+
+Returns the `@constraint` declarations in a document without rendering the rest of the file. Use this when you want the rules without paying the token cost of the full document.
+
+```json
+{
+  "name": "get_constraints",
+  "arguments": {
+    "filePath": "./docs/security-policy.md",
+    "cwd": "/path/to/project"
+  }
+}
+```
+
+Returns `{ constraints: Array<{ id, severity, body }>, isMarkdownAI: boolean }`.
+
+## Companion Hooks (v1.0+)
+
+The MCP server is one of three pieces in the AI-integration stack. The other two are Claude Code hooks installed by `mai init`:
+
+**PreToolUse hook** intercepts direct `Read` of any MarkdownAI document (bare `@markdownai` header OR YAML frontmatter then `@markdownai`) and returns a redirect message that contains the full catalogue of these 9 MCP tools - including arg shapes, return shapes, and a 5-step workflow. The AI never reads raw directive syntax; it's pushed back to the MCP every time.
+
+**SessionStart hook** runs at every Claude Code session start (and on `resume` / `clear` / `compact`). If the project root has a `CLAUDE-MarkdownAI.md` file, the hook renders it via `mai render` and emits a JSON envelope on stdout:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "<rendered markdown>"
+  }
+}
+```
+
+Claude Code injects `additionalContext` into the session with the same authority as `CLAUDE.md`. The render lives only in conversation context for that session - no file is written. Your `CLAUDE.md` is never modified.
+
+The pattern: keep `CLAUDE.md` as static, user-owned project rules. Put live data (today's date, current branch, open features, last test result) into `CLAUDE-MarkdownAI.md` using flat MarkdownAI directives. Every new session starts with a fresh render of that file in context.
+
+> **Note for AI-tool authors:** if the AI gets a `Read` blocked on `CLAUDE-MarkdownAI.md` mid-session, the rendered content is already in the session context (from the SessionStart hook). The redirect message points back to that context and provides the exact `read_file` MCP call for a fresh fetch.
 
 ## Security at the MCP boundary
 

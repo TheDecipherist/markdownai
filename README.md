@@ -143,6 +143,22 @@ The result is documentation that cannot lie - because it doesn't store facts, it
 
 ---
 
+## What's New in v1.0
+
+- **Iteration and variables:** `@foreach` walks list sources, `@set` binds values for reuse.
+- **Filesystem writes:** `@mkdir`, `@copy`, `@append-if-missing`, `@update-frontmatter`, `@render-template` behind a `write_enabled` security gate.
+- **Execution:** `@test` and `@check` inline the full runner output and expose exit code + recognized summary as separate labels.
+- **Targeted reads:** `@read-frontmatter` for a single YAML field; `@hash` for content hashing with optional line-exclude regex.
+- **`@if` content helpers:** `file.containsLine`, `file.containsSection`, `file.frontmatterField`.
+- **Path jail split:** independent `source_root`, `data_root`, and `write_root` boundaries. Data ops now default to `cwd` instead of the document's directory. **Breaking change** - set `filesystem.data_root = "auto"` to restore the 0.x behavior.
+- **SessionStart hook:** `mai init` installs a hook that renders `<project>/CLAUDE-MarkdownAI.md` and injects the output into every Claude Code session as live context. `CLAUDE.md` is never touched.
+- **Ironclad PreToolUse hook:** detects MarkdownAI documents behind YAML frontmatter (Claude Code slash commands). The redirect message now ships the full MCP tool catalogue inline.
+- **Skill rendering flags:** `mai render --skill-args`, `--skill-dir`, `--skill-effort`, `--skill-session-id` for testing skill files locally with full context.
+
+See `changed.md` for the complete change log.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -359,6 +375,24 @@ Debug output enabled.
 ```
 
 The expression system supports: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `!`, `startsWith`, `endsWith`, `includes`, `file.exists`, `file.isFile`, `file.isDir`, arithmetic, and string operations. The same operators work in `@if` conditions, `where` filters on data queries, and `{{ }}` interpolations.
+
+v1.0 adds three content-aware helpers:
+
+```markdown
+@if file.containsLine "./README.md" ".*\[CRITICAL\].*"
+  Critical items present - block the release.
+@endif
+
+@if file.containsSection "./doc.md" "## Bugs"
+  Known-bugs section exists.
+@endif
+
+@if file.frontmatterField ".mdd/docs/01-mdd.md" "status" == "complete"
+  This doc is shipped.
+@endif
+```
+
+`containsLine` is a multiline regex test against the whole file. `containsSection` matches an ATX heading on its own line - pass `#`s to require a specific level. `frontmatterField` returns the scalar value of a YAML frontmatter key, or empty string if missing.
 
 ---
 
@@ -596,6 +630,154 @@ Phases let you write a document that is also a workflow. Use `mai render --phase
 ```
 
 
+### @foreach and @set - Iteration and Value Binding (v1.0+)
+
+Two directives that let a document act like a small program. `@foreach` walks a list source and renders its body once per item. `@set` binds a value to a name you can use everywhere downstream.
+
+```markdown
+@markdownai v1.0
+
+# Per-feature status
+
+@foreach doc in @list ./.mdd/docs/ match="*.md"
+  @read-frontmatter path="{{ doc }}" field="status" label=status
+  - {{ doc }}: {{ status }}
+@end
+
+# Bind a value once, use it many times
+
+@set today = @date format="YYYY-MM-DD"
+@set release_branch = "release/{{ today }}"
+
+Cutting branch {{ release_branch }} for the {{ today }} release.
+```
+
+**`@foreach` source expressions:**
+- A directive that returns lines (`@list`, `@read`, `@tree`).
+- A list-typed frontmatter field via `@read-frontmatter` (comma-joined; each item iterates).
+- A `{{ label }}` interpolation that resolves to multi-line text.
+- A comma-separated literal: `"alpha,beta,gamma"`.
+
+Each iteration binds the loop variable so nested directives see `{{ var }}` substituted into their arguments before they fire. The binding is removed when the loop ends.
+
+**`@set` right-hand sides:**
+- Literal: `@set status = "active"`.
+- Directive result: `@set today = @date format="YYYY-MM-DD"`.
+- Interpolated string: `@set greeting = "Hello {{ name }}"`.
+
+`@set` and `@foreach` shadow each other lexically. Inside a `@foreach` loop the loop variable wins over any outer `@set` of the same name; the outer binding is restored after the loop.
+
+---
+
+### @read-frontmatter and @hash - Targeted Reads (v1.0+)
+
+Two read directives for cases where `@read` returns too much. `@read-frontmatter` pulls a single YAML field out of a document. `@hash` computes a content hash for change detection or doc-integrity checks.
+
+```markdown
+@markdownai v1.0
+
+@read-frontmatter path=".mdd/docs/01-mdd.md" field="status" label=mdd_status
+The mdd doc is currently: {{ mdd_status }}.
+
+@hash path=".mdd/docs/01-mdd.md" algo=sha256 length=8 label=mdd_hash
+Doc fingerprint: {{ mdd_hash }}.
+
+@hash path="CHANGELOG.md" algo=sha256 exclude-line="^date:" label=changelog_hash
+```
+
+**`@read-frontmatter`** returns the trimmed scalar value. YAML lists are returned comma-joined (use with `@foreach` to walk them). Missing fields return an empty string with no warning.
+
+**`@hash` options:**
+
+| Option | Effect |
+|--------|--------|
+| `path` | File to hash. Resolves against `data_root`. |
+| `algo` | Any Node `crypto.createHash` algorithm. Defaults to `sha256`. |
+| `length` | Truncate the hex digest to N characters. |
+| `exclude-line` | Regex. Lines matching this pattern are stripped before hashing. Useful for excluding self-referential fields like `hash:` in frontmatter. |
+| `label` | Save the digest in a label for downstream use. |
+
+---
+
+### @test and @check - Execution (v1.0+)
+
+`@test` runs the project test suite. `@check` runs typecheck, lint, or build. Both inline the runner's full combined output where the directive sits and expose three labels: `label` (full text), `label_exit` (exit code), and `label_summary` (one-line summary recognized from known runners).
+
+```markdown
+@markdownai v1.0
+
+# Test results
+
+@test command="pnpm test" label=test_results
+
+@if {{ test_results_exit }} == "0"
+All tests pass.
+@else
+Failures detected. See output above.
+@endif
+
+# Typecheck and lint
+
+@check command="tsc --noEmit" label=typecheck
+@check command="eslint ." label=lint
+```
+
+Auto-detection runs when `command=` is omitted. `@test` reads `scripts.test` from `package.json`. `@check` tries `typecheck`, `check`, `lint`, then `build` in that order.
+
+The shell allowlist still applies - the command must match `shell.allow_patterns` in your security config. Both directives have a five-minute timeout.
+
+> **Note:** Earlier 0.x betas truncated `@test` / `@check` output to a tail or a one-liner. v1.0 returns the complete runner output verbatim. The old `label_output` variable is gone; `label` now holds the full text. The `label_summary` variable is additive only - empty string when the runner output isn't recognized.
+
+---
+
+### Write Directives (v1.0+)
+
+Five directives that mutate the filesystem from inside a document. All five obey `filesystem.write_enabled` (off by default) and respect `write_root` plus `allowed_write_paths`. Immutable always-block rules (`.env`, `**/.ssh/**`, `*credentials*`, etc.) still apply.
+
+```markdown
+@markdownai v1.0
+
+# Bootstrap a project area
+
+@mkdir .mdd
+@mkdir .mdd/docs recursive=true
+@copy from="./templates/mdd.md" to=".mdd/mdd.md" if-missing
+@append-if-missing path=".gitignore" text=".mdd/audits/"
+
+# Update one field in a doc
+
+@update-frontmatter path=".mdd/docs/01-mdd.md" field="status" value="complete"
+@update-frontmatter path=".mdd/docs/01-mdd.md" field="tags[append]" value="shipped"
+
+# Generate a test file from a template
+
+@render-template from="./templates/unit.test.ts.template" to="tests/unit/auth.test.ts"
+  feature_name=auth
+  has_endpoints=true
+@end
+```
+
+**`@mkdir`** creates a directory. Recursive by default - pass `recursive=false` to require the parent to already exist.
+
+**`@copy`** copies a file. `from=` resolves against `data_root`; `to=` against `write_root`. Parent directories of `to=` are created automatically. Pass `if-missing` to make it idempotent (skip if destination exists). This is the common pattern for bootstrap files that should be created once and never overwritten.
+
+**`@append-if-missing`** appends a line to a file only if the text isn't already there. No-op if the file is absent. Use it for `.gitignore`, `.env.example`, and other config files that need to grow without duplicating entries.
+
+**`@update-frontmatter`** sets a single YAML frontmatter field. The doc body is untouched. Supports nested paths and list addressing:
+
+| Field syntax | Effect |
+|--------------|--------|
+| `status` | Set a top-level scalar. |
+| `tags[append]` | Append to a YAML list. Creates the list if absent. |
+| `tags[1]` | Set the second item of a block-style list (0-indexed). Out-of-range index logs a warning. |
+| `satisfies[0].status` | Set a sub-field of the first element in a list of objects. |
+
+List indexing requires block-list YAML (one item per line, `-` prefixed). Inline list mutation is only supported via `[append]`.
+
+**`@render-template`** is a block directive. It reads a template file, substitutes `{{ key }}` placeholders with the parameters supplied between `@render-template` and `@end`, and writes the result to `to=`. Idempotent by default - pass `force` to overwrite. The template can be plain text with `{{ }}` placeholders or a full MarkdownAI document with its own directives. The template path resolves against `data_root`; the output path against `write_root`.
+
+---
+
 ### @event - Event Broadcast
 
 Fire a named signal with a payload to one or more transports while a document renders:
@@ -715,9 +897,42 @@ All security policy changes can be audited with the built-in audit log.
 
 ### Filesystem Confinement
 
-All file access (`@include`, `@read`, `@list`, `@tree`) is confined to a document root - by default, the directory containing the document being rendered. No directive can read files above this root using path traversal.
+v1.0 splits the single path jail into three independent boundaries. Each directive type uses its own jail so a skill file installed at `~/.claude/commands/<name>.md` can read sibling templates (source ops) while still reaching into the user's project (data ops). Before v1.0 these were one jail rooted at the document directory, which made skill-file workflows impossible.
 
-Content masking prevents sensitive values from appearing in rendered output. Any value matching your configured secret patterns (API keys, tokens, connection strings) is replaced with `[MASKED]` before it reaches the output.
+| Jail | Used by | Default |
+|------|---------|---------|
+| `source_root` | `@import`, `@include` | `"auto"` - directory of the entry document |
+| `data_root` | `@list`, `@read`, `@tree`, `@count`, `@date file=`, `@read-frontmatter`, `@hash`, `file.exists` / `isFile` / `isDir` / `containsLine` / `containsSection` / `frontmatterField`, `@copy from=`, `@test` / `@check` working dir | `"cwd"` - process working directory |
+| `write_root` | `@mkdir`, `@copy to=`, `@append-if-missing`, `@update-frontmatter`, `@render-template to=` | `"cwd"` |
+
+Each jail can be `"auto"` (document dir), `"cwd"` (process working dir), or an absolute path. Each has a companion allowlist of glob patterns (`allowed_source_paths`, `allowed_data_paths`, `allowed_write_paths`) that loosen the boundary. Patterns support `${VAR}` expansion against `HOME`, `CLAUDE_SKILL_DIR`, `CLAUDE_SESSION_ID`, and process env vars. Unset variables expand to empty string (fail-closed).
+
+```json
+{
+  "filesystem": {
+    "source_root": "auto",
+    "data_root": "cwd",
+    "allowed_source_paths": [
+      "${CLAUDE_SKILL_DIR}/templates/**"
+    ],
+    "allowed_data_paths": [
+      "${HOME}/.mdd/**"
+    ],
+
+    "write_enabled": false,
+    "write_root": "cwd",
+    "allowed_write_paths": [
+      "${HOME}/.mai-out/**"
+    ]
+  }
+}
+```
+
+Content masking prevents sensitive values (API keys, tokens, connection strings) from reaching rendered output. Matching values are replaced with `[MASKED]`. Masking runs before caching - secrets never enter the cache in plain text.
+
+**Write gate (v1.0+):** all write directives (`@mkdir`, `@copy`, `@append-if-missing`, `@update-frontmatter`, `@render-template`) require `filesystem.write_enabled = true`. The default is off. Without the gate, rendering a document that uses write directives produces a clear error and skips the write.
+
+> **Migrating from 0.x.** The pre-1.0 behavior was a single path jail rooted at the document directory. To restore the old behavior for data ops, set `filesystem.data_root = "auto"` in your security config. Most users will prefer the new default (`"cwd"`), which makes `@list ./src` resolve against the project root regardless of where the document lives.
 
 ---
 
@@ -895,9 +1110,44 @@ Available MCP tools:
 mai init
 ```
 
-Installs a PreToolUse hook into your AI client (Claude Code, Cursor). When the AI reads a `.md` file that starts with `@markdownai`, the hook intercepts the read and routes it through `mai render` first. The AI receives the rendered, executed output rather than raw directives.
+Installs a PreToolUse hook into your AI client (Claude Code, Cursor). When the AI calls `Read` on any `.md` file that is a MarkdownAI document, the hook blocks the raw read and returns a redirect message that tells the AI to fetch the file through the MarkdownAI MCP server instead. The MCP server runs every directive and returns the rendered output - so the AI sees live state, never directive syntax.
 
-This means your AI assistant always sees live data. When Claude reads your status doc, it sees the actual current branch, real test results, and live service status - not the last time someone manually updated the markdown.
+Detection covers two forms: a bare `@markdownai` header on the first non-blank line, and YAML frontmatter (`---` block) followed by `@markdownai`. The latter is what Claude Code slash-command files look like, so MDD-style routers and similar slash commands are correctly intercepted.
+
+The redirect message catalogues every MarkdownAI MCP tool (`list_phases`, `resolve_phase`, `next_phase`, `read_file`, `execute_directive`, `call_macro`, `get_constraints`, `get_env`, `invalidate_cache`) with arg shapes, return shapes, and "use this when" guidance plus a five-step workflow. No ambiguity, no retry loop.
+
+Re-running `mai init` is idempotent - the hook entry is matched in `settings.json` by command substring before being added.
+
+---
+
+### SessionStart Hook and CLAUDE-MarkdownAI.md (v1.0+)
+
+`mai init` also installs a `SessionStart` hook. If your project has a file named `CLAUDE-MarkdownAI.md` at the project root, the hook runs `mai render` on it at every session start and injects the rendered output into the AI's session context. Your `CLAUDE.md` is never touched.
+
+The pattern: `CLAUDE.md` is your static, user-owned project rules. `CLAUDE-MarkdownAI.md` is the live-data sibling - put MarkdownAI directives in it for today's date, current branch, open features, last test result, anything that should refresh on every session.
+
+```markdown
+# CLAUDE-MarkdownAI.md
+@markdownai v1.0
+
+@date format="YYYY-MM-DD" label=today
+@count ./.mdd/docs/ match="*.md" label=doc_count
+
+## Session brief
+
+Today is {{ today }}. The project has {{ doc_count }} feature docs.
+
+@foreach doc in @list ./.mdd/docs/ match="*.md"
+  @read-frontmatter path="{{ doc }}" field="status" label=status
+  - {{ doc }} ({{ status }})
+@end
+```
+
+The hook emits a JSON envelope on stdout that Claude Code understands as `additionalContext`. The rendered text appears alongside `CLAUDE.md` in the system-level context - persistent for the session, same authority as project rules. Nothing is written to disk.
+
+**The hook is silent when there's nothing to do.** Missing `CLAUDE-MarkdownAI.md`: silent exit 0. `mai` not on PATH: warning to stderr, exit 0. `mai render` fails: warning to stderr with the error, exit 0. Session always starts.
+
+**Directive guidance for `CLAUDE-MarkdownAI.md`:** the render runs once per session start, so use flat, fast directives. Recommended: `@date`, `@count`, `@list`, `@read`, `@read-frontmatter`, `@hash`, `@tree`, `@if`, `@foreach`, `@set`, `@env`, `@call`, `@import`, `@include`. Avoid `@phase` (its lazy-load semantics defeat themselves in one-shot rendering). Use with care: `@http`, `@test`, `@check`, `@query`, `@db` - they run on every session start and slow it down by however long they take.
 
 ---
 
@@ -1014,6 +1264,10 @@ Full command list:
 | `mai render <file>` | Execute and print rendered markdown to stdout |
 | `mai render <file> -o <path>` | Execute and write result to a file |
 | `mai render <file> --passthrough` | Pass plain (non-MarkdownAI) files through unchanged instead of erroring |
+| `mai render <file> --skill-args "<args>"` | Render with full Claude Code skill context. Sets `ARGUMENTS` and parses `argsList`. Defaults `data_root` to `cwd`. (v1.0+) |
+| `mai render <file> --skill-dir <path>` | Set `CLAUDE_SKILL_DIR` for the render. Used with `${CLAUDE_SKILL_DIR}` in paths. (v1.0+) |
+| `mai render <file> --skill-effort <low\|medium\|high>` | Set `EFFORT` for the render. (v1.0+) |
+| `mai render <file> --skill-session-id <uuid>` | Set `CLAUDE_SESSION_ID` for the render. (v1.0+) |
 | `mai validate <file>` | Check for errors and warnings; exits 1 on error |
 | `mai parse <file>` | Output the document AST as JSON |
 | `mai parse <file> --node <type> --pretty` | Filter and format AST output |
@@ -1092,7 +1346,16 @@ Every directive supported by MarkdownAI, in one place.
 | `@else` | Fallback branch. |
 | `@endif` | Close conditional block. |
 
-Condition operators: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `\|\|`, `!`, `startsWith`, `endsWith`, `includes`, `file.exists`, `file.isFile`, `file.isDir`
+Condition operators: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `\|\|`, `!`, `startsWith`, `endsWith`, `includes`, `file.exists`, `file.isFile`, `file.isDir`, `file.containsLine(path, regex)`, `file.containsSection(path, heading)`, `file.frontmatterField(path, field)`
+
+### Iteration and Variables (v1.0+)
+
+| Directive | Description |
+|-----------|-------------|
+| `@foreach <var> in <source>` ... `@end` | Render body once per item. Source can be a directive, a frontmatter list field, a label, or a literal CSV. |
+| `@set <var> = "literal"` | Bind a literal value. |
+| `@set <var> = @directive args` | Bind the rendered output of a directive. |
+| `@set <var> = "{{ interpolated }}"` | Bind an interpolated string. |
 
 ### Data Sources
 
@@ -1100,6 +1363,8 @@ Condition operators: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `\|\|`, `!`, `start
 |-----------|-------------|
 | `@list <path>` | List filesystem entries or structured data from JSON/YAML/CSV. |
 | `@read <path>` | Read and extract a value from a structured file. |
+| `@read-frontmatter path="..." field="..."` | Read a single YAML field from a document's frontmatter (v1.0+). |
+| `@hash path="..." algo=sha256 length=N` | Compute a content hash. Supports any Node crypto algorithm and a regex-based line-exclude (v1.0+). |
 | `@tree <path>` | Render a directory tree. |
 | `@date format="..."` | Current date/time in any format. |
 | `@count <path> "<pattern>"` | Count files matching a pattern. |
@@ -1110,6 +1375,25 @@ Condition operators: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `\|\|`, `!`, `start
 | `@query <command> label=name` | Execute and store result in named label for reuse. |
 | `@http <METHOD> <url>` | Make an HTTP request and use the response body. |
 | `@http <METHOD> <url> expected=<code>` | Assert response status code. |
+
+### Execution (v1.0+)
+
+| Directive | Description |
+|-----------|-------------|
+| `@test command="<cmd>" label=name` | Run the project test suite. Inlines full output. Labels: `name` (full text), `name_exit` (exit code), `name_summary` (recognized one-liner). |
+| `@check command="<cmd>" label=name` | Run typecheck / lint / build. Auto-detects via `scripts.typecheck`, `check`, `lint`, `build` when `command=` is omitted. |
+
+### Filesystem Writes (v1.0+)
+
+All write directives require `filesystem.write_enabled = true` and respect `write_root` + `allowed_write_paths`. Immutable always-block rules still apply.
+
+| Directive | Description |
+|-----------|-------------|
+| `@mkdir <path>` | Create a directory. Recursive by default. |
+| `@copy from="<src>" to="<dst>" [if-missing]` | Copy a file. `if-missing` makes it idempotent. |
+| `@append-if-missing path="<file>" text="<line>"` | Append a line only if not already present. |
+| `@update-frontmatter path="<doc>" field="<key>" value="<val>"` | Set a YAML frontmatter field. Supports `key[append]`, `key[N]`, nested `key[N].sub` addressing. |
+| `@render-template from="<tpl>" to="<dst>"` ... `@end` | Render a template with injected parameters and write the result. Idempotent by default; pass `force` to overwrite. |
 
 ### Pipeline and Rendering
 

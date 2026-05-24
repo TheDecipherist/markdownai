@@ -183,13 +183,41 @@ interface SecurityConfig {
   allowShell: boolean        // enable @query shell execution
   allowHttp: boolean         // enable @http requests
   allowDb: boolean           // enable @db database queries
-  jailRoot: string | null    // confine filesystem access to this directory
+  jailRoot: string | null    // legacy single-jail field; superseded by filesystemConfig below
   shellConfig?: ShellSecurityConfig
   httpConfig?: HttpSecurityConfig
   filesystemConfig?: FilesystemSecurityConfig
   eventConfig?: EventSecurityConfig  // enable @event transport dispatch
 }
+
+interface FilesystemSecurityConfig {
+  // Source ops (@import, @include) - directives that bring source content
+  // into a document. Defaults to the directory of the entry document.
+  source_root?: 'auto' | 'cwd' | string
+  allowed_source_paths?: string[]
+
+  // Data ops (@list, @read, @tree, @count, @date file=, @read-frontmatter,
+  // @hash, file.* helpers, @copy from=, @test/@check working dir).
+  // Defaults to the process working directory (v1.0+). Set to 'auto' to
+  // restore the 0.x behavior of jailing data ops to the document directory.
+  data_root?: 'auto' | 'cwd' | string
+  allowed_data_paths?: string[]
+
+  // Write ops (@mkdir, @copy to=, @append-if-missing, @update-frontmatter,
+  // @render-template to=). Off by default.
+  write_enabled?: boolean
+  write_root?: 'auto' | 'cwd' | string
+  allowed_write_paths?: string[]
+
+  // Path-allowlist patterns support glob syntax and ${VAR} expansion
+  // against HOME, CLAUDE_SKILL_DIR, CLAUDE_SESSION_ID, and process env
+  // vars. Unset variables expand to empty string (fail-closed).
+}
 ```
+
+**v1.0 split:** before v1.0 the engine used a single `jailRoot` for every filesystem op. v1.0 introduces three independent jails (`source_root`, `data_root`, `write_root`) because a Claude Code skill file installed at `~/.claude/commands/<name>.md` needs to read its sibling templates (source ops) while still reaching into the user's project (data ops). The single-jail model couldn't express that distinction.
+
+**Migration from 0.x:** if you relied on `jailRoot` confining `@list` / `@read` to the document directory, set `filesystemConfig.data_root = "auto"` to restore that behavior. The new default (`"cwd"`) is what most workflows want now.
 
 ### Loading from disk
 
@@ -289,11 +317,26 @@ const value = evalExpression('date format="YYYY-MM-DD"', ctx)
 - Equality: `==`, `!=`
 - Comparison: `>`, `<`, `>=`, `<=`
 - Logical: `&&`, `||`, `!`
-- Existence: `file.exists`, `file.isDir`
+- Existence: `file.exists`, `file.isFile`, `file.isDir`
+- Content (v1.0+): `file.containsLine(path, regex)`, `file.containsSection(path, heading)`, `file.frontmatterField(path, field)`
 - String: `.startsWith()`, `.endsWith()`, `.includes()`
 - Ternary: `condition ? "yes" : "no"`
 - Nullish: `??` (fallback if null/undefined)
 - Optional chain: `?.`
+
+`v1.0` also fixed two parser issues that affected conditions: `||` (logical OR) is now correctly distinguished from `|` (pipe), and `${VAR}` placeholders in `@include` / `@import` paths are expanded against `HOME`, `CLAUDE_SKILL_DIR`, `CLAUDE_SESSION_ID`, and process env before the path is jailed.
+
+## Directive Inventory by Module
+
+The engine's execute step dispatches each AST node to a specialized op module. v1.0 added several modules:
+
+| Module | Directives | What it does |
+|--------|------------|--------------|
+| `exec-ops.ts` | `@test`, `@check` | Spawns runners (`pnpm test`, `tsc`, etc.), captures full combined stdout+stderr, recognizes vitest / jest / playwright / tsc / eslint / prettier output to produce optional `label_summary`. 5-minute timeout. |
+| `write-ops.ts` | `@mkdir`, `@copy`, `@append-if-missing`, `@update-frontmatter`, `@render-template` | Filesystem mutation behind `filesystem.write_enabled`. All paths jailed against `write_root`. |
+| `read-ops.ts` | `@read-frontmatter`, `@hash` | Targeted reads. `@read-frontmatter` parses YAML and returns a single scalar (lists comma-join). `@hash` supports any Node `crypto.createHash` algorithm + `length=` truncation + `exclude-line=` regex. |
+| `iter-ops.ts` | `@foreach`, `@set` | Iteration and value binding. `@foreach` binds the loop variable into `ctx.envFiles` so nested directives see `{{ var }}` substituted into their args. `@set` binds a literal, directive result, or interpolated string. |
+| `frontmatter-utils.ts` | shared by `@update-frontmatter`, `@read-frontmatter`, `file.frontmatterField` | YAML scalar / list / nested-object manipulation. Supports block-list `[append]` and `[N]` indexing. |
 
 ## Caching
 

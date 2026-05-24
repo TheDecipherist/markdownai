@@ -36,9 +36,9 @@ Directives, `{{ }}` interpolations, and macro names each get their own color sco
 
 ### Auto-indentation and Auto-close
 
-Block directives indent automatically. Press Enter after `@phase`, `@define`, `@if`, `@note`, `@section`, or `@prompt` and the next line is indented by 2 spaces - matching the MarkdownAI formatting style. Type `@end` or `@endif` and VS Code de-dents it to the correct level automatically.
+Block directives indent automatically. Press Enter after `@phase`, `@define`, `@if`, `@note`, `@section`, `@prompt`, `@foreach`, or `@render-template` and the next line is indented by 2 spaces - matching the MarkdownAI formatting style. Type `@end` or `@endif` and VS Code de-dents it to the correct level automatically.
 
-Directives also close themselves: type `@phase name` and press Enter and the extension inserts the indented body and the closing `@end` for you. Same for `@define`, `@if` (with `@endif`), `@note`, `@section`, and `@prompt`.
+Directives also close themselves: type `@phase name` and press Enter and the extension inserts the indented body and the closing `@end` for you. Same for `@define`, `@if` (with `@endif`), `@note`, `@section`, `@prompt`, `@foreach`, and `@render-template`.
 
 ### Snippets
 
@@ -53,6 +53,17 @@ Type a directive prefix and press Tab. Every directive has a snippet with placeh
 | `@include` | `@include path/to/file.md` |
 | `@query` | `@query command label=varname` |
 | `@phase` | `@phase name` with `@end` |
+| `@foreach` | `@foreach var in @list ./path`...`@end` block (v1.0+) |
+| `@set` | `@set name = value` (v1.0+) |
+| `@read-frontmatter` | `@read-frontmatter path="..." field="..." label=name` (v1.0+) |
+| `@hash` | `@hash path="..." algo=sha256 length=8 label=name` (v1.0+) |
+| `@test` | `@test command="..." label=name` (v1.0+) |
+| `@check` | `@check command="..." label=name` (v1.0+) |
+| `@mkdir` | `@mkdir path` (v1.0+) |
+| `@copy` | `@copy from="..." to="..." if-missing` (v1.0+) |
+| `@append-if-missing` | `@append-if-missing path="..." text="..."` (v1.0+) |
+| `@update-frontmatter` | `@update-frontmatter path="..." field="..." value="..."` (v1.0+) |
+| `@render-template` | `@render-template from="..." to="..."`...`@end` block (v1.0+) |
 
 ### Autocomplete
 

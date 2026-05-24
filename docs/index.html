@@ -176,7 +176,7 @@
   <section class="hero">
     <div class="hero-glow" aria-hidden="true"></div>
     <div class="hero-content container">
-      <div class="hero-badge">npm install -g @markdownai/core</div>
+      <div class="hero-badge">v1.0 - npm install -g @markdownai/core</div>
       <h1>MarkdownAI</h1>
       <p class="hero-subtitle">
         documentation that cannot lie.
@@ -696,6 +696,64 @@ Running in **{{ env.NODE_ENV }}** mode.
 @event name='progress' data='step 2 of 4' transport='log,file'</code></pre>
           </div>
 
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-cyan">@foreach</div>
+            <h3>@foreach and @set <span class="badge">v1.0</span></h3>
+            <p>
+              Walk a list source with <code>@foreach</code> and render the body once per item. Bind
+              values to names with <code>@set</code> for downstream reuse. The two together turn a
+              document into a small program that can produce per-feature status, per-file rollups,
+              and templated sections without manual repetition.
+            </p>
+            <pre><code class="language-markdown">@foreach doc in @list ./.mdd/docs/ match="*.md"
+  @read-frontmatter path="{{ doc }}" field="status" label=s
+  - {{ doc }} ({{ s }})
+@end
+
+@set today = @date format="YYYY-MM-DD"</code></pre>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-green">@read-frontmatter</div>
+            <h3>@read-frontmatter and @hash <span class="badge">v1.0</span></h3>
+            <p>
+              Pull a single YAML field with <code>@read-frontmatter</code> without parsing the
+              whole document. Compute a content hash with <code>@hash</code> for change detection
+              or doc-integrity checks. <code>@hash</code> supports any Node crypto algorithm and
+              a regex-based line-exclude for self-referential fields.
+            </p>
+            <pre><code class="language-markdown">@read-frontmatter path="doc.md" field="status" label=s
+@hash path="doc.md" algo=sha256 length=8 label=h</code></pre>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-purple">@test</div>
+            <h3>@test and @check <span class="badge">v1.0</span></h3>
+            <p>
+              <code>@test</code> runs the project test suite. <code>@check</code> runs typecheck,
+              lint, or build. Both inline the full combined output and expose <code>label</code>
+              (full text), <code>label_exit</code> (exit code), and <code>label_summary</code>
+              (one-line recognized summary from vitest, jest, playwright, tsc, eslint, prettier).
+            </p>
+            <pre><code class="language-markdown">@test command="pnpm test" label=results
+@check command="tsc --noEmit" label=tc</code></pre>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-pink">@mkdir</div>
+            <h3>Filesystem Writes <span class="badge">v1.0</span></h3>
+            <p>
+              Five directives that mutate the filesystem: <code>@mkdir</code>, <code>@copy</code>,
+              <code>@append-if-missing</code>, <code>@update-frontmatter</code>, and
+              <code>@render-template</code>. All gated behind <code>filesystem.write_enabled</code>
+              and confined to <code>write_root</code>. Built for bootstrap scaffolding, idempotent
+              config updates, and template-driven file generation.
+            </p>
+            <pre><code class="language-markdown">@mkdir .mdd/docs
+@copy from="tpl.md" to="doc.md" if-missing
+@update-frontmatter path="doc.md" field="status" value="done"</code></pre>
+          </div>
+
         </div>
       </section>
 
@@ -908,10 +966,23 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
             <h3>&#128268; PreToolUse Hook</h3>
             <p>
               Run <code>mai init</code> to install a PreToolUse hook into your AI client. When the
-              AI reads a <code>.md</code> file starting with <code>@markdownai</code>, the hook
-              intercepts the read and routes it through <code>mai render</code> first. The AI always
-              receives the rendered, executed output - live data, not the last time someone manually
-              updated the file.
+              AI calls <code>Read</code> on a MarkdownAI document (bare <code>@markdownai</code> or
+              YAML frontmatter followed by it), the hook blocks the raw read and returns a redirect
+              message with the full MCP tool catalogue and a five-step workflow. The AI fetches the
+              file through the MCP server instead - live data, every read, with zero ambiguity
+              about how to proceed.
+            </p>
+          </div>
+
+          <div class="concept-card">
+            <h3>&#9889; SessionStart Hook <span class="badge">v1.0</span></h3>
+            <p>
+              <code>mai init</code> also installs a <code>SessionStart</code> hook. If your project
+              has a <code>CLAUDE-MarkdownAI.md</code> file at the root, the hook renders it on every
+              session start (or resume, clear, compact) and injects the rendered output into the
+              AI's session context. Your <code>CLAUDE.md</code> is never touched. The rendered text
+              lives only in conversation context - no file mutation, no commit risk, no stale state
+              after an unclean session end.
             </p>
           </div>
 
@@ -1002,12 +1073,16 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
           <tbody>
             <tr><td><code>mai render &lt;file&gt;</code></td><td>Execute and print rendered markdown to stdout</td></tr>
             <tr><td><code>mai render &lt;file&gt; -o &lt;path&gt;</code></td><td>Execute and write result to a file</td></tr>
+            <tr><td><code>mai render &lt;file&gt; --skill-args "&lt;args&gt;"</code></td><td>Render with full Claude Code skill context. Sets <code>ARGUMENTS</code>, parses <code>argsList</code>, defaults <code>data_root</code> to cwd <span class="badge">v1.0</span></td></tr>
+            <tr><td><code>mai render &lt;file&gt; --skill-dir &lt;path&gt;</code></td><td>Set <code>CLAUDE_SKILL_DIR</code> for the render <span class="badge">v1.0</span></td></tr>
+            <tr><td><code>mai render &lt;file&gt; --skill-effort &lt;low|medium|high&gt;</code></td><td>Set <code>EFFORT</code> for the render <span class="badge">v1.0</span></td></tr>
+            <tr><td><code>mai render &lt;file&gt; --skill-session-id &lt;uuid&gt;</code></td><td>Set <code>CLAUDE_SESSION_ID</code> for the render <span class="badge">v1.0</span></td></tr>
             <tr><td><code>mai validate &lt;file&gt;</code></td><td>Check for errors and warnings; exits 1 on error</td></tr>
             <tr><td><code>mai parse &lt;file&gt;</code></td><td>Output the document AST as JSON</td></tr>
             <tr><td><code>mai eval "&lt;expression&gt;"</code></td><td>Evaluate a single expression against the environment</td></tr>
             <tr><td><code>mai strip &lt;file&gt;</code></td><td>Remove all directives; output plain Markdown</td></tr>
             <tr><td><code>mai serve</code></td><td>Start the MCP server</td></tr>
-            <tr><td><code>mai init</code></td><td>Install the PreToolUse hook into your AI client</td></tr>
+            <tr><td><code>mai init</code></td><td>Install the PreToolUse and SessionStart hooks into your AI client. Idempotent.</td></tr>
             <tr><td><code>mai build &lt;file&gt; -o &lt;output&gt;</code></td><td>Render and write to disk (alias for render -o)</td></tr>
             <tr><td><code>mai watch &lt;file&gt; -o &lt;output&gt;</code></td><td>Watch for changes and re-render automatically</td></tr>
             <tr><td><code>mai cache clear [file]</code></td><td>Clear cache for one document or all</td></tr>
@@ -1085,8 +1160,21 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
           Operators: <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&gt;</code>,
           <code>&lt;=</code>, <code>&gt;=</code>, <code>&amp;&amp;</code>, <code>||</code>,
           <code>!</code>, <code>startsWith</code>, <code>endsWith</code>, <code>includes</code>,
-          <code>file.exists</code>, <code>file.isFile</code>, <code>file.isDir</code>
+          <code>file.exists</code>, <code>file.isFile</code>, <code>file.isDir</code>,
+          <code>file.containsLine(path, regex)</code>, <code>file.containsSection(path, heading)</code>,
+          <code>file.frontmatterField(path, field)</code> (last three: v1.0+)
         </p>
+
+        <h3>Iteration and Variables <span class="badge">v1.0</span></h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@foreach &lt;var&gt; in &lt;source&gt;</code> ... <code>@end</code></td><td>Render the body once per item. Source can be a directive, a frontmatter list field, a label, or a comma-separated literal.</td></tr>
+            <tr><td><code>@set &lt;var&gt; = "literal"</code></td><td>Bind a literal value.</td></tr>
+            <tr><td><code>@set &lt;var&gt; = @directive args</code></td><td>Bind the rendered output of a directive.</td></tr>
+            <tr><td><code>@set &lt;var&gt; = "{{ interp }}"</code></td><td>Bind an interpolated string.</td></tr>
+          </tbody>
+        </table>
 
         <h3>Data Sources</h3>
         <table class="scale-table">
@@ -1094,6 +1182,8 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
           <tbody>
             <tr><td><code>@list &lt;path&gt;</code></td><td>List filesystem entries or structured data from JSON/YAML/CSV.</td></tr>
             <tr><td><code>@read &lt;path&gt;</code></td><td>Read and extract a value from a structured file.</td></tr>
+            <tr><td><code>@read-frontmatter path="..." field="..."</code></td><td>Read a single YAML field from a document's frontmatter <span class="badge">v1.0</span>.</td></tr>
+            <tr><td><code>@hash path="..." algo=sha256 length=N</code></td><td>Compute a content hash with optional line-exclude regex <span class="badge">v1.0</span>.</td></tr>
             <tr><td><code>@tree &lt;path&gt;</code></td><td>Render a directory tree.</td></tr>
             <tr><td><code>@date format="..."</code></td><td>Current date/time in any format.</td></tr>
             <tr><td><code>@count &lt;path&gt; "&lt;pattern&gt;"</code></td><td>Count files matching a pattern.</td></tr>
@@ -1104,6 +1194,28 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
             <tr><td><code>@query &lt;command&gt; label=name</code></td><td>Execute and store result in named label.</td></tr>
             <tr><td><code>@http &lt;METHOD&gt; &lt;url&gt;</code></td><td>Make an HTTP request and use the response body.</td></tr>
             <tr><td><code>@http &lt;METHOD&gt; &lt;url&gt; expected=&lt;code&gt;</code></td><td>Assert response status code.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Execution <span class="badge">v1.0</span></h3>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@test command="..." label=name</code></td><td>Run the test suite. Inlines full output. Exposes <code>name</code> (full text), <code>name_exit</code> (exit code), <code>name_summary</code> (recognized one-liner).</td></tr>
+            <tr><td><code>@check command="..." label=name</code></td><td>Run typecheck / lint / build. Auto-detects from <code>package.json</code> scripts when <code>command=</code> is omitted.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Filesystem Writes <span class="badge">v1.0</span></h3>
+        <p>All write directives require <code>filesystem.write_enabled = true</code>. Confined to <code>write_root</code> and <code>allowed_write_paths</code>. Immutable always-block rules still apply.</p>
+        <table class="scale-table">
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@mkdir &lt;path&gt;</code></td><td>Create a directory. Recursive by default.</td></tr>
+            <tr><td><code>@copy from="..." to="..." [if-missing]</code></td><td>Copy a file. <code>if-missing</code> makes it idempotent.</td></tr>
+            <tr><td><code>@append-if-missing path="..." text="..."</code></td><td>Append a line only if not already present.</td></tr>
+            <tr><td><code>@update-frontmatter path="..." field="..." value="..."</code></td><td>Set a YAML frontmatter field. Supports <code>field[append]</code>, <code>field[N]</code>, nested <code>field[N].sub</code>.</td></tr>
+            <tr><td><code>@render-template from="..." to="..."</code> ... <code>@end</code></td><td>Render a template with injected parameters and write the result. Idempotent by default; <code>force</code> overwrites.</td></tr>
           </tbody>
         </table>
 
