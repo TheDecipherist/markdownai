@@ -68,8 +68,9 @@ function resolveWritePath(rawPath: string, ctx: EngineContext, directive: string
 // --- @test / @check --------------------------------------------------------
 
 interface RunSummary {
-  output: string   // raw command output (stdout + stderr)
-  summary: string  // one-line pass/fail summary
+  output: string   // raw command output (stdout + stderr) - returned IN FULL, never truncated
+  summary: string  // optional one-line summary when a runner format is recognized;
+                   // surfaced as {{label}}_summary ONLY. Never replaces output.
   exit: number     // exit code
 }
 
@@ -127,17 +128,10 @@ function summarizeOutput(output: string, exit: number, runner: 'test' | 'check')
   return exit === 0 ? `${runner} passed — exit 0` : `${runner} failed — exit ${exit}`
 }
 
-function tailLines(text: string, n: number): string {
-  const lines = text.split('\n')
-  if (lines.length <= n) return text
-  return lines.slice(-n).join('\n')
-}
-
 function runCommand(
   command: string,
   ctx: EngineContext,
   directive: string,
-  budget: number,
   runner: 'test' | 'check',
 ): RunSummary | null {
   if (!ctx.security.allowShell) {
@@ -162,10 +156,13 @@ function runCommand(
   const stderr = result.stderr ?? ''
   const combined = stdout + (stderr ? '\n' + stderr : '')
   const exit = result.status ?? -1
+  // Core invariant: engine runs the grunt, returns ALL output to the caller.
+  // Never truncate. Never substitute a summary for the real thing. Especially
+  // on failure - Claude needs the full runner output to diagnose. The summary
+  // line is best-effort and ONLY surfaces as {{label}}_summary; the full
+  // output is always in the directive's primary return value and {{label}}.
   const summary = summarizeOutput(combined, exit, runner)
-  // On failure: tail the last N lines for context. On success: just the summary.
-  const output = exit === 0 ? summary : tailLines(combined, budget)
-  return { output, summary, exit }
+  return { output: combined, summary, exit }
 }
 
 export function executeTest(node: TestNode, ctx: EngineContext): string {
@@ -174,17 +171,20 @@ export function executeTest(node: TestNode, ctx: EngineContext): string {
     ctx.warnings.push('@test: no command= provided and no scripts.test in package.json')
     return ''
   }
-  const budgetStr = node.args['budget']
-  const budget = budgetStr ? parseInt(budgetStr, 10) : 80
-  const r = runCommand(command, ctx, '@test', isNaN(budget) ? 80 : budget, 'test')
+  const r = runCommand(command, ctx, '@test', 'test')
   if (!r) return ''
   const label = node.args['label']
   if (label) {
-    ctx.envFiles[label] = r.summary
+    // {{ label }} = full output (stdout + stderr, never truncated).
+    // {{ label_exit }} = exit code as string.
+    // {{ label_summary }} = best-effort one-line recognizer output, additive only.
+    ctx.envFiles[label] = r.output
     ctx.envFiles[`${label}_exit`] = String(r.exit)
-    ctx.envFiles[`${label}_output`] = r.output
+    ctx.envFiles[`${label}_summary`] = r.summary
   }
-  return r.summary + (r.exit !== 0 ? '\n' + r.output : '')
+  // Inline substitution: emit the full combined output where the directive sat.
+  // Claude reads exactly what the test runner produced.
+  return r.output
 }
 
 export function executeCheck(node: CheckNode, ctx: EngineContext): string {
@@ -193,17 +193,15 @@ export function executeCheck(node: CheckNode, ctx: EngineContext): string {
     ctx.warnings.push('@check: no command= provided and no scripts.typecheck/check/lint/build in package.json')
     return ''
   }
-  const budgetStr = node.args['budget']
-  const budget = budgetStr ? parseInt(budgetStr, 10) : 80
-  const r = runCommand(command, ctx, '@check', isNaN(budget) ? 80 : budget, 'check')
+  const r = runCommand(command, ctx, '@check', 'check')
   if (!r) return ''
   const label = node.args['label']
   if (label) {
-    ctx.envFiles[label] = r.summary
+    ctx.envFiles[label] = r.output
     ctx.envFiles[`${label}_exit`] = String(r.exit)
-    ctx.envFiles[`${label}_output`] = r.output
+    ctx.envFiles[`${label}_summary`] = r.summary
   }
-  return r.summary + (r.exit !== 0 ? '\n' + r.output : '')
+  return r.output
 }
 
 // --- @render-template ------------------------------------------------------

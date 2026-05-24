@@ -706,3 +706,98 @@ ${CLAUDE_SKILL_DIR}/templates/initiative.md`), Phase PW4
 (`@include ${CLAUDE_SKILL_DIR}/templates/wave-manifest.md`). All three
 sites now route their inline doc skeleton through the bundled template
 instead of duplicating the content in-line.
+
+---
+
+## 2026-05-23 | bug-fix (correctness) | @test and @check now return the FULL runner output
+
+### The bug
+
+Wave 4 shipped `@test` and `@check` with two truncation behaviors:
+
+- **On success:** `runCommand()` returned only the one-line recognizer summary
+  (e.g. `tests: 8 passed (8) - exit 0`). The runner's actual stdout was
+  discarded.
+- **On failure:** `runCommand()` returned `tailLines(combined, budget)` -
+  default last 80 lines. Anything earlier in the output was dropped.
+
+Both behaviors are wrong. Surfaced during MDD Wave 6 review of the audit
+fix loop.
+
+### The principle (now an invariant)
+
+Engine-pre-execution of grunt work and engine-side filtering of grunt
+output are different things:
+
+- Pre-executing deterministic work (file reads, frontmatter parses, test
+  runs, hashes) is the entire point of MarkdownAI. Token savings and
+  speedup compound.
+- Filtering or summarizing the *result* on the way back to the caller is
+  not. A truncated stack trace can omit the assertion line. A summary-only
+  success line can hide a runner warning. The caller cannot ask for
+  the rest - there is no fallback. Wrong fix > slower fix; chaos is the
+  worst outcome.
+
+The engine runs the grunt and returns the full result. Period. Especially
+on errors. Anything more clever is a foot-gun the caller cannot work
+around.
+
+### The fix
+
+`runCommand()` now returns `{ output: <full combined stdout+stderr>,
+summary: <best-effort recognizer line>, exit: <code> }`. No tailing. No
+substitution.
+
+`executeTest()` and `executeCheck()`:
+
+- Emit the FULL output inline (where the directive sat in the rendered
+  document) so the caller reads exactly what the runner produced.
+- Set `{{ label }}` = full output.
+- Set `{{ label_exit }}` = exit code (scalar).
+- Set `{{ label_summary }}` = optional recognizer summary, additive only
+  (was previously `{{ label }}` and conflated with the actual output).
+- Drop `{{ label_output }}` - it's just `{{ label }}` now.
+- Drop the `budget=` argument - there's nothing to budget when output is
+  always full.
+
+### Files touched
+
+- `packages/engine/src/exec-ops.ts` - removed `tailLines()`; `runCommand`
+  signature simplified; `executeTest` / `executeCheck` emit full output
+  inline; label conventions rewritten in comments.
+- `packages/engine/src/__tests__/test-check.test.ts` - updated the
+  success-summary assertion to use `{{ t_summary }}` (renamed); added
+  two regression tests: "returns the full runner output verbatim"
+  (echo three lines, assert all three present) and "full output is
+  emitted inline at the directive position" (assert content lands
+  between START / END markers in the rendered document).
+
+### Test totals
+
+- engine: 658 (was 656; +2 new)
+- parser: 160
+- core: 93
+- mcp: 37
+- mdd: 51
+- **total: 999**
+
+### Migration notes
+
+Breaking for any caller that read `{{ label }}` expecting a summary line
+or `{{ label_output }}` expecting full output. Both collapse into
+`{{ label }}` = full output now. `{{ label_summary }}` is the new home
+for the one-line recognizer output. Callers that depended on the
+truncated tail-N behavior will now see the full output (longer but
+correct). `budget=` argument silently ignored.
+
+This is a **correctness fix** and is intentional. There is no
+backwards-compat path; the previous behavior was lossy by design and that
+design was wrong.
+
+### Linked MDD site
+
+`~/projects/mdd2` audit fix loop and build phases that referenced
+`{{ <label>_output }}` and `{{ <label> }}` summary text need a small
+rewrite to drop `_output` and rename `{{ label }}` references where the
+intent was the summary line specifically. Tracked separately on the
+MDD side.

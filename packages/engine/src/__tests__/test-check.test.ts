@@ -47,11 +47,12 @@ describe('@test and @check', () => {
         `@markdownai v1.0
 @test command="true" label=t
 exit={{ t_exit }}
-summary={{ t }}
+summary={{ t_summary }}
 `,
         { allowShell: true, shellConfig: trueShell },
       )
       expect(result.output).toContain('exit=0')
+      // {{ t_summary }} is best-effort recognizer output, additive only.
       expect(result.output).toMatch(/summary=test passed/i)
     })
 
@@ -64,6 +65,34 @@ exit={{ t_exit }}
         { allowShell: true, shellConfig: trueShell },
       )
       expect(result.output).toContain('exit=1')
+    })
+
+    it('returns the full runner output verbatim (not truncated, not summarized)', () => {
+      // The engine must never substitute a summary for the real output.
+      // Claude needs the runner's actual stdout/stderr to diagnose failures.
+      const result = render(
+        `@markdownai v1.0
+@test command="echo line-one && echo line-two && echo line-three" label=t
+full={{ t }}
+`,
+        { allowShell: true, shellConfig: trueShell },
+      )
+      expect(result.output).toContain('line-one')
+      expect(result.output).toContain('line-two')
+      expect(result.output).toContain('line-three')
+    })
+
+    it('full output is emitted inline at the directive position', () => {
+      const result = render(
+        `@markdownai v1.0
+START
+@test command="echo hello-from-test"
+END
+`,
+        { allowShell: true, shellConfig: trueShell },
+      )
+      // Output must appear between START and END markers (inline substitution).
+      expect(result.output).toMatch(/START[\s\S]*hello-from-test[\s\S]*END/)
     })
 
     it('auto-detects from package.json scripts.test', () => {
