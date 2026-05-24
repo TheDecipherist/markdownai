@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import type { ASTNode, IncludeNode, ImportNode } from '@markdownai/parser'
 import { parse } from '@markdownai/parser'
 import { type EngineContext, type Connection } from './context.js'
-import { evalCondition } from './conditions.js'
+import { evalCondition, evalExpression } from './conditions.js'
 import { checkSourcePath } from './security/filesystem.js'
 import { expandPattern } from './security/path-expand.js'
 
@@ -31,6 +31,20 @@ export class FatalError extends Error {
     super(message)
     this.name = 'FatalError'
   }
+}
+
+const INTERP_RE = /\{\{\s*([\s\S]*?)\s*\}\}/g
+
+function interpolatePathExpressions(path: string, ctx: EngineContext): string {
+  return path.replace(INTERP_RE, (_, expr: string) => {
+    const value = evalExpression(expr.trim(), ctx)
+    if (value === '' || value === 'null') {
+      throw new FatalError(
+        `@include: {{ ${expr.trim()} }} evaluated to empty in path "${path}" — cannot resolve file`,
+      )
+    }
+    return value
+  })
 }
 
 export function versionIsNewer(required: string, installed: string): boolean {
@@ -98,7 +112,7 @@ export function executeInclude(
 ): string {
   if (node.condition !== null && !evalCondition(node.condition, ctx)) return ''
 
-  const expanded = expandImportPath(node.path, ctx)
+  const expanded = interpolatePathExpressions(expandImportPath(node.path, ctx), ctx)
   const full = isAbsolute(expanded) ? expanded : resolve(ctx.docDir, expanded)
   const sourceJail = ctx.security.sourceJail ?? ctx.security.jailRoot ?? ctx.docDir
   const check = checkSourcePath(full, sourceJail, ctx.security.allowedSourcePaths, ctx.security.filesystemConfig)
@@ -111,7 +125,8 @@ export function executeInclude(
   }
   let source: string
   try { source = readFileSync(full, 'utf8') } catch (err) {
-    ctx.warnings.push(`@include: cannot read file "${node.path}": ${String(err)}`)
+    const displayPath = expanded !== node.path ? `"${expanded}" (from "${node.path}")` : `"${node.path}"`
+    ctx.warnings.push(`@include: cannot read file ${displayPath}: ${String(err)}`)
     return ''
   }
   const ast = parse(source, { filePath: full })

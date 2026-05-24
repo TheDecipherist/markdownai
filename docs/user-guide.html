@@ -640,6 +640,33 @@ For internal review only - do not distribute.
           <li>Including a file multiple times is valid and intentional repetition is supported.</li>
           <li>Mark definitions as <code>@local</code> inside included files to prevent them bubbling up to the parent.</li>
         </ul>
+
+        <h3>Dynamic Paths</h3>
+        <p>
+          Put <code>&#123;&#123; expression &#125;&#125;</code> anywhere in the file path. The expression runs in the same sandbox as <code>@if</code> conditions, so <code>arg0</code>, <code>ARGUMENTS</code>, <code>env.*</code>, and any <code>@foreach</code> loop variable all work.
+        </p>
+        <p>
+          This turns a five-branch <code>@if</code>/<code>@elseif</code> chain into one line:
+        </p>
+        <pre><code class="language-markdown">@markdownai v1.0
+
+@include ./{{arg0}}-mode.md</code></pre>
+
+        <p>
+          Add a JS <code>||</code> default for when no argument is passed:
+        </p>
+        <pre><code class="language-markdown">@include ./{{arg0 || 'audit'}}-mode.md</code></pre>
+
+        <p>
+          Inside a <code>@foreach</code> loop the loop variable works directly in the path:
+        </p>
+        <pre><code class="language-markdown">@foreach section in intro,body,appendix
+  @include ./{{section}}.md
+@end</code></pre>
+
+        <p>
+          The expanded path goes through the same jail check as a static include. Dynamic traversal (e.g. a caller passing <code>../../etc/shadow</code> as an argument) is caught and blocked.
+        </p>
       </section>
 
       <!-- ===== IMPORT ===== -->
@@ -1197,6 +1224,20 @@ Cutting branch {{ release_branch }} for the {{ today }} release.</code></pre>
 
         <p>
           A bound name is available to every directive and interpolation that follows it in the same document. <code>@foreach</code> bindings shadow outer <code>@set</code> bindings inside the loop and restore on exit.
+        </p>
+
+        <h3>@foreach with Dynamic @include</h3>
+        <p>
+          The loop variable is available in <code>&#123;&#123; &#125;&#125;</code> path expressions on <code>@include</code>, so you can include a different file per iteration without any conditional logic:
+        </p>
+        <pre><code class="language-markdown">@markdownai v1.0
+
+@foreach section in intro,features,pricing,faq
+  @include ./sections/{{section}}.md
+@end</code></pre>
+
+        <p>
+          Each iteration includes a different file. If a file is missing, a warning is emitted and that iteration produces no output - the loop continues.
         </p>
       </section>
 

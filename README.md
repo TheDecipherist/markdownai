@@ -322,6 +322,22 @@ Pull content from another file directly into your document's output. `lines=N-M`
 
 MarkdownAI tracks and prevents circular includes. The first-wins rule applies when multiple includes chain into each other.
 
+**Dynamic paths** - embed `{{ expression }}` segments anywhere in the file path. The expression runs in the same sandbox as `@if` conditions, so `ARGUMENTS`, `arg0`, `env.*`, and any `@foreach` loop variable are all available:
+
+```markdown
+@include ./{{arg0}}-mode.md
+
+@include ./{{arg0 || 'default'}}-section.md
+```
+
+Inside a `@foreach`, the loop variable works directly in the path:
+
+```markdown
+@foreach doc in @list ./docs/ match="*.md"
+  @include ./templates/{{doc}}-layout.md
+@end
+```
+
 ---
 
 ### @import - Definition Import
@@ -1172,6 +1188,12 @@ This enables genuine engine-evaluated dispatch in skill files:
 ```markdown
 @markdownai
 
+@include ./{{arg0}}-mode.md
+```
+
+That single line replaces this:
+
+```markdown
 @if ARGUMENTS.startsWith("audit")
   @include ./audit-mode.md
 @elseif ARGUMENTS.startsWith("build")
@@ -1181,7 +1203,11 @@ This enables genuine engine-evaluated dispatch in skill files:
 @endif
 ```
 
-The engine routes to the correct section before Claude even sees the file. The AI receives only the content relevant to the actual invocation.
+The engine routes to the correct file before Claude even sees the document. The AI receives only the content relevant to the actual invocation. Add a JS `||` default for when no argument is passed:
+
+```markdown
+@include ./{{arg0 || 'audit'}}-mode.md
+```
 
 Show more detail for high-effort sessions:
 

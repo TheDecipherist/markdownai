@@ -13,14 +13,25 @@ function tokenize(str: string): string[] {
   let current = ''
   let inDoubleQuote = false
   let inSingleQuote = false
+  let doubleBraceDepth = 0
 
-  for (const ch of str) {
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i]!
+    const next = str[i + 1]
     if (inDoubleQuote) {
-      if (ch === '"') { inDoubleQuote = false }
       current += ch
+      if (ch === '"') inDoubleQuote = false
     } else if (inSingleQuote) {
-      if (ch === "'") { inSingleQuote = false }
       current += ch
+      if (ch === "'") inSingleQuote = false
+    } else if (doubleBraceDepth > 0) {
+      current += ch
+      if (ch === '}' && next === '}') { doubleBraceDepth--; current += '}'; i++ }
+      else if (ch === '{' && next === '{') { doubleBraceDepth++; current += '{'; i++ }
+    } else if (ch === '{' && next === '{') {
+      doubleBraceDepth++
+      current += '{{'
+      i++
     } else if (ch === '"') {
       inDoubleQuote = true
       current += ch

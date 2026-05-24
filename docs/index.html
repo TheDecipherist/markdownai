@@ -559,8 +559,9 @@ Running in **{{ env.NODE_ENV }}** mode.
             <h3>Includes and Imports</h3>
             <p>
               Pull in file content with <code>@include</code> - supports a line range for embedding
-              source code in docs. Use <code>@import</code> to import only definitions (macros,
-              connections, env defaults) from a shared file without rendering its content.
+              source code in docs. Paths accept <code>&#123;&#123; expression &#125;&#125;</code> segments, so
+              <code>@include ./{{arg0}}-mode.md</code> routes to a different file per invocation
+              without any conditional chain. Use <code>@import</code> for definitions-only imports.
             </p>
           </div>
 
@@ -1026,13 +1027,21 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
 
         <pre><code class="language-markdown">@markdownai
 
-@if ARGUMENTS.startsWith("audit")
-  @include ./audit-mode.md
-@elseif ARGUMENTS.startsWith("build")
-  @include ./build-mode.md
-@elseif ARGUMENTS.startsWith("plan")
-  @include ./plan-mode.md
-@endif</code></pre>
+@include ./{{arg0}}-mode.md</code></pre>
+
+        <p>
+          That single line replaces a five-branch <code>@if</code>/<code>@elseif</code> chain. Add a JS <code>||</code> default for when the skill is called with no argument:
+        </p>
+
+        <pre><code class="language-markdown">@include ./{{arg0 || 'audit'}}-mode.md</code></pre>
+
+        <p>
+          Works inside <code>@foreach</code> too - the loop variable is available in the path expression on every iteration:
+        </p>
+
+        <pre><code class="language-markdown">@foreach section in intro,features,pricing
+  @include ./{{section}}.md
+@end</code></pre>
       </section>
 
       <!-- ======================== -->
