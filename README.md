@@ -26,7 +26,7 @@
   </a>
   &nbsp;
   <a href=".mdd/manual/manual.md">
-    <img src="https://img.shields.io/badge/User_Manual-78_features-7c3aed?style=for-the-badge&labelColor=1e293b" alt="User Manual" />
+    <img src="https://img.shields.io/badge/User_Manual-90_features-7c3aed?style=for-the-badge&labelColor=1e293b" alt="User Manual" />
   </a>
 </p>
 
