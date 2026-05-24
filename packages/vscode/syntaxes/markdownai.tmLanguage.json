@@ -28,7 +28,7 @@
       "name": "keyword.control.markdownai"
     },
     "directive-line": {
-      "begin": "^(@(?:import|include|define|enddefine|end|call|env|if|elseif|else|endif|query|list|read|http|db|connect|tree|date|count|render|phase|on|graph|note|prompt|section|chunk-boundary|define-concept|constraint|cache))(?=\\s|\\[|$)",
+      "begin": "^(@(?:import|include|define|enddefine|end|call|env|if|elseif|else|endif|query|list|read|read-frontmatter|http|db|connect|tree|date|count|render|render-template|phase|on|graph|note|prompt|section|chunk-boundary|define-concept|constraint|cache|foreach|set|hash|test|check|mkdir|copy|append-if-missing|update-frontmatter|event))(?=\\s|\\[|$)",
       "end": "$",
       "beginCaptures": {
         "1": { "name": "keyword.control.directive.markdownai" }

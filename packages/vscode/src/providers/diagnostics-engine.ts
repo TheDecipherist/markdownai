@@ -20,6 +20,8 @@ const PHASE_RE = /^@phase\b/;
 const NOTE_RE = /^@note\b/;
 const SECTION_RE = /^@section\b/;
 const PROMPT_RE = /^@prompt\b/;
+const FOREACH_RE = /^@foreach\b/;
+const RENDER_TEMPLATE_RE = /^@render-template\b/;
 const END_RE = /^@end\b/;
 const CALL_RE = /^@call\s+([\w-]+)/;
 
@@ -70,6 +72,10 @@ function processLine(
     blockStack.push({ directive: 'section', line: lineNum });
   } else if (PROMPT_RE.test(trimmed)) {
     blockStack.push({ directive: 'prompt', line: lineNum });
+  } else if (FOREACH_RE.test(trimmed)) {
+    blockStack.push({ directive: 'foreach', line: lineNum });
+  } else if (RENDER_TEMPLATE_RE.test(trimmed)) {
+    blockStack.push({ directive: 'render-template', line: lineNum });
   } else if (END_RE.test(trimmed)) {
     if (blockStack.length === 0) {
       diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: '@end with no matching block directive', severity: 'error' });

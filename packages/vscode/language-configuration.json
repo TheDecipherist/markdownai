@@ -3,12 +3,12 @@
     "blockComment": ["<!--", "-->"]
   },
   "indentationRules": {
-    "increaseIndentPattern": "^\\s*@(phase|define|if|note|section|prompt)\\b",
+    "increaseIndentPattern": "^\\s*@(phase|define|if|note|section|prompt|foreach|render-template)\\b",
     "decreaseIndentPattern": "^\\s*@(end|endif|else)\\s*$"
   },
   "onEnterRules": [
     {
-      "beforeText": "^(\\s*)@(phase|define|note|section|prompt)\\b.*$",
+      "beforeText": "^(\\s*)@(phase|define|note|section|prompt|foreach|render-template)\\b.*$",
       "action": { "indent": "indent" }
     },
     {

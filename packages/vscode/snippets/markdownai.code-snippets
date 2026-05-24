@@ -147,5 +147,86 @@
     "prefix": "@chunk-boundary",
     "body": ["@chunk-boundary"],
     "description": "@chunk-boundary — Explicit chunk split point"
+  },
+  "Foreach loop": {
+    "prefix": "@foreach",
+    "body": [
+      "@foreach ${1:item} in ${2:@list ./path match=\"*.md\"}",
+      "  $0",
+      "@end"
+    ],
+    "description": "@foreach — Iterate a list source. Body renders once per item; {{ ${1} }} is bound inside. (v1.0+)"
+  },
+  "Set variable": {
+    "prefix": "@set",
+    "body": [
+      "@set ${1:name} = ${2:value}"
+    ],
+    "description": "@set — Bind a value to a name. RHS can be a literal, a directive, or an interpolated string. (v1.0+)"
+  },
+  "Read frontmatter field": {
+    "prefix": "@read-frontmatter",
+    "body": [
+      "@read-frontmatter path=\"${1:./doc.md}\" field=\"${2:status}\" label=${3:value}"
+    ],
+    "description": "@read-frontmatter — Read a single YAML field from a doc's frontmatter. (v1.0+)"
+  },
+  "Hash content": {
+    "prefix": "@hash",
+    "body": [
+      "@hash path=\"${1:./doc.md}\" algo=${2|sha256,sha1,md5|} length=${3:8} label=${4:hash}"
+    ],
+    "description": "@hash — Compute a content hash. Optional exclude-line=regex strips matching lines before hashing. (v1.0+)"
+  },
+  "Test runner": {
+    "prefix": "@test",
+    "body": [
+      "@test command=\"${1:pnpm test}\" label=${2:results}"
+    ],
+    "description": "@test — Run the project test suite. Exposes {{ label }} (full output), {{ label_exit }}, {{ label_summary }}. (v1.0+)"
+  },
+  "Check runner": {
+    "prefix": "@check",
+    "body": [
+      "@check command=\"${1:tsc --noEmit}\" label=${2:typecheck}"
+    ],
+    "description": "@check — Run typecheck / lint / build. Auto-detects from package.json scripts when command= is omitted. (v1.0+)"
+  },
+  "Make directory": {
+    "prefix": "@mkdir",
+    "body": [
+      "@mkdir ${1:.mdd/docs}"
+    ],
+    "description": "@mkdir — Create a directory. Recursive by default. Requires filesystem.write_enabled. (v1.0+)"
+  },
+  "Copy file": {
+    "prefix": "@copy",
+    "body": [
+      "@copy from=\"${1:./templates/file.md}\" to=\"${2:./.mdd/file.md}\" if-missing"
+    ],
+    "description": "@copy — Copy a file. if-missing makes it idempotent. Requires filesystem.write_enabled. (v1.0+)"
+  },
+  "Append line if missing": {
+    "prefix": "@append-if-missing",
+    "body": [
+      "@append-if-missing path=\"${1:.gitignore}\" text=\"${2:.mdd/audits/}\""
+    ],
+    "description": "@append-if-missing — Idempotent line append. No-op if the text is already present. (v1.0+)"
+  },
+  "Update frontmatter field": {
+    "prefix": "@update-frontmatter",
+    "body": [
+      "@update-frontmatter path=\"${1:./doc.md}\" field=\"${2:status}\" value=\"${3:complete}\""
+    ],
+    "description": "@update-frontmatter — Set a YAML field. Supports field[append], field[N], nested field[N].sub. (v1.0+)"
+  },
+  "Render template": {
+    "prefix": "@render-template",
+    "body": [
+      "@render-template from=\"${1:./template.md}\" to=\"${2:./output.md}\"",
+      "  ${3:key}=${4:value}",
+      "@end"
+    ],
+    "description": "@render-template — Render a template with injected parameters and write to disk. Idempotent by default; force overwrites. (v1.0+)"
   }
 }

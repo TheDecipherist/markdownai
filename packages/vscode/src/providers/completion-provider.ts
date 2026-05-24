@@ -64,6 +64,18 @@ const BLOCK_DIRECTIVES: DirectiveCompletion[] = [
     doc: 'Conditional block with fallback branch',
     kind: vscode.CompletionItemKind.Keyword,
   },
+  {
+    label: '@foreach',
+    snippet: '@foreach ${1:item} in ${2:@list ./path match="*.md"}\n  $0\n@end',
+    doc: 'Iteration block — body renders once per item. Source can be a directive, frontmatter list field, label, or comma-CSV literal. (v1.0+)',
+    kind: vscode.CompletionItemKind.Keyword,
+  },
+  {
+    label: '@render-template',
+    snippet: '@render-template from="${1:./template.md}" to="${2:./output.md}"\n  ${3:key}=${4:value}\n@end',
+    doc: 'Render a template with injected parameters and write to disk. Idempotent by default; force overwrites. Requires filesystem.write_enabled. (v1.0+)',
+    kind: vscode.CompletionItemKind.Class,
+  },
 ];
 
 const INLINE_DIRECTIVES: DirectiveCompletion[] = [
@@ -149,6 +161,60 @@ const INLINE_DIRECTIVES: DirectiveCompletion[] = [
     label: '@chunk-boundary',
     snippet: '@chunk-boundary',
     doc: 'Explicit chunk split point',
+    kind: vscode.CompletionItemKind.Operator,
+  },
+  {
+    label: '@set',
+    snippet: '@set ${1:name} = ${2:value}',
+    doc: 'Bind a value to a name. RHS can be a literal, a directive, or an interpolated string. (v1.0+)',
+    kind: vscode.CompletionItemKind.Variable,
+  },
+  {
+    label: '@read-frontmatter',
+    snippet: '@read-frontmatter path="${1:./doc.md}" field="${2:status}" label=${3:value}',
+    doc: 'Read a single YAML field from a doc\'s frontmatter. Returns empty string if missing. (v1.0+)',
+    kind: vscode.CompletionItemKind.Operator,
+  },
+  {
+    label: '@hash',
+    snippet: '@hash path="${1:./doc.md}" algo=${2|sha256,sha1,md5|} length=${3:8} label=${4:hash}',
+    doc: 'Compute a content hash. Optional exclude-line=regex strips matching lines first. (v1.0+)',
+    kind: vscode.CompletionItemKind.Operator,
+  },
+  {
+    label: '@test',
+    snippet: '@test command="${1:pnpm test}" label=${2:results}',
+    doc: 'Run the project test suite. Inlines full output; exposes label, label_exit, label_summary. (v1.0+)',
+    kind: vscode.CompletionItemKind.Interface,
+  },
+  {
+    label: '@check',
+    snippet: '@check command="${1:tsc --noEmit}" label=${2:typecheck}',
+    doc: 'Run typecheck / lint / build. Auto-detects from package.json scripts when command= is omitted. (v1.0+)',
+    kind: vscode.CompletionItemKind.Interface,
+  },
+  {
+    label: '@mkdir',
+    snippet: '@mkdir ${1:.mdd/docs}',
+    doc: 'Create a directory. Recursive by default. Requires filesystem.write_enabled. (v1.0+)',
+    kind: vscode.CompletionItemKind.Operator,
+  },
+  {
+    label: '@copy',
+    snippet: '@copy from="${1:./template.md}" to="${2:./.mdd/file.md}" if-missing',
+    doc: 'Copy a file. if-missing makes it idempotent. Requires filesystem.write_enabled. (v1.0+)',
+    kind: vscode.CompletionItemKind.Operator,
+  },
+  {
+    label: '@append-if-missing',
+    snippet: '@append-if-missing path="${1:.gitignore}" text="${2:.mdd/audits/}"',
+    doc: 'Append a line only if not already present. Requires filesystem.write_enabled. (v1.0+)',
+    kind: vscode.CompletionItemKind.Operator,
+  },
+  {
+    label: '@update-frontmatter',
+    snippet: '@update-frontmatter path="${1:./doc.md}" field="${2:status}" value="${3:complete}"',
+    doc: 'Set a YAML frontmatter field. Supports field[append], field[N], nested field[N].sub. Requires filesystem.write_enabled. (v1.0+)',
     kind: vscode.CompletionItemKind.Operator,
   },
 ];
