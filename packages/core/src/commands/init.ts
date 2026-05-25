@@ -9,6 +9,12 @@ export type ClientType = 'claude-code' | 'cursor' | 'auto'
 export interface InitOptions {
   client?: ClientType
   cwd?: string
+  /**
+   * Override the user's home directory. Used by tests to redirect file
+   * writes into a tmpdir without touching the real ~/.claude/ or
+   * ~/.markdownai/. Defaults to `os.homedir()`.
+   */
+  homeDir?: string
 }
 
 export interface InitResult {
@@ -17,6 +23,15 @@ export interface InitResult {
   configPath: string
   alreadyInstalled: boolean
   message: string
+  /** Path to the main client config (Claude .claude.json) where MCP entries live. */
+  mcpConfigPath?: string
+  /** Status of the @markdownai/mcp server registration in mcpConfigPath. */
+  mcpRegistration?: {
+    serverName: string
+    command: string
+    alreadyInstalled: boolean
+    error?: string
+  }
 }
 
 /**
@@ -393,6 +408,98 @@ interface HookUpdateResult {
   error?: string
 }
 
+interface McpUpdateResult {
+  alreadyInstalled: boolean
+  serverName: string
+  command: string
+  error?: string
+}
+
+/**
+ * Register the @markdownai/mcp MCP server in Claude Code's main config
+ * (~/.claude.json — distinct from the hook settings.json that
+ * updateClientHooks writes to). Without this entry the MCP tools
+ * (mcp__markdownai__list_phases, resolve_phase, next_phase, etc. — see the
+ * REDIRECT_MESSAGE catalog above) are not exposed to Claude even though
+ * the hooks render @markdownai documents transparently. Registering both
+ * is the canonical mai init contract: hooks for transparent render +
+ * MCP for explicit phase navigation.
+ *
+ * The MCP server ships as a bin (`mai-serve`) from @markdownai/mcp, which
+ * is a regular dep of @markdownai/core — so `npm install -g
+ * @markdownai/core` puts mai-serve on PATH. The registration uses the bin
+ * name; if the user's PATH doesn't include the global npm prefix bin
+ * directory, Claude Code's error message will be specific enough for the
+ * user to either fix PATH or replace the command with a full node + path.
+ */
+function updateClientMcpServer(claudeConfigPath: string): McpUpdateResult {
+  const serverName = 'markdownai'
+  const desiredCommand = 'mai-serve'
+
+  let config: Record<string, unknown> = {}
+  if (existsSync(claudeConfigPath)) {
+    try {
+      config = JSON.parse(readFileSync(claudeConfigPath, 'utf8')) as Record<string, unknown>
+    } catch (err) {
+      return {
+        alreadyInstalled: false,
+        serverName,
+        command: desiredCommand,
+        error: `Cannot parse Claude config at ${claudeConfigPath}: ${String(err)}`,
+      }
+    }
+  }
+
+  const mcpServersRaw = config['mcpServers']
+  const mcpServers: Record<string, unknown> =
+    mcpServersRaw !== undefined && typeof mcpServersRaw === 'object' && mcpServersRaw !== null && !Array.isArray(mcpServersRaw)
+      ? (mcpServersRaw as Record<string, unknown>)
+      : {}
+
+  const existing = mcpServers[serverName]
+  const desired = { command: desiredCommand, args: [] as string[] }
+
+  // Match by package-name substring OR by exact command match so we don't
+  // duplicate when the user has manually registered with `npx -y
+  // @markdownai/mcp` or a similar variant.
+  const alreadyInstalled = matchesMarkdownAi(existing) || matchesMarkdownAi(desired)
+    && existing !== undefined
+    && JSON.stringify(existing) === JSON.stringify(desired)
+
+  if (alreadyInstalled) {
+    return { alreadyInstalled: true, serverName, command: desiredCommand }
+  }
+
+  mcpServers[serverName] = desired
+  config['mcpServers'] = mcpServers
+
+  try {
+    mkdirSync(dirname(claudeConfigPath), { recursive: true })
+    writeFileSync(claudeConfigPath, JSON.stringify(config, null, 2), 'utf8')
+  } catch (err) {
+    return {
+      alreadyInstalled: false,
+      serverName,
+      command: desiredCommand,
+      error: `Cannot write Claude config at ${claudeConfigPath}: ${String(err)}`,
+    }
+  }
+
+  return { alreadyInstalled: false, serverName, command: desiredCommand }
+}
+
+function matchesMarkdownAi(server: unknown): boolean {
+  if (server === null || typeof server !== 'object' || Array.isArray(server)) return false
+  const view = server as { command?: unknown; args?: unknown }
+  const command = typeof view.command === 'string' ? view.command : ''
+  const args = Array.isArray(view.args) ? view.args.filter((a): a is string => typeof a === 'string') : []
+  const joined = [command, ...args].join(' ')
+  if (joined.includes('@markdownai/mcp')) return true
+  if (command === 'mai-serve' || command.endsWith('/mai-serve')) return true
+  if (command.endsWith('markdownai-mcp')) return true
+  return false
+}
+
 function updateClientHooks(configPath: string, hookPath: string, sessionStartHookPath: string): HookUpdateResult {
   let config: Record<string, unknown> = {}
   if (existsSync(configPath)) {
@@ -437,17 +544,18 @@ function updateClientHooks(configPath: string, hookPath: string, sessionStartHoo
 }
 
 export function runInit(options: InitOptions = {}): InitResult {
+  const home = options.homeDir ?? homedir()
   const detected = options.client === 'auto' || !options.client ? detectClient() : null
   const clientType = options.client && options.client !== 'auto' ? options.client : (detected?.type ?? 'claude-code')
   const configPath = clientType === 'cursor'
-    ? join(homedir(), '.cursor', 'settings.json')
-    : join(homedir(), '.claude', 'settings.json')
+    ? join(home, '.cursor', 'settings.json')
+    : join(home, '.claude', 'settings.json')
 
   if (checkAbsolutePath(configPath).level === 'blocked') {
     return { success: false, clientDetected: clientType, configPath, alreadyInstalled: false, message: `Config path blocked: ${configPath}` }
   }
 
-  const hookDir = join(homedir(), '.markdownai', 'hooks')
+  const hookDir = join(home, '.markdownai', 'hooks')
   const hookPath = join(hookDir, 'preToolUse.mjs')
   const sessionStartHookPath = join(hookDir, 'sessionStart.mjs')
   ensureHookFile(hookDir, hookPath)
@@ -457,13 +565,53 @@ export function runInit(options: InitOptions = {}): InitResult {
   if (result.error) {
     return { success: false, clientDetected: clientType, configPath, alreadyInstalled: false, message: result.error }
   }
+
+  // Register the @markdownai/mcp MCP server alongside the hooks. Hooks
+  // and MCP are independent integration points; both are part of a full
+  // mai init. The MCP entry lives in .claude.json (cursor uses
+  // .cursor/mcp.json — punt on that for now and only register when
+  // clientType === 'claude-code'; cursor users can register manually
+  // via mcp.json).
+  let mcpRegistration: InitResult['mcpRegistration']
+  let mcpConfigPath: string | undefined
+  if (clientType === 'claude-code') {
+    mcpConfigPath = join(home, '.claude.json')
+    if (checkAbsolutePath(mcpConfigPath).level === 'blocked') {
+      mcpRegistration = {
+        serverName: 'markdownai',
+        command: 'mai-serve',
+        alreadyInstalled: false,
+        error: `Claude config path blocked: ${mcpConfigPath}`,
+      }
+    } else {
+      const mcpResult = updateClientMcpServer(mcpConfigPath)
+      mcpRegistration = {
+        serverName: mcpResult.serverName,
+        command: mcpResult.command,
+        alreadyInstalled: mcpResult.alreadyInstalled,
+        ...(mcpResult.error !== undefined ? { error: mcpResult.error } : {}),
+      }
+    }
+  }
+
+  const hookMessage = result.alreadyInstalled
+    ? `MarkdownAI hooks already installed in ${configPath}`
+    : `MarkdownAI hooks installed in ${configPath}`
+  const mcpMessage = mcpRegistration === undefined
+    ? ''
+    : mcpRegistration.error !== undefined
+      ? ` (MCP registration failed: ${mcpRegistration.error})`
+      : mcpRegistration.alreadyInstalled
+        ? ` and @markdownai/mcp already registered in ${mcpConfigPath ?? ''}`
+        : ` and @markdownai/mcp registered in ${mcpConfigPath ?? ''}`
+
   return {
     success: true,
     clientDetected: clientType,
     configPath,
     alreadyInstalled: result.alreadyInstalled,
-    message: result.alreadyInstalled
-      ? `MarkdownAI hooks already installed in ${configPath}`
-      : `MarkdownAI hooks installed in ${configPath}`,
+    message: hookMessage + mcpMessage,
+    ...(mcpConfigPath !== undefined ? { mcpConfigPath } : {}),
+    ...(mcpRegistration !== undefined ? { mcpRegistration } : {}),
   }
 }

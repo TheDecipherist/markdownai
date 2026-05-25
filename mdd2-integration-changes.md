@@ -13,6 +13,69 @@ mdd2 need that requires a MarkdownAI change is implemented here (on a feature
 branch in this repo), documented in this file, and then pinned in mdd2's
 `package.json`.
 
+## 1.1.2 — `mai init` also registers `@markdownai/mcp` (2026-05-25)
+
+Branch: `feat/mai-init-registers-mcp`
+
+Need: mdd2's Wave 5 `mdd2 install` ships hooks + MCP + config, but the
+v2 router that `/mdd2` invokes still needs MarkdownAI MCP tools
+available in Claude Code (`mcp__markdownai__list_phases`,
+`mcp__markdownai__resolve_phase`, etc.) so Claude can navigate the
+flow-file phase machines. Before this change, `mai init` only installed
+the SessionStart + PreToolUse hooks under `~/.markdownai/hooks/` —
+leaving the MCP server registration in `~/.claude.json` as an extra
+manual step the user had to remember.
+
+Now: `mai init` writes a `markdownai` entry into the user's
+`~/.claude.json` `mcpServers` section, pointing at the `mai-serve` bin
+(which ships from `@markdownai/mcp`, a regular dep of `@markdownai/core`
+— so `npm install -g @markdownai/core` already puts mai-serve on PATH).
+After `npm install -g @markdownai/core && mai init` the user has
+hooks + MCP wired up in one command pair.
+
+Changes:
+
+- `packages/core/src/commands/init.ts`: new `updateClientMcpServer()`
+  function that idempotently registers `markdownai → { command:
+  "mai-serve", args: [] }` in `~/.claude.json`. Dedupes against
+  pre-existing entries that already point at `@markdownai/mcp` (via
+  package-name substring match, the `mai-serve` bin, or the
+  `markdownai-mcp` legacy binary name). Skipped for `cursor` clients;
+  cursor users register via `.cursor/mcp.json` separately.
+- `InitResult` gains optional `mcpConfigPath` + `mcpRegistration` fields.
+  `mcpRegistration.alreadyInstalled` tells callers whether the entry was
+  added fresh or recognized.
+- `runInit()` exposes a new `homeDir` option (so isolated tests can
+  redirect file writes into tmpdir without touching real
+  `~/.claude/...`). All filesystem path resolution in init now goes
+  through this single source.
+- `mcpConfigPath` and `mcpRegistration` are only set when
+  `clientType === 'claude-code'`; cursor flow is unchanged.
+
+Test coverage in `packages/core/src/__tests__/init-mcp-register.test.ts`
+(7 new tests):
+- registers entry on fresh install
+- preserves existing mcpServers entries (e.g., context7) when adding
+  markdownai
+- reports alreadyInstalled when an `@markdownai/mcp` entry exists under
+  the `markdownai` key
+- recognizes a server registered under a non-default name (does not
+  duplicate when matching by package substring)
+- creates `~/.claude.json` when it does not exist yet
+- skips MCP registration for cursor clients
+- surfaces parse errors when the existing `~/.claude.json` is malformed
+  JSON (does not abort the hook install)
+
+Full markdownai workspace test suite: **1199 tests pass** across 6
+packages (186 parser, 699 engine, 45 renderer, 52 mcp, 133 core, 84
+vscode). Zero regressions from this change.
+
+mdd2 side: `mdd2 doctor`'s markdownai check is already correct as of
+mdd2 main commit 38fa5fa — it detects hooks (the canonical mai init
+artifact) AND optionally MCP, reporting `source: 'hooks' | 'mcp' |
+'both'`. After this version ships and the user runs `mai init`, the
+doctor section will move from `via hooks` to `via both`.
+
 ## 1.1.0 — Flow syntax extensions (2026-05-25)
 
 Branch: `feat/mdd2-flow-syntax-extensions`
