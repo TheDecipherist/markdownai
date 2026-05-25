@@ -193,6 +193,37 @@ describe('Parser', () => {
       expect(n.params).toEqual(['content'])
       expect(n.local).toBe(true)
     })
+
+    it('collects @on complete -> next at @define top level into transitions', () => {
+      const result = parse('@markdownai\n@define probe @local\n@on complete -> next\n@end')
+      const n = node<DefineNode>(result.nodes, 1)
+      expect(n.type).toBe('define')
+      expect(n.transitions).toHaveLength(1)
+      expect(n.transitions[0]?.action.type).toBe('next')
+    })
+
+    it('allows @on complete -> next nested inside @if within @define (placed in conditional body)', () => {
+      const result = parse('@markdownai\n@define probe @local\n@if {{ disabled }}\n@on complete -> next\n@endif\nbody\n@end')
+      const n = node<DefineNode>(result.nodes, 1)
+      expect(n.type).toBe('define')
+      // The nested @on lives in the conditional branch body, not on the define's transitions
+      expect(n.transitions).toEqual([])
+      const conditional = n.body.find(b => b.type === 'conditional')
+      expect(conditional).toBeDefined()
+    })
+
+    it('collects @on complete -> halt at @define top level', () => {
+      const result = parse('@markdownai\n@define fatal\n@on complete -> halt\n@end')
+      const n = node<DefineNode>(result.nodes, 1)
+      expect(n.transitions).toHaveLength(1)
+      expect(n.transitions[0]?.action.type).toBe('halt')
+    })
+
+    it('initializes empty transitions array when @define has no @on', () => {
+      const result = parse('@markdownai\n@define plain\ncontent\n@end')
+      const n = node<DefineNode>(result.nodes, 1)
+      expect(n.transitions).toEqual([])
+    })
   })
 
   describe('@call directive', () => {
@@ -246,6 +277,48 @@ describe('Parser', () => {
       if (t?.action.type === 'phase') {
         expect(t.action.name).toBe('test')
       }
+    })
+
+    it('parses @on complete -> bare-phase-name transition (no @phase prefix)', () => {
+      const result = parse('@markdownai\n@phase build\n@on complete -> next_phase\n@end')
+      const n = node<PhaseNode>(result.nodes, 1)
+      expect(n.transitions).toHaveLength(1)
+      const t = n.transitions[0]
+      expect(t?.action.type).toBe('phase')
+      if (t?.action.type === 'phase') {
+        expect(t.action.name).toBe('next_phase')
+      }
+    })
+
+    it('handles snake_case + dot-suffix phase names in bare transitions', () => {
+      const result = parse('@markdownai\n@phase first\n@on complete -> 7c_complete\n@end\n@phase 7c_complete\n@end')
+      const n = node<PhaseNode>(result.nodes, 1)
+      expect(n.transitions[0]?.action.type).toBe('phase')
+      if (n.transitions[0]?.action.type === 'phase') {
+        expect(n.transitions[0].action.name).toBe('7c_complete')
+      }
+    })
+
+    it('collects @on complete -> halt at @phase top level into transitions', () => {
+      const result = parse('@markdownai\n@phase guard\n@on complete -> halt\n@end')
+      const n = node<PhaseNode>(result.nodes, 1)
+      expect(n.transitions).toHaveLength(1)
+      expect(n.transitions[0]?.action.type).toBe('halt')
+    })
+
+    it('allows @on complete -> halt nested inside @if within @phase (placed in conditional body)', () => {
+      const result = parse('@markdownai\n@phase guard\n@if {{ refuse }}\n@on complete -> halt\n@endif\n@end')
+      const n = node<PhaseNode>(result.nodes, 1)
+      // The nested @on lives in the conditional branch body, not on the phase's transitions
+      expect(n.transitions).toEqual([])
+      const conditional = n.body.find(b => b.type === 'conditional')
+      expect(conditional).toBeDefined()
+    })
+
+    it('collects @on complete -> next at @phase top level', () => {
+      const result = parse('@markdownai\n@phase step\n@on complete -> next\n@end')
+      const n = node<PhaseNode>(result.nodes, 1)
+      expect(n.transitions[0]?.action.type).toBe('next')
     })
 
     it('throws ParseError for @phase in import context', () => {

@@ -58,4 +58,26 @@ describe('@constraint parser', () => {
   it('throws on unknown severity', () => {
     expect(() => parse(`${DOC}@constraint id="x" severity="extreme"\nBody.\n@end`)).toThrow()
   })
+
+  it('parses a warning severity constraint', () => {
+    const n = constraint(`${DOC}@constraint id="w1" severity="warning"\nField may be deprecated\n@end`)
+    expect(n).toBeDefined()
+    expect(n?.severity).toBe('warning')
+  })
+
+  it('parses a cosmetic severity constraint', () => {
+    const n = constraint(`${DOC}@constraint id="c1" severity="cosmetic"\nPrefer kebab-case in slugs\n@end`)
+    expect(n).toBeDefined()
+    expect(n?.severity).toBe('cosmetic')
+  })
+
+  it('accepts templated severity values without static validation', () => {
+    const n = constraint(`${DOC}@constraint id="t1" severity="{{ this.severity }}"\nDynamic.\n@end`)
+    expect(n).toBeDefined()
+    expect(n?.severity).toBe('{{ this.severity }}')
+  })
+
+  it('still rejects unknown literal severity even when the file has templated peers', () => {
+    expect(() => parse(`${DOC}@constraint id="bad" severity="catastrophic"\nNope.\n@end`)).toThrow()
+  })
 })

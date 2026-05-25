@@ -14,20 +14,42 @@ export function makeMarkdown(text: string, line: number, shellInlines: ShellInli
 }
 
 export function parseTransition(raw: string, line: number, filePath: string): TransitionNode {
-  const m = raw.match(/^@on\s+complete\s+->\s+@(\w+)\s+(.+)$/)
-  if (!m) throw new ParseError('Invalid @on syntax; expected: @on complete -> @phase|@call name', line, filePath)
-  const directive = m[1]!
-  const target = m[2]!.trim()
-  let action: TransitionAction
-  if (directive === 'phase') {
-    action = { type: 'phase', name: target }
-  } else if (directive === 'call') {
-    const parts = target.split(/\s+/)
-    action = { type: 'macro', name: parts[0] ?? '', args: {} }
-  } else {
-    throw new ParseError(`Unknown transition action: @${directive}`, line, filePath)
+  // Special bare targets: halt (terminate execution) and next (return-to-caller).
+  // halt is used in @phase blocks to bail out without transitioning to another phase.
+  // next is used in @define blocks to short-circuit a macro body back to its caller.
+  const mSpecial = raw.match(/^@on\s+complete\s+->\s+(halt|next)\s*$/)
+  if (mSpecial) {
+    const target = mSpecial[1] as 'halt' | 'next'
+    return { type: 'transition', line, event: 'complete', action: { type: target } }
   }
-  return { type: 'transition', line, event: 'complete', action }
+
+  // Long form with explicit @phase or @call directive prefix.
+  const mPrefixed = raw.match(/^@on\s+complete\s+->\s+@(\w+)\s+(.+)$/)
+  if (mPrefixed) {
+    const directive = mPrefixed[1]!
+    const target = mPrefixed[2]!.trim()
+    let action: TransitionAction
+    if (directive === 'phase') {
+      action = { type: 'phase', name: target }
+    } else if (directive === 'call') {
+      const parts = target.split(/\s+/)
+      action = { type: 'macro', name: parts[0] ?? '', args: {} }
+    } else {
+      throw new ParseError(`Unknown transition action: @${directive}`, line, filePath)
+    }
+    return { type: 'transition', line, event: 'complete', action }
+  }
+
+  // Bare phase-name form: `@on complete -> SomePhaseName`. Identifiers are
+  // typical phase-name shape (alphanumeric + underscore + dot, no spaces).
+  // Permits leading digits (mdd2 uses names like `7c_complete`, `1a_pivot`).
+  // Treated as `@on complete -> @phase SomePhaseName`.
+  const mBare = raw.match(/^@on\s+complete\s+->\s+(\w[\w.]*)\s*$/)
+  if (mBare) {
+    return { type: 'transition', line, event: 'complete', action: { type: 'phase', name: mBare[1]! } }
+  }
+
+  throw new ParseError('Invalid @on syntax; expected: @on complete -> @phase NAME | @call NAME | PhaseName | halt | next', line, filePath)
 }
 
 export function parseTextBlock(

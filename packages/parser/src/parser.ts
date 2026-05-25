@@ -1,6 +1,6 @@
 import type {
   ASTNode, ParseResult, ParseOptions, ParseContext,
-  HeaderNode, PassthroughNode, DefineNode,
+  HeaderNode, PassthroughNode, DefineNode, TransitionNode,
   PhaseNode, ConditionalNode, ConditionalBranch, PipeNode, PipeStage,
   RenderNode, SectionNode, SwitchNode, SwitchCase,
 } from './types.js'
@@ -41,8 +41,33 @@ function parseDefineBlock(state: State, openLine: string, line: number): DefineN
   const args = openLine.replace(/^@define\s*/, '')
   const ctx: ParseContext = { line, filePath: state.filePath, inImport: state.inImport }
   const node = mod.parse(openLine, args, ctx) as DefineNode
-  node.body = collectBody(state, 'end')
-  return node
+  // Walk the body collecting @on transitions separately from other nodes,
+  // mirroring how parsePhaseBlock handles them. This lets macros use
+  // `@on complete -> next` to short-circuit back to their caller.
+  state.blockStack.push('define')
+  try {
+    const transitions: TransitionNode[] = []
+    const body: ASTNode[] = []
+    let defineClosed = false
+    while (state.pos < state.lines.length) {
+      const raw = peek(state)!
+      const trimmed = raw.trim()
+      if (trimmed === '@end') { consume(state); defineClosed = true; break }
+      if (trimmed.startsWith('@on ')) {
+        transitions.push(parseTransition(trimmed, lineNum(state), state.filePath))
+        consume(state)
+      } else {
+        const child = parseNextNode(state)
+        if (child) body.push(child)
+      }
+    }
+    if (!defineClosed) throw new ParseError(`Unclosed @define block — expected @end`, line, state.filePath)
+    node.body = body
+    node.transitions = transitions
+    return node
+  } finally {
+    state.blockStack.pop()
+  }
 }
 
 function parsePhaseBlock(state: State, openLine: string, line: number): PhaseNode {
@@ -51,26 +76,31 @@ function parsePhaseBlock(state: State, openLine: string, line: number): PhaseNod
   const args = openLine.replace(/^@phase\s*/, '')
   const ctx: ParseContext = { line, filePath: state.filePath, inImport: state.inImport }
   const node = mod.parse(openLine, args, ctx) as PhaseNode
-  const transitions = []
-  const body: ASTNode[] = []
+  state.blockStack.push('phase')
+  try {
+    const transitions = []
+    const body: ASTNode[] = []
 
-  let phaseClosed = false
-  while (state.pos < state.lines.length) {
-    const raw = peek(state)!
-    const trimmed = raw.trim()
-    if (trimmed === '@end') { consume(state); phaseClosed = true; break }
-    if (trimmed.startsWith('@on ')) {
-      transitions.push(parseTransition(trimmed, lineNum(state), state.filePath))
-      consume(state)
-    } else {
-      const child = parseNextNode(state)
-      if (child) body.push(child)
+    let phaseClosed = false
+    while (state.pos < state.lines.length) {
+      const raw = peek(state)!
+      const trimmed = raw.trim()
+      if (trimmed === '@end') { consume(state); phaseClosed = true; break }
+      if (trimmed.startsWith('@on ')) {
+        transitions.push(parseTransition(trimmed, lineNum(state), state.filePath))
+        consume(state)
+      } else {
+        const child = parseNextNode(state)
+        if (child) body.push(child)
+      }
     }
+    if (!phaseClosed) throw new ParseError(`Unclosed @phase block — expected @end`, line, state.filePath)
+    node.body = body
+    node.transitions = transitions
+    return node
+  } finally {
+    state.blockStack.pop()
   }
-  if (!phaseClosed) throw new ParseError(`Unclosed @phase block — expected @end`, line, state.filePath)
-  node.body = body
-  node.transitions = transitions
-  return node
 }
 
 function parseIfBlock(state: State, condition: string, line: number): ConditionalNode {
@@ -108,7 +138,10 @@ function parseSwitchBlock(state: State, expression: string, line: number): Switc
   while (state.pos < state.lines.length) {
     const raw = peek(state)!
     const trimmed = raw.trim()
-    if (trimmed === '@endswitch') { consume(state); switchClosed = true; break }
+    // Accept either `@endswitch` (specific) or `@end` (generic) to close a switch.
+    // The generic form matches the convention used by @phase and @define blocks,
+    // which improves consistency for authors who don't memorize per-block tags.
+    if (trimmed === '@endswitch' || trimmed === '@end') { consume(state); switchClosed = true; break }
     if (trimmed.startsWith('@case ')) {
       const caseExpr = trimmed.slice('@case '.length).trim()
       const newCase: SwitchCase = { caseExpression: caseExpr, body: [] }
@@ -126,7 +159,7 @@ function parseSwitchBlock(state: State, expression: string, line: number): Switc
       consume(state)
     }
   }
-  if (!switchClosed) throw new ParseError(`Unclosed @switch block — expected @endswitch`, line, state.filePath)
+  if (!switchClosed) throw new ParseError(`Unclosed @switch block — expected @endswitch or @end`, line, state.filePath)
   return { type: 'switch', line, expression, cases, defaultBody }
 }
 
@@ -220,7 +253,19 @@ function parseNextNode(state: State): ASTNode | null {
     const shellInlines = state.shellInlinePassthrough ? [] : scanShellInlines(raw)
     return makeMarkdown(raw, lineNumber, shellInlines)
   }
-  if (trimmed.startsWith('@on ')) throw new ParseError('@on transition is only valid inside a @phase block', lineNumber, state.filePath)
+  // @on directives appear in three contexts:
+  //   1. Top-level inside @phase  — collected by parsePhaseBlock as PhaseNode.transitions
+  //   2. Top-level inside @define — collected by parseDefineBlock as DefineNode.transitions
+  //   3. Nested inside @if/@switch/etc. inside a phase or define — parsed here as a regular
+  //      TransitionNode that lives in the conditional body. The engine treats transition
+  //      nodes as no-op markers; the runtime walks them in evaluation context.
+  // Outside any of these contexts (top-level document), @on remains invalid.
+  if (trimmed.startsWith('@on ')) {
+    if (state.blockStack.length > 0) {
+      return parseTransition(trimmed, lineNumber, state.filePath)
+    }
+    throw new ParseError('@on transition is only valid inside a @phase or @define block', lineNumber, state.filePath)
+  }
   if (trimmed === '@render' || trimmed.startsWith('@render ')) throw new ParseError('@render is only valid as the last stage of a pipe chain', lineNumber, state.filePath)
   if (splitUnquotedPipe(trimmed).length > 1) return parsePipeLine(trimmed, lineNumber, state)
 
@@ -262,7 +307,7 @@ export function parse(source: string, options?: ParseOptions): ParseResult {
   const version = vMatch?.[1] ?? null
   const header: HeaderNode = { type: 'header', line: startPos + 1, version }
   const shellInlinePassthrough = firstLine.includes('shell-inline="passthrough"')
-  const state: State = { lines, pos: startPos + 1, filePath, inImport, shellInlinePassthrough }
+  const state: State = { lines, pos: startPos + 1, filePath, inImport, shellInlinePassthrough, blockStack: [] }
   const bodyNodes: ASTNode[] = []
 
   while (state.pos < state.lines.length) {

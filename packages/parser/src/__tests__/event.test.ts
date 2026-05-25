@@ -49,8 +49,17 @@ describe('@event parser', () => {
     expect(() => parse(`${DOC}@event data='v'`)).toThrow()
   })
 
-  it('throws ParseError when data is missing', () => {
-    expect(() => parse(`${DOC}@event name='x'`)).toThrow()
+  it('defaults data to empty string when omitted (signal events)', () => {
+    const n = event(`${DOC}@event name='progress-tick'`)
+    expect(n?.name).toBe('progress-tick')
+    expect(n?.data).toBe('')
+  })
+
+  it('accepts empty-payload events with a transport set', () => {
+    const n = event(`${DOC}@event name='heartbeat' transport='log'`)
+    expect(n?.name).toBe('heartbeat')
+    expect(n?.data).toBe('')
+    expect(n?.transports).toEqual(['log'])
   })
 
   it('stores line number on node', () => {

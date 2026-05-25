@@ -22,7 +22,7 @@ const define: ParseModule = {
       params = []
     }
 
-    const node: DefineNode = { type: 'define', line: ctx.line, name, params, local, body: [] }
+    const node: DefineNode = { type: 'define', line: ctx.line, name, params, local, body: [], transitions: [] }
     return node
   },
 }

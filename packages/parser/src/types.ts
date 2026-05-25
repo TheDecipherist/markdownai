@@ -55,6 +55,7 @@ export interface DefineNode extends ASTNodeBase {
   params: string[]
   local: boolean
   body: ASTNode[]
+  transitions: TransitionNode[]
 }
 
 export interface CallNode extends ASTNodeBase {
@@ -67,6 +68,8 @@ export interface CallNode extends ASTNodeBase {
 export type TransitionAction =
   | { type: 'phase'; name: string }
   | { type: 'macro'; name: string; args: Record<string, string> }
+  | { type: 'halt' }
+  | { type: 'next' }
 
 export interface TransitionNode extends ASTNodeBase {
   type: 'transition'
@@ -309,7 +312,10 @@ export interface ConceptNode extends ASTNodeBase {
 export interface ConstraintNode extends ASTNodeBase {
   type: 'constraint'
   id: string
-  severity: 'critical' | 'high' | 'medium' | 'low'
+  // Known literal severities: critical | high | medium | low | warning | cosmetic.
+  // String fallback covers templated values like "{{ this.severity }}" which
+  // resolve at engine evaluation time rather than at parse time.
+  severity: 'critical' | 'high' | 'medium' | 'low' | 'warning' | 'cosmetic' | string
   body: string
 }
 
