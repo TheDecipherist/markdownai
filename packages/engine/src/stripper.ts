@@ -92,6 +92,16 @@ function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[
       }
       return ''
     }
+    // Plugin-related directives: strip-mode is for static text extraction;
+    // these directives only do anything meaningful at engine.execute() time.
+    // Return empty so stripped output stays clean.
+    case 'markdownai-detect':
+    case 'plugin-data':
+    case 'plugin-meta':
+    case 'plugin-detect':
+    case 'plugin-layout':
+    case 'plugin-conventions':
+      return ''
     default:
       throw new Error(`stripNode: unhandled AST node type "${(node as ASTNode).type}"`)
 

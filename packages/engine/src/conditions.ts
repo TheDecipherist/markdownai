@@ -92,10 +92,20 @@ export function allowed(
 
 export function evalCondition(expr: string, ctx: EngineContext): boolean {
   // Pre-expand {{ expr }} interpolations so @if {{ label }} == "val" works.
-  // Always produce a valid JS string literal — unset vars become "".
+  // Emit each inner result as a JS literal that preserves the original
+  // truthiness:
+  //   boolean / number   → bare literal (so `false` stays falsy, `0` stays falsy)
+  //   string             → quoted JS string literal
+  //   object / array     → JSON.stringify (object/array literal — always truthy)
+  //   undefined / null   → empty string literal "" (falsy)
+  // Without this, String(false) → "false" → quoted "\"false\"" → truthy
+  // string, and @if {{ !condition }} would always take the true branch.
   const expanded = expr.replace(/\{\{\s*([\s\S]*?)\s*\}\}/g, (_, inner) => {
     const result = runExpr(inner.trim(), ctx)
-    return JSON.stringify(result === undefined || result === null ? '' : String(result))
+    if (result === undefined || result === null) return JSON.stringify('')
+    if (typeof result === 'boolean' || typeof result === 'number') return String(result)
+    if (typeof result === 'string') return JSON.stringify(result)
+    return JSON.stringify(result)
   })
   return Boolean(runExpr(expanded, ctx))
 }

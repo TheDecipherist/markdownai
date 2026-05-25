@@ -173,6 +173,28 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
       return { ...node as ConceptNode, definition: subStr(node.definition, args) }
     case 'constraint':
       return { ...node as ConstraintNode, body: subStr(node.body, args) }
+    case 'markdownai-detect':
+      return {
+        ...node,
+        label: node.label === null ? null : subStr(node.label, args),
+        projectOverride: node.projectOverride === null ? null : subStr(node.projectOverride, args),
+        include: node.include.map(s => subStr(s, args)),
+      }
+    case 'plugin-data':
+      return {
+        ...node,
+        name: subStr(node.name, args),
+        label: node.label === null ? null : subStr(node.label, args),
+        projectOverride: node.projectOverride === null ? null : subStr(node.projectOverride, args),
+        include: node.include.map(s => subStr(s, args)),
+      }
+    // Plugin declarative blocks: only valid inside .plugin.md files; if they
+    // appear in a macro body the engine treats them as inert. Return as-is.
+    case 'plugin-meta':
+    case 'plugin-detect':
+    case 'plugin-layout':
+    case 'plugin-conventions':
+      return node
     // header, transition, env, graph, passthrough, chunk-boundary — no user-visible string params to substitute
     case 'header':
     case 'transition':
