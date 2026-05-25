@@ -38,6 +38,10 @@ import defineConcept from './directives/define-concept.js'
 import constraint from './directives/constraint.js'
 import note from './directives/note.js'
 import eventDir from './directives/event.js'
+import pluginMeta from './directives/plugin-meta.js'
+import pluginDetect from './directives/plugin-detect.js'
+import pluginLayout from './directives/plugin-layout.js'
+import pluginConventions from './directives/plugin-conventions.js'
 
 const modules: ParseModule[] = [
   header, include, importDir, env, define, call, phase, connect,
@@ -46,6 +50,7 @@ const modules: ParseModule[] = [
   foreach, setDir, switchDir,
   render, ifDir, graph, pipe,
   prompt, section, chunkBoundary, defineConcept, constraint, note, eventDir,
+  pluginMeta, pluginDetect, pluginLayout, pluginConventions,
 ]
 
 const registry = new Map<string, ParseModule>(

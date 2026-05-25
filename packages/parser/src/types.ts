@@ -334,6 +334,26 @@ export interface EventNode extends ASTNodeBase {
   visible: boolean
 }
 
+export interface PluginMetaNode extends ASTNodeBase {
+  type: 'plugin-meta'
+  body: string
+}
+
+export interface PluginDetectNode extends ASTNodeBase {
+  type: 'plugin-detect'
+  body: string
+}
+
+export interface PluginLayoutNode extends ASTNodeBase {
+  type: 'plugin-layout'
+  body: string
+}
+
+export interface PluginConventionsNode extends ASTNodeBase {
+  type: 'plugin-conventions'
+  body: string
+}
+
 export type ASTNode =
   | HeaderNode
   | IncludeNode
@@ -377,6 +397,10 @@ export type ASTNode =
   | ConstraintNode
   | NoteNode
   | EventNode
+  | PluginMetaNode
+  | PluginDetectNode
+  | PluginLayoutNode
+  | PluginConventionsNode
 
 export interface ParseResult {
   isMarkdownAI: boolean
