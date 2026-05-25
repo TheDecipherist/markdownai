@@ -1036,6 +1036,19 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
         <pre><code class="language-markdown">@include ./{{arg0 || 'audit'}}-mode.md</code></pre>
 
         <p>
+          Use <code>allowed()</code> to restrict which values are accepted. It returns the value itself when it matches the list, or <code>false</code> when it doesn't - so the <code>||</code> default kicks in automatically:
+        </p>
+
+        <pre><code class="language-markdown">@switch {{ allowed(argsList[0], ["audit","build","op"]) || "build" }}
+  @case "build"
+    Running build mode...
+  @case "audit"
+    Running audit mode...
+  @case "op"
+    Running op mode...
+@endswitch</code></pre>
+
+        <p>
           Works inside <code>@foreach</code> too - the loop variable is available in the path expression on every iteration:
         </p>
 

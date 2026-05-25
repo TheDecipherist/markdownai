@@ -752,6 +752,7 @@ Admin dashboard - US East region.
             <tr><td><code>file.containsSection(path, heading)</code></td><td>True if the file has an ATX heading matching <code>heading</code>. Pass with <code>#</code>s to match a specific level (v1.0+)</td></tr>
             <tr><td><code>file.frontmatterField(path, field)</code></td><td>Returns a YAML frontmatter scalar from <code>path</code>. Empty string if missing (v1.0+)</td></tr>
             <tr><td><code>match "pattern"</code></td><td>Regex match (see match operator section)</td></tr>
+            <tr><td><code>allowed(value, list, opts?)</code></td><td>Returns <code>value</code> if it is in <code>list</code> (array or single string), <code>false</code> otherwise. Combine with <code>||</code> to provide a safe default: <code>&#123;&#123; allowed(arg0, ["a","b"]) || "a" &#125;&#125;</code>. Pass <code>&#123;ignoreCase: true&#125;</code> for case-insensitive matching.</td></tr>
           </tbody>
         </table>
 
@@ -816,6 +817,24 @@ This doc is shipped.
   @default
     Development mode.
 @endswitch</code></pre>
+
+        <h3>Restricting Values with allowed()</h3>
+        <p>
+          Wrap the switch expression in <code>allowed()</code> to lock it down to a known set. If the argument isn't on the list, <code>allowed()</code> returns <code>false</code> and the <code>||</code> default takes over before the switch runs - no unexpected branches:
+        </p>
+
+        <pre><code class="language-markdown">@switch {{ allowed(argsList[0], ["audit","build","op"]) || "build" }}
+  @case "build"
+    Running build mode...
+  @case "audit"
+    Running audit mode...
+  @case "op"
+    Running op mode...
+@endswitch</code></pre>
+
+        <p>
+          This also works in <code>@if</code> conditions and <code>&#123;&#123; &#125;&#125;</code> interpolations. The second argument can be an array or a single string. Pass <code>&#123;ignoreCase: true&#125;</code> as a third argument for case-insensitive matching.
+        </p>
 
         <div class="info-box">
           <strong>Rules:</strong>
@@ -2219,6 +2238,19 @@ mai render docs/changelog.md --format=ai --tables=kv</code></pre>
 @elseif ARGUMENTS.startsWith("status")
   @include ./status-mode.md
 @endif</code></pre>
+
+        <p>
+          Use <code>allowed()</code> to validate and default an argument before routing. It returns the value when it is on the list and <code>false</code> otherwise, so the <code>||</code> fallback fires automatically:
+        </p>
+
+        <pre><code class="language-markdown">@switch {{ allowed(argsList[0], ["audit","build","op"]) || "build" }}
+  @case "build"
+    @include ./build-mode.md
+  @case "audit"
+    @include ./audit-mode.md
+  @case "op"
+    @include ./op-mode.md
+@endswitch</code></pre>
 
         <h3>Effort-Based Conditionals</h3>
         <pre><code class="language-markdown">@if CLAUDE_EFFORT == "max"

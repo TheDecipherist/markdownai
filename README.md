@@ -391,7 +391,7 @@ Debug output enabled.
 @endif
 ```
 
-The expression system supports: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `!`, `startsWith`, `endsWith`, `includes`, `file.exists`, `file.isFile`, `file.isDir`, arithmetic, and string operations. The same operators work in `@if` conditions, `where` filters on data queries, and `{{ }}` interpolations.
+The expression system supports: `==`, `!=`, `<`, `>`, `<=`, `>=`, `&&`, `||`, `!`, `startsWith`, `endsWith`, `includes`, `file.exists`, `file.isFile`, `file.isDir`, arithmetic, and string operations. `allowed(value, list, opts?)` validates a value against an allow-list and returns the value itself (or `false`), making `{{ allowed(arg0, ["a","b"]) || "default" }}` a clean way to restrict dynamic values. The same operators work in `@if` conditions, `where` filters on data queries, and `{{ }}` interpolations.
 
 v1.0 adds three content-aware helpers:
 
@@ -440,6 +440,19 @@ Both the switch expression and each `@case` value support `{{ }}` dynamic expres
     Staging environment.
   @default
     Development mode.
+@endswitch
+```
+
+Use `allowed()` to constrain the switch value to a known set - if the argument isn't on the list, the `||` default takes over before the switch even runs:
+
+```markdown
+@switch {{ allowed(argsList[0], ["audit","build","op"]) || "build" }}
+  @case "build"
+    Running build mode...
+  @case "audit"
+    Running audit mode...
+  @case "op"
+    Running op mode...
 @endswitch
 ```
 

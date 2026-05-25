@@ -323,6 +323,7 @@ const value = evalExpression('date format="YYYY-MM-DD"', ctx)
 - Ternary: `condition ? "yes" : "no"`
 - Nullish: `??` (fallback if null/undefined)
 - Optional chain: `?.`
+- Allow-list: `allowed(value, allowedValues, opts?)` - returns `value` if it is in the list, `false` otherwise; second arg can be an array or a single string; `opts.ignoreCase` for case-insensitive matching
 
 `v1.0` also fixed two parser issues that affected conditions: `||` (logical OR) is now correctly distinguished from `|` (pipe), and `${VAR}` placeholders in `@include` / `@import` paths are expanded against `HOME`, `CLAUDE_SKILL_DIR`, `CLAUDE_SESSION_ID`, and process env before the path is jailed.
 
