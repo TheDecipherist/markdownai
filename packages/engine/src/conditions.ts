@@ -70,6 +70,26 @@ function makeFileHelpers(
   }
 }
 
+export function allowed(
+  value: unknown,
+  allowedValues: unknown,
+  options?: { ignoreCase?: boolean },
+): unknown {
+  let list: unknown[]
+  if (Array.isArray(allowedValues)) {
+    list = allowedValues
+  } else if (typeof allowedValues === 'string') {
+    list = [allowedValues]
+  } else {
+    return false
+  }
+  if (options?.ignoreCase === true && typeof value === 'string') {
+    const lower = value.toLowerCase()
+    return list.some(v => (typeof v === 'string' ? v.toLowerCase() === lower : v === value)) ? value : false
+  }
+  return list.includes(value) ? value : false
+}
+
 export function evalCondition(expr: string, ctx: EngineContext): boolean {
   // Pre-expand {{ expr }} interpolations so @if {{ label }} == "val" works.
   // Always produce a valid JS string literal — unset vars become "".
@@ -119,6 +139,7 @@ const RESERVED_SANDBOX_KEYS = new Set([
   'env', 'file', 'consumer', 'ARGUMENTS', 'args', 'argsList',
   'arg0', 'arg1', 'arg2', 'arg3',
   'CLAUDE_SESSION_ID', 'CLAUDE_EFFORT', 'CLAUDE_SKILL_DIR',
+  'allowed',
 ])
 
 function buildSandbox(ctx: EngineContext): Record<string, unknown> {
@@ -145,6 +166,7 @@ function buildSandbox(ctx: EngineContext): Record<string, unknown> {
     arg0: argsList[0] ?? '', arg1: argsList[1] ?? '', arg2: argsList[2] ?? '', arg3: argsList[3] ?? '',
     ...safeNamedArgs,
     CLAUDE_SESSION_ID: skill?.sessionId ?? '', CLAUDE_EFFORT: skill?.effort ?? '', CLAUDE_SKILL_DIR: skill?.skillDir ?? '',
+    allowed,
   }
 }
 
