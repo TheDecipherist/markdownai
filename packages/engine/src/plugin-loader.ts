@@ -116,6 +116,117 @@ export async function getPlugin(name: string, projectRoot = process.cwd()): Prom
   return plugins.find(p => p.name === name) ?? null
 }
 
+export function loadPluginsSync(projectRoot = process.cwd()): PluginLoadResult {
+  const cached = pluginCache.get(projectRoot)
+  if (cached) return cached
+
+  const searchPaths = [
+    join(projectRoot, '.markdownai', 'plugins'),
+    join(homedir(), '.markdownai', 'plugins'),
+    '/usr/share/markdownai/plugins',
+  ]
+
+  const warnings: string[] = []
+  const byName = new Map<string, LoadedPlugin>()
+
+  for (const dir of searchPaths) {
+    if (!existsSync(dir)) continue
+    let entries: string[]
+    try {
+      entries = readdirSync(dir).filter(f => f.endsWith('.plugin.md'))
+    } catch {
+      continue
+    }
+
+    for (const filename of entries) {
+      const filePath = join(dir, filename)
+      const stem = basename(filename, '.plugin.md')
+      const result = loadOnePlugin(filePath, stem)
+      if (result.warning) {
+        warnings.push(result.warning)
+        continue
+      }
+      const plugin = result.plugin!
+      if (byName.has(plugin.name)) {
+        warnings.push(`Plugin "${plugin.name}" from ${filePath} overridden by higher-precedence path`)
+        continue
+      }
+      byName.set(plugin.name, plugin)
+    }
+  }
+
+  const outcome: PluginLoadResult = { plugins: [...byName.values()], warnings }
+  pluginCache.set(projectRoot, outcome)
+  return outcome
+}
+
+export function getPluginSync(name: string, projectRoot = process.cwd()): LoadedPlugin | null {
+  const { plugins } = loadPluginsSync(projectRoot)
+  return plugins.find(p => p.name === name) ?? null
+}
+
+export function detectPlugin(plugin: LoadedPlugin, projectRoot: string): boolean {
+  const { detect } = plugin
+
+  // Fast signals: directory and file existence checks first
+  if (detect.required_dirs) {
+    for (const dir of detect.required_dirs) {
+      if (!existsSync(join(projectRoot, dir))) return false
+    }
+  }
+
+  if (detect.required_files) {
+    for (const file of detect.required_files) {
+      if (!existsSync(join(projectRoot, file))) return false
+    }
+  }
+
+  // Marker check: treat as a filesystem path that must exist
+  if (detect.required_marker) {
+    if (!existsSync(join(projectRoot, detect.required_marker))) return false
+  }
+
+  // Version signal: read file, check field value
+  if (detect.version_signal) {
+    const vs = detect.version_signal
+    if (vs.type !== 'file') return true // unknown type: non-blocking, pass through
+    const targetPath = join(projectRoot, vs.target)
+    if (!existsSync(targetPath)) return false
+    let content: string
+    try {
+      content = readFileSync(targetPath, 'utf8')
+    } catch {
+      return false
+    }
+    // Simple field extraction: look for "field": "value" or field: value
+    const quotedMatch = content.match(new RegExp(`"${vs.field}"\\s*:\\s*"([^"]+)"`))
+    const plainMatch = content.match(new RegExp(`${vs.field}\\s*:\\s*([^\\s,}\\n]+)`))
+    const actual = quotedMatch?.[1] ?? plainMatch?.[1]
+    if (!actual) return false
+    // If expected starts with >=, do semver-gte; otherwise exact match
+    if (vs.expected.startsWith('>=')) {
+      const minVersion = vs.expected.slice(2).trim()
+      return semverGte(actual, minVersion)
+    }
+    return actual === vs.expected
+  }
+
+  return true
+}
+
+function semverGte(actual: string, minimum: string): boolean {
+  const parse = (v: string): number[] => v.split('.').map(n => parseInt(n, 10) || 0)
+  const a = parse(actual)
+  const m = parse(minimum)
+  for (let i = 0; i < Math.max(a.length, m.length); i++) {
+    const ai = a[i] ?? 0
+    const mi = m[i] ?? 0
+    if (ai > mi) return true
+    if (ai < mi) return false
+  }
+  return true
+}
+
 function loadOnePlugin(filePath: string, stem: string): { plugin?: LoadedPlugin; warning?: string } {
   let content: string
   try {

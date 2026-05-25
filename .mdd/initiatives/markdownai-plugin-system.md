@@ -1,9 +1,9 @@
 ---
 id: markdownai-plugin-system
 title: Plugin System and Introspection
-status: active
+status: complete
 version: 3
-hash: b4f51add
+hash: 59a70fd0
 created: 2026-05-25
 ---
 
@@ -29,4 +29,4 @@ This initiative ships as `@markdownai/* 1.2.0`. Changes are purely additive: new
 | Wave | File | Demo-state | Status |
 |------|------|------------|--------|
 | Wave 1 | waves/markdownai-plugin-system-wave-1.md | `mai parse mdd.plugin.md` succeeds; loader scans all three search paths, validates each plugin file, rejects any containing executable directives, and exposes a typed JS API returning loaded plugin data | complete |
-| Wave 2 | waves/markdownai-plugin-system-wave-2.md | `@markdownai-detect as=info include="layout"` returns matching plugins against a fixture project; `@plugin-data name="mdd"` returns the MDD plugin descriptor directly; `available_directives` MCP tool responds with the full directive catalog | wave-doc-created |
+| Wave 2 | waves/markdownai-plugin-system-wave-2.md | `@markdownai-detect as=info include="layout"` returns matching plugins against a fixture project; `@plugin-data name="mdd"` returns the MDD plugin descriptor directly; `available_directives` MCP tool responds with the full directive catalog | complete |

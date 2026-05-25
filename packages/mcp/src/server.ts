@@ -11,6 +11,7 @@ import { getEnv } from './tools/get_env.js'
 import { executeDirective } from './tools/execute_directive.js'
 import { invalidateCache } from './tools/invalidate_cache.js'
 import { getConstraints } from './tools/get_constraints.js'
+import { availableDirectives } from './tools/available_directives.js'
 import { validateMcpInput } from './validate.js'
 
 interface JsonRpcRequest {
@@ -36,6 +37,7 @@ export interface ServerOptions {
 const TOOL_ALLOWLIST = new Set([
   'read_file', 'list_phases', 'resolve_phase', 'next_phase',
   'call_macro', 'get_env', 'execute_directive', 'invalidate_cache', 'get_constraints',
+  'available_directives',
 ])
 
 function respond(id: string | number | null, result: unknown): void {
@@ -110,6 +112,10 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
       respond(id, getConstraints(String(p['file'] ?? ''), cwd)); break
     }
+    case 'available_directives': {
+      const include = p['include_plugin_directives']
+      respond(id, availableDirectives({ include_plugin_directives: include !== false })); break
+    }
     default: respondError(id, -32601, `Unknown tool: "${method}"`)
   }
 }
@@ -139,6 +145,7 @@ function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean):
             { name: 'execute_directive', description: 'Execute a MarkdownAI directive string', inputSchema: { type: 'object', properties: { directive: { type: 'string' } }, required: ['directive'] } },
             { name: 'invalidate_cache', description: 'Invalidate the directive cache', inputSchema: { type: 'object', properties: { directive: { type: 'string' } } } },
             { name: 'get_constraints', description: 'Get all @constraint declarations from a MarkdownAI document, sorted by severity', inputSchema: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'] } },
+            { name: 'available_directives', description: 'Return the full catalog of registered MarkdownAI directives', inputSchema: { type: 'object', properties: { include_plugin_directives: { type: 'boolean', description: 'Include plugin-file-only directives (default: true)' } } } },
           ],
         })
         break

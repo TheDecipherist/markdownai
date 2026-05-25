@@ -1,8 +1,8 @@
 ---
 generated: 2026-05-25
-doc_count: 95
-connection_count: 200
-overlap_count: 65
+doc_count: 99
+connection_count: 206
+overlap_count: 68
 ---
 
 ## Path Tree
@@ -43,7 +43,10 @@ overlap_count: 65
 ├── Engine/Conditions
     └── skill-context-variables  47-skill-context-variables  complete
 ├── Engine/Plugins
-    └── plugin-loader  94-plugin-loader  complete
+    ├── plugin-loader  94-plugin-loader  complete
+    ├── plugin-detect-directive  95-plugin-detect-directive  complete
+    ├── plugin-data-directive  96-plugin-data-directive  complete
+    └── plugin-example  98-plugin-example  complete
 ├── Engine/Security
     └── shell-inline  48-shell-inline  complete
 ├── Engine/Tracing
@@ -102,6 +105,8 @@ overlap_count: 65
     └── lang-write-directives  88-lang-write-directives  draft
 ├── MCP/Constraints
     └── mcp-constraints  89-mcp-constraints  draft
+├── MCP/Tools
+    └── available-directives-tool  97-available-directives-tool  complete
 ├── Meta/Schema
     └── frontmatter-spec  00-frontmatter-spec  complete
 ├── Parser/Plugins
@@ -265,6 +270,10 @@ graph LR
     92-lang-allowed-function:::complete
     93-plugin-parser-nodes:::complete
     94-plugin-loader:::complete
+    95-plugin-detect-directive:::complete
+    96-plugin-data-directive:::complete
+    97-available-directives-tool:::complete
+    98-plugin-example:::complete
     01-parser --> 02-renderer
     01-parser --> 03-engine
     02-renderer --> 03-engine
@@ -465,6 +474,12 @@ graph LR
     47-skill-context-variables --> 92-lang-allowed-function
     01-parser --> 93-plugin-parser-nodes
     93-plugin-parser-nodes --> 94-plugin-loader
+    94-plugin-loader --> 95-plugin-detect-directive
+    94-plugin-loader --> 96-plugin-data-directive
+    01-parser --> 97-available-directives-tool
+    30-mcp-server --> 97-available-directives-tool
+    95-plugin-detect-directive --> 98-plugin-example
+    96-plugin-data-directive --> 98-plugin-example
     classDef complete fill:#4CAF50,stroke:#333,color:#fff
     classDef in_progress fill:#FF9800,stroke:#333,color:#fff
     classDef draft fill:#2196F3,stroke:#333,color:#fff
@@ -496,7 +511,9 @@ graph LR
 | `packages/engine/src/engine.ts` | 03-engine, 09-lang-file-resolution, 10-lang-include, 11-lang-import, 14-lang-sources-list, 15-lang-sources-read, 16-lang-sources-utilities, 18-lang-sources-db, 19-lang-sources-http, 21-lang-phases, 47-skill-context-variables, 48-shell-inline, 49-stdlib, 75-engine-bug-fixes, 78-lang-note, 81-lang-event, 82-engine-directive-tracing, 91-lang-switch-operator |
 | `packages/engine/src/exec-ops.ts` | 03-engine, 85-lang-render-template, 86-lang-test-check |
 | `packages/engine/src/frontmatter-utils.ts` | 03-engine, 84-lang-frontmatter-ops |
-| `packages/engine/src/index.ts` | 03-engine, 82-engine-directive-tracing, 94-plugin-loader |
+| `packages/engine/src/index.ts` | 03-engine, 82-engine-directive-tracing, 94-plugin-loader, 95-plugin-detect-directive, 96-plugin-data-directive |
+| `packages/engine/src/plugin-detect-exec.ts` | 95-plugin-detect-directive, 96-plugin-data-directive |
+| `packages/engine/src/plugin-loader.ts` | 94-plugin-loader, 95-plugin-detect-directive, 96-plugin-data-directive |
 | `packages/engine/src/iter-ops.ts` | 03-engine, 83-lang-foreach-set |
 | `packages/engine/src/macros.ts` | 03-engine, 08-lang-macros |
 | `packages/engine/src/pipe.ts` | 03-engine, 13-lang-pipeline |
@@ -504,7 +521,7 @@ graph LR
 | `packages/engine/src/shell.ts` | 03-engine, 20-lang-sources-query |
 | `packages/engine/src/stripper.ts` | 29-stripper, 78-lang-note |
 | `packages/engine/src/write-ops.ts` | 03-engine, 84-lang-frontmatter-ops, 88-lang-write-directives |
-| `packages/mcp/src/server.ts` | 30-mcp-server, 39-ai-format, 47-skill-context-variables |
+| `packages/mcp/src/server.ts` | 30-mcp-server, 39-ai-format, 47-skill-context-variables, 97-available-directives-tool |
 | `packages/mcp/src/tools/execute_directive.ts` | 30-mcp-server, 81-lang-event |
 | `packages/mcp/src/tools/read_file.ts` | 30-mcp-server, 47-skill-context-variables |
 | `packages/parser/src/args.ts` | 01-parser, 81-lang-event |
@@ -532,8 +549,8 @@ graph LR
 | `packages/parser/src/parser-blocks.ts` | 01-parser, 93-plugin-parser-nodes |
 | `packages/parser/src/parser-state.ts` | 01-parser, 48-shell-inline |
 | `packages/parser/src/parser.ts` | 01-parser, 48-shell-inline, 91-lang-switch-operator, 93-plugin-parser-nodes |
-| `packages/parser/src/registry.ts` | 01-parser, 78-lang-note, 91-lang-switch-operator, 93-plugin-parser-nodes |
-| `packages/parser/src/types.ts` | 01-parser, 78-lang-note, 81-lang-event, 91-lang-switch-operator, 93-plugin-parser-nodes |
+| `packages/parser/src/registry.ts` | 01-parser, 78-lang-note, 91-lang-switch-operator, 93-plugin-parser-nodes, 95-plugin-detect-directive, 96-plugin-data-directive, 97-available-directives-tool |
+| `packages/parser/src/types.ts` | 01-parser, 78-lang-note, 81-lang-event, 91-lang-switch-operator, 93-plugin-parser-nodes, 95-plugin-detect-directive, 96-plugin-data-directive |
 | `packages/renderer/src/ai-filter.ts` | 02-renderer, 39-ai-format |
 | `packages/renderer/src/renderer.ts` | 02-renderer, 13-lang-pipeline |
 | `packages/vscode/package.json` | 51-package-scaffold, 52-language-definition, 53-syntax-highlighting, 54-snippets, 79-vscode-preview |

@@ -26,6 +26,7 @@ import { emitSpan } from './trace/emit.js'
 import { extractArgs } from './trace/span.js'
 import { applyMasking } from './security/masking.js'
 import { expandPatterns } from './security/path-expand.js'
+import { executeMarkdownaiDetect, executePluginData } from './plugin-detect-exec.js'
 
 export type { EngineContext }
 export { FatalError }
@@ -282,6 +283,18 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
     case 'define-concept': return executeConcept(node, ctx)
     case 'constraint': return executeConstraint(node, ctx)
     case 'event': return executeEvent(node as EventNode, ctx, ctx.docDir)
+    case 'markdownai-detect': return executeMarkdownaiDetect(node, ctx)
+    case 'plugin-data': return executePluginData(node, ctx)
+    // Plugin-file-only blocks (plugin-meta, plugin-detect, plugin-layout, plugin-conventions)
+    // are only valid inside .plugin.md files. If they appear in a regular document,
+    // emit a warning and produce no output rather than throwing.
+    case 'plugin-meta':
+    case 'plugin-detect':
+    case 'plugin-layout':
+    case 'plugin-conventions': {
+      ctx.warnings.push(`@${node.type} is only valid inside .plugin.md files and has no output here`)
+      return ''
+    }
     default: throw new Error(`walkNode: unhandled AST node type "${(node as { type: string }).type}"`)
   }
 }

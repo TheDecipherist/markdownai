@@ -354,6 +354,22 @@ export interface PluginConventionsNode extends ASTNodeBase {
   body: string
 }
 
+export interface MarkdownaiDetectNode extends ASTNodeBase {
+  type: 'markdownai-detect'
+  format: 'text' | 'info'
+  include: string[]
+  label: string | null
+  projectOverride: string | null
+}
+
+export interface PluginDataNode extends ASTNodeBase {
+  type: 'plugin-data'
+  name: string
+  include: string[]
+  label: string | null
+  projectOverride: string | null
+}
+
 export type ASTNode =
   | HeaderNode
   | IncludeNode
@@ -401,6 +417,8 @@ export type ASTNode =
   | PluginDetectNode
   | PluginLayoutNode
   | PluginConventionsNode
+  | MarkdownaiDetectNode
+  | PluginDataNode
 
 export interface ParseResult {
   isMarkdownAI: boolean
