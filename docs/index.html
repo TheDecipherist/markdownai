@@ -381,11 +381,11 @@
 
         <div class="stat-grid">
           <div class="stat-card">
-            <div class="stat-number">754</div>
+            <div class="stat-number">996</div>
             <div class="stat-label">Tests passing</div>
           </div>
           <div class="stat-card">
-            <div class="stat-number">78</div>
+            <div class="stat-number">99</div>
             <div class="stat-label">Features documented</div>
           </div>
           <div class="stat-card">
@@ -755,6 +755,22 @@ Running in **{{ env.NODE_ENV }}** mode.
 @update-frontmatter path="doc.md" field="status" value="done"</code></pre>
           </div>
 
+          <div class="feature-card">
+            <div class="feature-icon feature-icon-teal">@plugin</div>
+            <h3>Plugin System <span class="badge">v1.2</span></h3>
+            <p>
+              Frameworks built on MarkdownAI can register themselves as plugins using a
+              <code>*.plugin.md</code> file. The plugin declares its name, detection signals
+              (required dirs, files, version fields), directory layout, and conventions in a
+              structured format. <code>@markdownai-detect</code> finds matching plugins in a project.
+              <code>@plugin-data</code> returns a named plugin's full descriptor. The
+              <code>available_directives</code> MCP tool returns the complete directive catalog so AI
+              tools never need to guess what's supported.
+            </p>
+            <pre><code class="language-markdown">@markdownai-detect as=info include="layout"
+@plugin-data name="mdd"</code></pre>
+          </div>
+
         </div>
       </section>
 
@@ -951,15 +967,15 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
         <div class="concept-grid">
 
           <div class="concept-card">
-            <h3>&#128187; MCP Server (9 tools)</h3>
+            <h3>&#128187; MCP Server (10 tools)</h3>
             <p>
               Run <code>mai serve</code> to start an MCP server. Claude, Cursor, and any
               MCP-compatible tool can query documents, execute directives, navigate phases, and get
-              live data - without reading raw source files. The 9 exposed tools cover the full
+              live data - without reading raw source files. The 10 exposed tools cover the full
               document lifecycle: <code>read_file</code>, <code>list_phases</code>,
               <code>resolve_phase</code>, <code>next_phase</code>, <code>call_macro</code>,
               <code>get_env</code>, <code>execute_directive</code>, <code>get_constraints</code>,
-              and <code>invalidate_cache</code>.
+              <code>invalidate_cache</code>, and <code>available_directives</code>.
             </p>
           </div>
 
@@ -1410,7 +1426,7 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
             </tr>
             <tr>
               <td><code>@markdownai/mcp</code></td>
-              <td>MCP server with 9 tools. Serves live document execution, phase navigation, and constraint access to AI tools.</td>
+              <td>MCP server with 10 tools. Serves live document execution, phase navigation, constraint access, and directive introspection to AI tools.</td>
             </tr>
             <tr>
               <td><code>@markdownai/core</code></td>
@@ -1427,7 +1443,7 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
           <p>
             The separation between parser and engine is intentional. The parser never executes
             anything - you can safely parse any document in any environment. Security enforcement
-            sits in the engine, between the directive runner and every external system. 754 tests
+            sits in the engine, between the directive runner and every external system. 996 tests
             across all packages, including unit tests for every directive, E2E CLI pipeline tests,
             MCP protocol conformance tests, and a dedicated AI-native feature test suite.
           </p>
