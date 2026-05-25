@@ -9,7 +9,7 @@ import { getModule } from './registry.js'
 import { scanShellInlines } from './interpolation.js'
 import { splitUnquotedPipe } from './directives/pipe.js'
 import { type State, lineNum, peek, consume } from './parser-state.js'
-import { makeMarkdown, parseTransition, parseTextBlock, parseNoteBlock, parseGraphBlock, parseRenderTemplateBlock, parseForeachBlock } from './parser-blocks.js'
+import { makeMarkdown, parseTransition, parseTextBlock, parseNoteBlock, parseGraphBlock, parseRenderTemplateBlock, parseForeachBlock, parsePluginBlock } from './parser-blocks.js'
 
 const BUILTINS = new Set(['grep', 'sort', 'head', 'tail', 'wc', 'uniq'])
 
@@ -225,6 +225,10 @@ function parseDirective(raw: string, line: number, state: State, inline = false)
     if (name === 'render-template') return parseRenderTemplateBlock(state, trimmed, args, line)
     if (name === 'foreach') return parseForeachBlock(state, trimmed, args, line, collectBody)
     if (name === 'switch') return parseSwitchBlock(state, args.trim(), line)
+    if (name === 'plugin-meta') return parsePluginBlock(state, 'plugin-meta', line)
+    if (name === 'plugin-detect') return parsePluginBlock(state, 'plugin-detect', line)
+    if (name === 'plugin-layout') return parsePluginBlock(state, 'plugin-layout', line)
+    if (name === 'plugin-conventions') return parsePluginBlock(state, 'plugin-conventions', line)
     throw new ParseError(`@${name} is a block directive but has no block parser registered`, line, state.filePath)
   }
   return mod.parse(trimmed, args, ctx)

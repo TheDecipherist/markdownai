@@ -2,6 +2,7 @@ import type {
   ASTNode, MarkdownNode, TransitionNode, TransitionAction,
   PromptNode, ConstraintNode, NoteNode, GraphNode, ShellInlineSpan,
   RenderTemplateNode, ForeachNode,
+  PluginMetaNode, PluginDetectNode, PluginLayoutNode, PluginConventionsNode,
 } from './types.js'
 import { ParseError } from './types.js'
 
@@ -134,6 +135,31 @@ export function parseForeachBlock(
   const node = mod.parse(openLine, args, ctx) as ForeachNode
   node.body = walkBody(state, 'end')
   return node
+}
+
+export type PluginBlockName = 'plugin-meta' | 'plugin-detect' | 'plugin-layout' | 'plugin-conventions'
+
+export function parsePluginBlock(
+  state: State,
+  name: PluginBlockName,
+  line: number,
+): PluginMetaNode | PluginDetectNode | PluginLayoutNode | PluginConventionsNode {
+  const bodyLines: string[] = []
+  let closed = false
+  while (state.pos < state.lines.length) {
+    const raw = peek(state)!
+    if (raw.trim() === '@end') { consume(state); closed = true; break }
+    bodyLines.push(consume(state))
+  }
+  if (!closed) throw new ParseError(`Unclosed @${name} block — expected @end`, line, state.filePath)
+  const body = bodyLines.join('\n').trimEnd()
+  switch (name) {
+    case 'plugin-meta': return { type: 'plugin-meta', line, body }
+    case 'plugin-detect': return { type: 'plugin-detect', line, body }
+    case 'plugin-layout': return { type: 'plugin-layout', line, body }
+    case 'plugin-conventions': return { type: 'plugin-conventions', line, body }
+    default: throw new Error(`unhandled plugin block: ${name satisfies never}`)
+  }
 }
 
 export function parseGraphBlock(state: State, line: number): GraphNode {
