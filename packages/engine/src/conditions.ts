@@ -102,7 +102,12 @@ export function evalCondition(expr: string, ctx: EngineContext): boolean {
 
 export function evalExpression(expr: string, ctx: EngineContext): string {
   const result = runExpr(expr, ctx)
-  return result === undefined ? '' : String(result)
+  if (result === undefined || result === null) return ''
+  // Render objects and arrays as JSON so {{ structVar }} produces useful
+  // output instead of "[object Object]". Leaf values (string, number,
+  // boolean) stringify via String() as before.
+  if (typeof result === 'object') return JSON.stringify(result, null, 2)
+  return String(result)
 }
 
 function preprocessExpr(expr: string): string {
@@ -160,8 +165,17 @@ function buildSandbox(ctx: EngineContext): Record<string, unknown> {
   for (const [k, v] of Object.entries(skill?.namedArgs ?? {})) {
     if (!RESERVED_SANDBOX_KEYS.has(k)) safeNamedArgs[k] = v
   }
+  // Structured data store: spread safe-named keys at the top level so
+  // expressions can navigate via dot syntax ({{ info.detected }},
+  // {{ info.frameworks.mdd.layout.directories.features }}).
+  // Keys collide with envFiles entries: data wins, since data was added
+  // explicitly by a directive that returns structured output.
+  const safeData: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(ctx.data ?? {})) {
+    if (SAFE_ENV_KEY.test(k) && !RESERVED_SANDBOX_KEYS.has(k)) safeData[k] = v
+  }
   return {
-    ...rootEnv, env: envObj, file, consumer: ctx.consumer ?? '',
+    ...rootEnv, ...safeData, env: envObj, file, consumer: ctx.consumer ?? '',
     ARGUMENTS, args: ARGUMENTS, argsList,
     arg0: argsList[0] ?? '', arg1: argsList[1] ?? '', arg2: argsList[2] ?? '', arg3: argsList[3] ?? '',
     ...safeNamedArgs,

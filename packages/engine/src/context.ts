@@ -83,6 +83,13 @@ export interface ConstraintEntry {
 export interface EngineContext {
   env: Record<string, string>
   envFiles: Record<string, string>
+  // Structured-value store for directives that produce object/array/boolean
+  // results. Spread into the expression sandbox by buildSandbox(), so
+  // {{ label.field.subfield }} navigates the struct directly. Keys here
+  // shadow keys in envFiles when the same name is used, so directives
+  // that want struct access (e.g., @markdownai-detect with label=) store
+  // here while keeping the formatted text in envFiles for inline rendering.
+  data: Record<string, unknown>
   envFallbacks: Record<string, string>
   connections: Record<string, Connection>
   localConnectionNames: Set<string>
@@ -117,6 +124,7 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
   const base: EngineContext = {
     env,
     envFiles: {},
+    data: {},
     envFallbacks: {},
     connections: {},
     localConnectionNames: new Set<string>(),

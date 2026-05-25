@@ -140,4 +140,50 @@ describe('@markdownai-detect engine directive', () => {
     const result = execute(ast, { ctx: { cwd: tmpDir } })
     expect(result.errors).toHaveLength(0)
   })
+
+  it('populates ctx.data with a typed struct (detected, count, frameworks) when label= is set', () => {
+    mkdirSync(join(tmpDir, '.exf'))
+    writeFileSync(join(tmpDir, 'exf.config.json'), '{}')
+    const ctx: Partial<import('../context.js').EngineContext> = { cwd: tmpDir, data: {} }
+    const src = `@markdownai\n@markdownai-detect label=info include=layout project=${tmpDir}`
+    const ast = parse(src)
+    const result = execute(ast, { ctx })
+    expect(result.errors).toHaveLength(0)
+    const info = ctx.data?.['info'] as Record<string, unknown> | undefined
+    expect(info).toBeDefined()
+    expect(info?.['detected']).toBe(true)
+    expect(info?.['count']).toBe(1)
+    const frameworks = info?.['frameworks'] as Record<string, unknown>
+    expect(frameworks['example-framework']).toBeDefined()
+    const efw = frameworks['example-framework'] as Record<string, unknown>
+    expect(efw['framework_version']).toBe('>=1.0.0')
+    expect(efw['layout']).toBeDefined()
+  })
+
+  it('lets interpolations navigate struct via dot syntax: {{ info.detected }}', () => {
+    mkdirSync(join(tmpDir, '.exf'))
+    writeFileSync(join(tmpDir, 'exf.config.json'), '{}')
+    const src = `@markdownai\n@markdownai-detect label=info include=layout project=${tmpDir}\n\n` +
+      `detected: {{ info.detected }}\n` +
+      `count: {{ info.count }}\n` +
+      `fw version: {{ info.frameworks["example-framework"].framework_version }}\n`
+    const ast = parse(src)
+    const result = execute(ast, { ctx: { cwd: tmpDir, data: {} } })
+    expect(result.errors).toHaveLength(0)
+    expect(result.output).toContain('detected: true')
+    expect(result.output).toContain('count: 1')
+    expect(result.output).toContain('fw version: >=1.0.0')
+  })
+
+  it('reports detected=false and empty frameworks when no plugins match', () => {
+    // No .exf dir + no config -> plugin loaded but doesn't match
+    const ctx: Partial<import('../context.js').EngineContext> = { cwd: tmpDir, data: {} }
+    const src = `@markdownai\n@markdownai-detect label=info project=${tmpDir}`
+    const ast = parse(src)
+    execute(ast, { ctx })
+    const info = ctx.data?.['info'] as Record<string, unknown> | undefined
+    expect(info?.['detected']).toBe(false)
+    expect(info?.['count']).toBe(0)
+    expect(Object.keys(info?.['frameworks'] as Record<string, unknown>)).toEqual([])
+  })
 })
