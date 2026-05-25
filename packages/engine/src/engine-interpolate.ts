@@ -4,6 +4,7 @@ import { existsSync, statSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import type { InterpolationSpan, ShellInlineSpan } from '@markdownai/parser'
 import { resolveEnv, type EngineContext } from './context.js'
+import { allowed } from './conditions.js'
 import { checkShellCommand } from './security/shell.js'
 import { checkDataPath } from './security/filesystem.js'
 import type { ShellSecurityConfig } from './security/config.js'
@@ -107,6 +108,7 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
     CLAUDE_SESSION_ID: skill?.sessionId ?? '',
     CLAUDE_EFFORT: skill?.effort ?? '',
     CLAUDE_SKILL_DIR: skill?.skillDir ?? '',
+    allowed,
   }
   try {
     const result = runInNewContext(trimmed, sandbox, { timeout: 500 })
