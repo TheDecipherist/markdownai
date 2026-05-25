@@ -21,7 +21,7 @@ services:
     health_check: curl -sf https://markdownai.dev
     regions: {}
 status: active
-last_synced: 2026-05-22
+last_synced: 2026-05-25
 tags: [release, npm, publish, version-bump, main, docker, dokploy, docs]
 known_issues: []
 ---
