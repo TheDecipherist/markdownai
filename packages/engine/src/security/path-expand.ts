@@ -20,12 +20,26 @@ const VAR_RE = /\$\{([A-Z_][A-Z0-9_]*)\}/gi
  *   ${CLAUDE_SESSION_ID}   — Claude Code session id
  *   ${<env var name>}      — any process env / loaded env-file variable
  *
+ * Also expands a leading `~/` or bare `~` to the current user's home, matching
+ * shell convention. This is the most common path shorthand and was previously
+ * unsupported, causing `@import ~/path/to/file.md` to fail with ENOENT when
+ * the engine resolved against the document's directory ("/tmp/~/path/...").
+ *
  * Unresolved variables expand to the empty string. Patterns with empty-string
  * substitutions usually no longer match anything safely (e.g. "${UNSET}/file"
  * becomes "/file"), which is the conservative outcome.
  */
 export function expandPattern(pattern: string, ctx: PatternExpandContext): string {
-  return pattern.replace(VAR_RE, (_, name: string) => {
+  let expanded = pattern
+  // Leading ~/ or bare ~ → homedir. Restricted to start-of-string to avoid
+  // accidentally rewriting embedded tildes (rare but possible in filenames).
+  // ~username syntax is NOT supported; just ~ and ~/.
+  if (expanded === '~') {
+    expanded = homedir()
+  } else if (expanded.startsWith('~/')) {
+    expanded = homedir() + expanded.slice(1)
+  }
+  return expanded.replace(VAR_RE, (_, name: string) => {
     const upper = name.toUpperCase()
     if (upper === 'HOME') return homedir()
     if (upper === 'CLAUDE_SKILL_DIR' && ctx.skillDir) return ctx.skillDir

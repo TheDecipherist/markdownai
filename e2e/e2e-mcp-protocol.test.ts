@@ -3,7 +3,7 @@ import type { McpClient } from './helpers/mcp-helpers.js'
 import { spawnMcpServer, MCP_FIXTURES } from './helpers/mcp-helpers.js'
 
 const KNOWN_TOOLS = [
-  'read_file', 'list_phases', 'resolve_phase', 'next_phase',
+  'read_file', 'render', 'list_phases', 'resolve_phase', 'next_phase',
   'call_macro', 'get_env', 'execute_directive', 'invalidate_cache', 'get_constraints',
   'available_directives',
 ]
@@ -30,7 +30,7 @@ describe('MCP E2E — protocol handshake', () => {
     expect(true).toBe(true)
   })
 
-  it('tools/list returns all 9 known tools', async () => {
+  it('tools/list returns all known tools', async () => {
     const resp = await client.call('tools/list', {})
     expect(resp.error).toBeUndefined()
     const tools = (resp.result as { tools: Array<{ name: string }> }).tools

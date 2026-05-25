@@ -13,6 +13,7 @@ import { invalidateCache } from './tools/invalidate_cache.js'
 import { getConstraints } from './tools/get_constraints.js'
 import { availableDirectives } from './tools/available_directives.js'
 import { validateMcpInput } from './validate.js'
+import { mcpLog, mcpLogPath, summarizeArgs } from './logger.js'
 
 interface JsonRpcRequest {
   jsonrpc: '2.0'
@@ -35,7 +36,7 @@ export interface ServerOptions {
 }
 
 const TOOL_ALLOWLIST = new Set([
-  'read_file', 'list_phases', 'resolve_phase', 'next_phase',
+  'read_file', 'render', 'list_phases', 'resolve_phase', 'next_phase',
   'call_macro', 'get_env', 'execute_directive', 'invalidate_cache', 'get_constraints',
   'available_directives',
 ])
@@ -43,19 +44,27 @@ const TOOL_ALLOWLIST = new Set([
 function respond(id: string | number | null, result: unknown): void {
   const resp: JsonRpcResponse = { jsonrpc: '2.0', id, result }
   process.stdout.write(JSON.stringify(resp) + '\n')
+  mcpLog({ level: 'info', event: 'response', id: id ?? undefined })
 }
 
 function respondError(id: string | number | null, code: number, message: string): void {
   const resp: JsonRpcResponse = { jsonrpc: '2.0', id, error: { code, message } }
   process.stdout.write(JSON.stringify(resp) + '\n')
+  mcpLog({ level: 'error', event: 'response-error', id: id ?? undefined, error: `[${code}] ${message}` })
 }
 
 function dispatchTool(method: string, p: Record<string, unknown>, id: string | number | null, cwd: string, passthrough?: boolean): void {
   switch (method) {
-    case 'read_file': {
-      const v = validateMcpInput([{ field: 'path', value: p['path'], noPathInjection: true }])
+    case 'read_file':
+    case 'render': {
+      // `render` is an alias of `read_file` with the parameter renamed from
+      // `path` to `file` for consistency with list_phases/resolve_phase/etc.
+      // Internally both dispatch through readFile (which still uses `path`).
+      const pathField = method === 'render' ? 'file' : 'path'
+      const pathValue = method === 'render' ? p['file'] : p['path']
+      const v = validateMcpInput([{ field: pathField, value: pathValue, noPathInjection: true }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      const rfArgs: Parameters<typeof readFile>[0] = { path: String(p['path'] ?? '') }
+      const rfArgs: Parameters<typeof readFile>[0] = { path: String(pathValue ?? '') }
       if (p['phase'] != null) rfArgs.phase = String(p['phase'])
       if (p['format'] === 'standard' || p['format'] === 'ai') rfArgs.format = p['format']
       if (p['budget'] != null) rfArgs.budget = Number(p['budget'])
@@ -122,6 +131,7 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
 
 function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean): void {
   const p = req.params ?? {}
+  mcpLog({ level: 'info', event: 'request', id: req.id ?? undefined, method: req.method })
   try {
     switch (req.method) {
       case 'initialize':
@@ -137,6 +147,7 @@ function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean):
         respond(req.id, {
           tools: [
             { name: 'read_file', description: 'Read and render a MarkdownAI document. Returns ai-format (token-efficient) by default. Pass format="standard" to override. When reading a skill/command file, pass skill_args and skill_* fields to enable @if conditions on $ARGUMENTS, $CLAUDE_EFFORT, etc.', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' }, passthrough: { type: 'boolean', description: 'Pass plain markdown files through the engine unchanged instead of returning raw source' }, skill_args: { type: 'string', description: 'Raw $ARGUMENTS string from the Claude Code slash command invocation' }, skill_named_args: { type: 'object', description: 'Named arguments from the skill frontmatter arguments: list', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string', description: '${CLAUDE_SESSION_ID} from Claude Code' }, skill_effort: { type: 'string', description: '${CLAUDE_EFFORT} from Claude Code (low/medium/high/xhigh/max)' }, skill_dir: { type: 'string', description: '${CLAUDE_SKILL_DIR} — directory containing the skill file' } }, required: ['path'] } },
+            { name: 'render', description: 'Render a MarkdownAI document. Alias for read_file with the `file` parameter (consistent with list_phases / resolve_phase / call_macro / get_constraints). Returns ai-format by default. Pass format="standard" to override. Used by slash-command flows that need to render an entire flow file in one call.', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' }, passthrough: { type: 'boolean' }, skill_args: { type: 'string' }, skill_named_args: { type: 'object', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string' }, skill_effort: { type: 'string' }, skill_dir: { type: 'string' } }, required: ['file'] } },
             { name: 'list_phases', description: 'List all phases in a MarkdownAI document', inputSchema: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'] } },
             { name: 'resolve_phase', description: 'Resolve a named phase in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' } }, required: ['file', 'phase'] } },
             { name: 'next_phase', description: 'Get the next phase after current_phase', inputSchema: { type: 'object', properties: { file: { type: 'string' }, current_phase: { type: 'string' } }, required: ['file', 'current_phase'] } },
@@ -158,11 +169,22 @@ function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean):
           respondError(req.id, -32602, 'Invalid params: "arguments" must be an object'); break
         }
         const toolName = String(nameVal)
-        if (!TOOL_ALLOWLIST.has(toolName)) { respondError(req.id, -32601, `Unknown tool: "${toolName}"`); break }
+        if (!TOOL_ALLOWLIST.has(toolName)) {
+          mcpLog({ level: 'warn', event: 'tool-call-unknown', id: req.id ?? undefined, tool: toolName })
+          respondError(req.id, -32601, `Unknown tool: "${toolName}"`); break
+        }
         const toolArgs = (typeof argsVal === 'object' && argsVal !== null && !Array.isArray(argsVal))
           ? argsVal as Record<string, unknown>
           : {}
-        dispatchTool(toolName, toolArgs, req.id, cwd, passthrough)
+        const t0 = Date.now()
+        mcpLog({ level: 'info', event: 'tool-call', id: req.id ?? undefined, tool: toolName, args_summary: summarizeArgs(toolArgs) })
+        try {
+          dispatchTool(toolName, toolArgs, req.id, cwd, passthrough)
+          mcpLog({ level: 'info', event: 'tool-result', id: req.id ?? undefined, tool: toolName, duration_ms: Date.now() - t0 })
+        } catch (err) {
+          mcpLog({ level: 'error', event: 'tool-error', id: req.id ?? undefined, tool: toolName, duration_ms: Date.now() - t0, error: err instanceof Error ? err.message : String(err) })
+          throw err
+        }
         break
       }
       default:
@@ -176,6 +198,7 @@ function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean):
 export function startServer(options: ServerOptions = {}): void {
   const cwd = options.cwd ?? process.cwd()
   const passthrough = options.passthrough ?? false
+  mcpLog({ level: 'info', event: 'server-start', detail: { cwd, passthrough, logPath: mcpLogPath() } })
   const rl = createInterface({ input: process.stdin, crlfDelay: Infinity })
   rl.on('line', (line) => {
     const trimmed = line.trim()
@@ -187,7 +210,10 @@ export function startServer(options: ServerOptions = {}): void {
       respondError(null, -32700, 'Parse error')
     }
   })
-  rl.on('close', () => process.exit(0))
+  rl.on('close', () => {
+    mcpLog({ level: 'info', event: 'server-shutdown' })
+    process.exit(0)
+  })
 }
 
 const _thisFile = fileURLToPath(import.meta.url)
