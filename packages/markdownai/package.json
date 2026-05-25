@@ -1,6 +1,6 @@
 {
   "name": "@markdownai/markdownai",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "MarkdownAI - documentation that cannot lie. Meta-package and org index.",
   "type": "module",
   "exports": {},

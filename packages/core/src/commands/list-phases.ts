@@ -38,7 +38,7 @@ export function runListPhases(filePath: string, options: { cwd?: string } = {}):
       line: phase.line,
       transitions: phase.transitions.map(t => ({
         event: t.event,
-        target: t.action.name,
+        target: 'name' in t.action ? t.action.name : '',
         type: t.action.type,
       })),
     })

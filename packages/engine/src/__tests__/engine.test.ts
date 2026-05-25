@@ -189,6 +189,7 @@ describe('execute', () => {
         {
           type: 'define', line: 2, name: 'greet', params: [], local: false,
           body: [{ type: 'markdown', line: 3, text: 'Hello, {{name}}!', interpolations: [], shellInlines: [] }],
+          transitions: [],
         },
         { type: 'call', line: 5, name: 'greet', args: { name: 'World' }, positionalArgs: [] },
       ],

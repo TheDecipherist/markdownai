@@ -42,7 +42,7 @@ export function listPhases(filePath: string, cwd: string): ListPhasesResult {
       name: phase.name,
       transitions: (phase.transitions as TransitionNode[]).map(t => ({
         event: t.event,
-        action: { type: t.action.type, name: t.action.name },
+        action: { type: t.action.type, name: 'name' in t.action ? t.action.name : '' },
       })),
     })
   }

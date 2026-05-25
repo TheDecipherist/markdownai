@@ -76,7 +76,7 @@ export interface MacroDefinition {
 
 export interface ConstraintEntry {
   id: string
-  severity: 'critical' | 'high' | 'medium' | 'low'
+  severity: string
   body: string
 }
 
