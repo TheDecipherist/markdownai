@@ -102,7 +102,7 @@ homepage: "https://github.com/TheDecipherist/mdd2"
 | Field | Required | Purpose |
 |---|---|---|
 | `markdownai_plugin` | yes | Schema version. Currently `"1.0"`. Allows future evolution. |
-| `plugin_name` | yes | Unique identifier (kebab-case). Used as the lookup key. |
+| `plugin_name` | yes | Unique identifier (kebab-case). Used as the lookup key. **Must match the filename stem** (the file `mdd.plugin.md` requires `plugin_name: "mdd"`). The loader errors on mismatch. |
 | `plugin_version` | yes | Plugin's own version (semver). Independent of framework version. |
 | `description` | recommended | One-line summary for plugin listings. |
 | `homepage` | optional | Where users can learn more or report issues. |
@@ -115,6 +115,59 @@ homepage: "https://github.com/TheDecipherist/mdd2"
 | `@plugin-detect` | yes | How to recognize the framework in a project |
 | `@plugin-layout` | optional | Expected directory and file layout |
 | `@plugin-conventions` | optional | Naming patterns, required fields, free-form framework knowledge |
+
+## Plugin Identity and Access
+
+### Plugin identity
+
+A plugin's canonical name comes from **both** its filename stem and its `plugin_name` frontmatter field. These must match. The loader errors on mismatch:
+
+```
+ERROR: plugin file mdd.plugin.md declares plugin_name "mdd-v2"; expected "mdd"
+```
+
+This double-signal is intentional. Readers see the plugin name at the filesystem (when listing the plugins directory) and inside the file (when opening it). A rename without updating the field is caught at load time. Same pattern as npm `package.json` "name" + directory name, or Cargo `Cargo.toml` "name" + crate dir.
+
+Filename convention: lowercase kebab-case, suffix `.plugin.md`. Examples:
+
+- `mdd.plugin.md` -> `plugin_name: "mdd"`
+- `jekyll.plugin.md` -> `plugin_name: "jekyll"`
+- `obsidian-vault.plugin.md` -> `plugin_name: "obsidian-vault"`
+
+### Access from consumers
+
+Plugins are pure data. They are loaded and queried; they do not execute and do not expose methods. **There is no plugin wrapper function. There is no namespace-prefixed directive syntax** (no `@mdd:layout`, no `@plugin("mdd").layout`). Plugins describe; consumers read.
+
+Two directives read plugin data:
+
+**1. `@markdownai-detect`** -- project introspection. Returns all matching plugins as part of its result struct. Used when a consumer wants to know what frameworks the project actually uses (which may be zero, one, or several).
+
+```
+@markdownai-detect as=info include="layout"
+
+@if {{ "mdd" in info.frameworks }}
+  Feature docs live in: {{ info.frameworks.mdd.layout.directories.features }}
+@endif
+```
+
+**2. `@plugin-data name="X" as=NAME`** -- direct access to a specific plugin's descriptor without scanning the project. Used when a consumer already knows which plugin they want and just needs its declared data. Faster than `@markdownai-detect` because it skips the project walk:
+
+```
+@plugin-data name="mdd" as=mdd
+Feature docs live in: {{ mdd.layout.directories.features }}
+```
+
+`@plugin-data` errors if the named plugin is not loaded:
+
+```
+ERROR: @plugin-data: no plugin registered with name "mdd". Available: jekyll, obsidian-vault.
+```
+
+### Why no plugin methods
+
+Plugins are descriptors, not executables. If a plugin needs to expose computed answers (e.g., "given this feature slug, what's the canonical filename?"), the right place for that logic is in the consumer (mdd2, jekyll-ai, etc.), not in the plugin file. The plugin file declares the inputs (naming pattern: `<NN>-<feature-slug>.md`); the consumer computes the answer.
+
+This keeps plugins inspectable. A user can read `mdd.plugin.md` top to bottom and know everything the plugin tells MarkdownAI. No hidden logic, no eval surfaces.
 
 ## Discovery and Loading
 
