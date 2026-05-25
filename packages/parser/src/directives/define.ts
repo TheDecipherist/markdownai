@@ -6,8 +6,11 @@ const define: ParseModule = {
   closeTag: 'end',
   parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
     const raw = args.trim()
-    const local = raw.endsWith('@local')
-    const withoutLocal = local ? raw.slice(0, -6).trim() : raw
+    // The local marker can appear as either `@local` or `local` (bare).
+    // The bare form is friendlier for authors; both forms set the same flag.
+    const localMatch = raw.match(/(\s)@?local$/)
+    const local = !!localMatch
+    const withoutLocal = local ? raw.slice(0, localMatch!.index).trim() : raw
 
     // Detect name(param1, param2) syntax
     const parenMatch = withoutLocal.match(/^([\w-]+)\(([^)]*)\)$/)

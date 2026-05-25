@@ -166,6 +166,20 @@ describe('Parser', () => {
       expect(n.local).toBe(true)
     })
 
+    it('parses @define with bare local keyword (no @ prefix)', () => {
+      const result = parse('@markdownai\n@define greeter local\nHi\n@end')
+      const n = node<DefineNode>(result.nodes, 1)
+      expect(n.local).toBe(true)
+      expect(n.name).toBe('greeter')
+    })
+
+    it('does not treat "local" as the marker when it appears inside the name', () => {
+      const result = parse('@markdownai\n@define localish\ncontent\n@end')
+      const n = node<DefineNode>(result.nodes, 1)
+      expect(n.local).toBe(false)
+      expect(n.name).toBe('localish')
+    })
+
     it('parses no params when no parens', () => {
       const result = parse('@markdownai\n@define footer\ncontent\n@end')
       const n = node<DefineNode>(result.nodes, 1)
