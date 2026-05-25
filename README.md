@@ -34,7 +34,7 @@
 [![VS Code](https://img.shields.io/badge/VS_Code-Marketplace-007ACC?logo=visualstudiocode)](https://marketplace.visualstudio.com/items?itemName=markdownai.markdownai)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js >=18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)](https://nodejs.org)
-[![Tests: 811](https://img.shields.io/badge/tests-811_passing-brightgreen)](./packages)
+[![Tests: 996](https://img.shields.io/badge/tests-996_passing-brightgreen)](./packages)
 
 ---
 

@@ -5,6 +5,7 @@ import { spawnMcpServer, MCP_FIXTURES } from './helpers/mcp-helpers.js'
 const KNOWN_TOOLS = [
   'read_file', 'list_phases', 'resolve_phase', 'next_phase',
   'call_macro', 'get_env', 'execute_directive', 'invalidate_cache', 'get_constraints',
+  'available_directives',
 ]
 
 // ─── HANDSHAKE ───────────────────────────────────────────────────────────────

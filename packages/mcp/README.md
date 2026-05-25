@@ -10,7 +10,7 @@
   </a>
 </p>
 
-MCP (Model Context Protocol) server for MarkdownAI. Bridges AI assistants and live documents - intercepts file reads, resolves directives, serves phase-aware content, and delivers `@event` broadcasts through 8 tools AI tools can call directly.
+MCP (Model Context Protocol) server for MarkdownAI. Bridges AI assistants and live documents - intercepts file reads, resolves directives, serves phase-aware content, and delivers `@event` broadcasts through 10 tools AI tools can call directly.
 
 **All packages:**
 [@markdownai/core](https://www.npmjs.com/package/@markdownai/core) &nbsp;·&nbsp;
@@ -109,7 +109,7 @@ To enable developer tracing, add a `MARKDOWNAI_TRACE` env var to the server conf
 
 Trace output is JSON-Lines: one span per line, written for every directive the engine executes. All directive args are masked before serialization. See `@markdownai/engine` for the full span format.
 
-## The 9 MCP tools
+## The 10 MCP tools
 
 Once the server is configured, Claude can call these tools directly during a session.
 
@@ -300,11 +300,37 @@ Returns the `@constraint` declarations in a document without rendering the rest 
 
 Returns `{ constraints: Array<{ id, severity, body }>, isMarkdownAI: boolean }`.
 
+---
+
+### `available_directives`
+
+Returns the complete catalog of directives registered in the parser - name, whether it is a block directive, and optional close-tag. Useful for AI tools that need to know what syntax is valid without hallucinating directive names.
+
+```json
+{
+  "name": "available_directives",
+  "arguments": {}
+}
+```
+
+Pass `include_plugin_directives: false` to exclude directives that are only valid inside plugin files (`@plugin-meta`, `@plugin-detect`, `@plugin-layout`, `@plugin-conventions`):
+
+```json
+{
+  "name": "available_directives",
+  "arguments": {
+    "include_plugin_directives": false
+  }
+}
+```
+
+Returns `{ directives: Array<{ name, block, closeTag? }>, count: number }`.
+
 ## Companion Hooks (v1.0+)
 
 The MCP server is one of three pieces in the AI-integration stack. The other two are Claude Code hooks installed by `mai init`:
 
-**PreToolUse hook** intercepts direct `Read` of any MarkdownAI document (bare `@markdownai` header OR YAML frontmatter then `@markdownai`) and returns a redirect message that contains the full catalogue of these 9 MCP tools - including arg shapes, return shapes, and a 5-step workflow. The AI never reads raw directive syntax; it's pushed back to the MCP every time.
+**PreToolUse hook** intercepts direct `Read` of any MarkdownAI document (bare `@markdownai` header OR YAML frontmatter then `@markdownai`) and returns a redirect message that contains the full catalogue of these 10 MCP tools - including arg shapes, return shapes, and a 5-step workflow. The AI never reads raw directive syntax; it's pushed back to the MCP every time.
 
 **SessionStart hook** runs at every Claude Code session start (and on `resume` / `clear` / `compact`). If the project root has a `CLAUDE-MarkdownAI.md` file, the hook renders it via `mai render` and emits a JSON envelope on stdout:
 
@@ -364,6 +390,7 @@ import {
   getEnv,
   executeDirective,
   invalidateCache,
+  availableDirectives,
 } from '@markdownai/mcp'
 
 const rendered = await readFile({ path: './docs/status.md' })

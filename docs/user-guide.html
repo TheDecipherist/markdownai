@@ -269,7 +269,7 @@ mai init</code></pre>
             <div class="stat-label">render formats</div>
           </div>
           <div class="stat-card">
-            <div class="stat-value">9</div>
+            <div class="stat-value">10</div>
             <div class="stat-label">MCP tools</div>
           </div>
         </div>
@@ -277,6 +277,12 @@ mai init</code></pre>
         <div class="callout">
           <p>
             <strong>v1.0 highlights.</strong> Iteration with <code>@foreach</code> and value binding with <code>@set</code>. Filesystem writes (<code>@mkdir</code>, <code>@copy</code>, <code>@append-if-missing</code>, <code>@update-frontmatter</code>, <code>@render-template</code>) behind a security gate. Execution directives <code>@test</code> and <code>@check</code> that inline full runner output. Targeted reads with <code>@read-frontmatter</code> and content hashing via <code>@hash</code>. The <code>@if</code> sandbox grew three new helpers: <code>file.containsLine</code>, <code>file.containsSection</code>, <code>file.frontmatterField</code>. The path jail split into three independent boundaries (source / data / write). A <code>SessionStart</code> hook renders <code>CLAUDE-MarkdownAI.md</code> into every Claude Code session as live context.
+          </p>
+        </div>
+
+        <div class="callout">
+          <p>
+            <strong>v1.2 highlights.</strong> Plugin system for framework authors. Write a <code>*.plugin.md</code> file to register your framework - declare detection signals, directory layout, and conventions in a structured format. <code>@markdownai-detect</code> matches loaded plugins against a project and returns their metadata. <code>@plugin-data</code> returns a named plugin's descriptor directly. The new <code>available_directives</code> MCP tool returns the full directive catalog so AI tools can answer "what can I use here?" without hallucinating.
           </p>
         </div>
 
@@ -1990,7 +1996,7 @@ mai strip ./docs/ --env .env.production -o ./dist/</code></pre>
 mai serve --cwd ~/projects/my-docs
 mai serve --port 3000</code></pre>
 
-        <h3>9 MCP Tools</h3>
+        <h3>10 MCP Tools</h3>
         <table>
           <thead><tr><th>Tool</th><th>Description</th></tr></thead>
           <tbody>
@@ -2003,6 +2009,7 @@ mai serve --port 3000</code></pre>
             <tr><td><code>get_constraints</code></td><td>Return all <code>@constraint</code> blocks sorted by severity</td></tr>
             <tr><td><code>execute_directive</code></td><td>Run a single MarkdownAI directive and return its output</td></tr>
             <tr><td><code>invalidate_cache</code></td><td>Clear cached rendered output for a file or all files</td></tr>
+            <tr><td><code>available_directives</code></td><td>Return the full directive catalog with name, block/inline, and close-tag info. Pass <code>include_plugin_directives=false</code> to exclude plugin-file-only directives.</td></tr>
           </tbody>
         </table>
 
@@ -2044,7 +2051,7 @@ mai init --client cursor</code></pre>
           <li>The hook fires, opens the file, and runs the MarkdownAI-document check.</li>
           <li>If the file is plain markdown, the hook exits 0 and the read proceeds untouched.</li>
           <li>If the file is a MarkdownAI document, the hook exits 2 with a redirect message on stderr. Claude Code surfaces the message to the AI and skips the read.</li>
-          <li>The redirect message catalogues every MarkdownAI MCP tool (<code>list_phases</code>, <code>resolve_phase</code>, <code>next_phase</code>, <code>read_file</code>, <code>execute_directive</code>, <code>call_macro</code>, <code>get_constraints</code>, <code>get_env</code>, <code>invalidate_cache</code>) with arg shapes, return shapes, and "use this when" guidance plus a five-step workflow. The AI has no ambiguity about how to proceed.</li>
+          <li>The redirect message catalogues every MarkdownAI MCP tool (<code>list_phases</code>, <code>resolve_phase</code>, <code>next_phase</code>, <code>read_file</code>, <code>execute_directive</code>, <code>call_macro</code>, <code>get_constraints</code>, <code>get_env</code>, <code>invalidate_cache</code>, <code>available_directives</code>) with arg shapes, return shapes, and "use this when" guidance plus a five-step workflow. The AI has no ambiguity about how to proceed.</li>
         </ol>
 
         <p>
@@ -2654,6 +2661,32 @@ code --install-extension markdownai.markdownai</code></pre>
             <tr><td><code>@chunk-boundary id="name"</code></td><td>Mark a logical chunk boundary for RAG pipelines.</td></tr>
           </tbody>
         </table>
+
+        <h3>Plugin System (v1.2+)</h3>
+        <p>Consumer directives for working with registered framework plugins.</p>
+        <table>
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@markdownai-detect</code></td><td>Detect which loaded plugins match the current project. Returns plugin names and summaries.</td></tr>
+            <tr><td><code>@markdownai-detect as=info</code></td><td>Return full plugin metadata including layout and conventions.</td></tr>
+            <tr><td><code>@markdownai-detect include="layout,conventions"</code></td><td>Filter which sections to include in the output.</td></tr>
+            <tr><td><code>@markdownai-detect project="./path"</code></td><td>Detect against a specific project root instead of the current directory.</td></tr>
+            <tr><td><code>@plugin-data name="mdd"</code></td><td>Return the full descriptor for a named plugin regardless of detection signals.</td></tr>
+            <tr><td><code>@plugin-data name="mdd" include="layout"</code></td><td>Return specific sections of a plugin's descriptor.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Plugin File Directives (v1.2+)</h3>
+        <p>These directives are only valid inside <code>*.plugin.md</code> files. They define the plugin's identity and structure.</p>
+        <table>
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@plugin-meta</code> ... <code>@end</code></td><td>Plugin identity block. Contains <code>name:</code>, <code>version:</code>, <code>description:</code>, and <code>author:</code> fields.</td></tr>
+            <tr><td><code>@plugin-detect</code> ... <code>@end</code></td><td>Detection signals block. Declares <code>required_dirs:</code>, <code>required_files:</code>, <code>required_marker:</code>, and optional <code>version_signal:</code> for project matching.</td></tr>
+            <tr><td><code>@plugin-layout</code> ... <code>@end</code></td><td>Directory layout block. Describes the plugin's expected directory structure as YAML.</td></tr>
+            <tr><td><code>@plugin-conventions</code> ... <code>@end</code></td><td>Conventions block. Documents naming rules, file format expectations, and other usage guidance as YAML.</td></tr>
+          </tbody>
+        </table>
       </section>
 
       <!-- ===== ARCHITECTURE ===== -->
@@ -2670,7 +2703,7 @@ code --install-extension markdownai.markdownai</code></pre>
             <tr><td><code>packages/parser</code></td><td><code>@markdownai/parser</code></td><td>AST production only. Never executes. Pure and inert - safe to run in any environment.</td></tr>
             <tr><td><code>packages/renderer</code></td><td><code>@markdownai/renderer</code></td><td>11 format modules. ASCII output. No external charting libraries, no browser required.</td></tr>
             <tr><td><code>packages/engine</code></td><td><code>@markdownai/engine</code></td><td>Execution, env resolution, pipelines, caching, strip. All security enforcement lives here.</td></tr>
-            <tr><td><code>packages/mcp</code></td><td><code>@markdownai/mcp</code></td><td>MCP server with 9 tools. Phase navigation. Lazy loading.</td></tr>
+            <tr><td><code>packages/mcp</code></td><td><code>@markdownai/mcp</code></td><td>MCP server with 10 tools. Phase navigation. Lazy loading. Plugin introspection.</td></tr>
             <tr><td><code>packages/core</code></td><td><code>@markdownai/core</code></td><td>The <code>mai</code> binary and all CLI commands.</td></tr>
             <tr><td><code>packages/vscode</code></td><td><code>markdownai</code> (VS Code)</td><td>Language detection, syntax highlighting, snippets, completions, hover, diagnostics, live preview.</td></tr>
           </tbody>

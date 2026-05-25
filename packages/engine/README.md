@@ -362,6 +362,8 @@ The engine's execute step dispatches each AST node to a specialized op module. v
 | `read-ops.ts` | `@read-frontmatter`, `@hash` | Targeted reads. `@read-frontmatter` parses YAML and returns a single scalar (lists comma-join). `@hash` supports any Node `crypto.createHash` algorithm + `length=` truncation + `exclude-line=` regex. |
 | `iter-ops.ts` | `@foreach`, `@set` | Iteration and value binding. `@foreach` binds the loop variable into `ctx.envFiles` so nested directives see `{{ var }}` substituted into their args. `@set` binds a literal, directive result, or interpolated string. |
 | `frontmatter-utils.ts` | shared by `@update-frontmatter`, `@read-frontmatter`, `file.frontmatterField` | YAML scalar / list / nested-object manipulation. Supports block-list `[append]` and `[N]` indexing. |
+| `plugin-loader.ts` | - | Scans `<projectRoot>/.markdownai/plugins/`, `~/.markdownai/plugins/`, and `/usr/share/markdownai/plugins/` for `*.plugin.md` files. Validates plugin files (no executable directives allowed). Exposes sync and async APIs. |
+| `plugin-detect-exec.ts` | `@markdownai-detect`, `@plugin-data` | Matches loaded plugins against a project using detection signals (required dirs, files, version fields). Returns formatted plugin metadata. |
 
 ## Caching
 
@@ -501,6 +503,62 @@ interface EngineEvent {
 ```
 
 Built-in transports: `mcp` (synchronous, appears in `result.events`), `log` (stderr), `vscode` (temp file for VS Code extension), `websocket`, `file`, `http`, `db`. All non-`mcp` transports are fire-and-forget via a worker thread.
+
+## Plugin Loader (v1.2+)
+
+The engine includes a plugin loader that scans three paths for `*.plugin.md` files:
+
+1. `<projectRoot>/.markdownai/plugins/`
+2. `~/.markdownai/plugins/`
+3. `/usr/share/markdownai/plugins/`
+
+Plugin files define a framework's identity, detection signals, directory layout, and conventions. The loader validates each file - any plugin containing executable directives (`@query`, `@http`, `@db`, etc.) is rejected with a warning.
+
+```ts
+import { loadPlugins, loadPluginsSync, getPlugin, getPluginSync, detectPlugin, clearPluginCache } from '@markdownai/engine'
+import type { LoadedPlugin, PluginLoadResult } from '@markdownai/engine'
+
+// Async API
+const { plugins, warnings } = await loadPlugins('/path/to/project')
+
+// Sync API (used internally by the engine's synchronous execute())
+const { plugins, warnings } = loadPluginsSync('/path/to/project')
+
+// Get a plugin by name
+const mdd = getPluginSync('mdd', '/path/to/project')
+
+// Test whether a plugin's detection signals match a project
+const isDetected = detectPlugin(mdd, '/path/to/project')
+// checks: required_dirs, required_files, required_marker, version_signal
+
+// Clear the in-process cache (useful in tests)
+clearPluginCache()
+```
+
+`LoadedPlugin` shape:
+
+```ts
+interface LoadedPlugin {
+  name: string
+  version: string
+  description: string
+  author: string
+  detect: {
+    required_dirs?: string[]
+    required_files?: string[]
+    required_marker?: string
+    version_signal?: {
+      file: string
+      field: string
+      minimum?: string   // semver minimum
+      exact?: string
+    }
+  }
+  layout: Record<string, string>
+  conventions: Record<string, unknown>
+  filePath: string
+}
+```
 
 ## Developer Tracing
 

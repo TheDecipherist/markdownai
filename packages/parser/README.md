@@ -118,6 +118,12 @@ The parser produces a flat array of typed nodes. Every node has a `type` field a
 | `AppendIfMissingNode` | `@append-if-missing path text` | Idempotent line append. (v1.0+) |
 | `UpdateFrontmatterNode` | `@update-frontmatter path field value` | YAML field set. Supports `field[append]`, `field[N]`, nested `field[N].sub` addressing parsed into the node. (v1.0+) |
 | `RenderTemplateNode` | `@render-template from to ...` ... `@end` | Block directive. Captures `from`, `to`, optional `force`, and a body of key=value lines that become template parameters. (v1.0+) |
+| `PluginMetaNode` | `@plugin-meta` ... `@end` | Plugin identity block inside `*.plugin.md` files. Captures `name`, `version`, `description`, `author`. (v1.2+) |
+| `PluginDetectNode` | `@plugin-detect` ... `@end` | Detection signals block inside `*.plugin.md` files. Captures `required_dirs`, `required_files`, `required_marker`, `version_signal`. (v1.2+) |
+| `PluginLayoutNode` | `@plugin-layout` ... `@end` | Directory layout descriptor block inside `*.plugin.md` files. (v1.2+) |
+| `PluginConventionsNode` | `@plugin-conventions` ... `@end` | Conventions block inside `*.plugin.md` files. (v1.2+) |
+| `MarkdownaiDetectNode` | `@markdownai-detect` | Detect which loaded plugins match the current project. Captures `format` (`text`/`info`), `include` list, optional `label`, optional `project` root override. (v1.2+) |
+| `PluginDataNode` | `@plugin-data name="..."` | Return a named plugin's full descriptor. Captures `name`, `include` list, optional `label`, optional `project` root override. (v1.2+) |
 
 ### Block structure
 
@@ -196,6 +202,30 @@ import { scanShellInlines } from '@markdownai/parser'
 
 const cmds = scanShellInlines('Branch: !`git branch --show-current`')
 // ["git branch --show-current"]
+```
+
+### `getAvailableDirectives(): DirectiveInfo[]`
+
+Returns the full catalog of registered directives - name, whether it is a block directive, and optional close-tag. Useful for building tooling that needs to enumerate what the parser supports.
+
+```ts
+import { getAvailableDirectives } from '@markdownai/parser'
+import type { DirectiveInfo } from '@markdownai/parser'
+
+const directives = getAvailableDirectives()
+// [{ name: 'append-if-missing', block: false }, { name: 'call', block: false }, ...]
+
+const blockDirectives = directives.filter(d => d.block)
+// directives that need an @end or @endif to close
+```
+
+`DirectiveInfo`:
+```ts
+interface DirectiveInfo {
+  name: string
+  block: boolean
+  closeTag?: string  // e.g. 'endif' for @if, 'endswitch' for @switch
+}
 ```
 
 ## What the parser does NOT do
