@@ -113,6 +113,18 @@ export interface EngineContext {
   tokenUsage: number | null
   callstack: string[]
   traceConfig: TraceConfig | null
+  // The @on complete transition that fired during this execution, set when
+  // the engine walks a transition node inside the currently-active phase
+  // (ctx.phase). Stays null when no phase was scoped or when the active
+  // phase had no transitions in the chosen @if branch. resolve_phase /
+  // next_phase read this to advise Claude which phase to render next,
+  // honoring conditional @if/@switch wrappers around @on complete.
+  chosenTransition: ChosenTransition | null
+}
+
+export interface ChosenTransition {
+  event: 'complete'
+  phaseTarget: string
 }
 
 export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
@@ -148,6 +160,7 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     tokenUsage: null,
     callstack: [],
     traceConfig: null,
+    chosenTransition: null,
   }
   if (!overrides) return base
   const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, events, callstack, ...rest } = overrides

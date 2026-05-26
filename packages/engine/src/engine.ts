@@ -45,6 +45,8 @@ export interface EngineResult {
   errors: string[]
   warnings: string[]
   events: import('./context.js').EngineEvent[]
+  /** The @on complete transition that fired during execution, if any. */
+  chosenTransition: import('./context.js').ChosenTransition | null
 }
 
 function resolveGitMeta(cwd: string): { hash: string; short: string } | null {
@@ -144,7 +146,7 @@ function expandAllowList(raw: string[] | undefined, ctx: EngineContext): string[
 
 export function execute(ast: ParseResult, options?: EngineOptions): EngineResult {
   if (!ast.isMarkdownAI && !options?.passthrough) {
-    return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [], events: [] }
+    return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [], events: [], chosenTransition: null }
   }
   const base = makeContext(options?.ctx)
   if (!base.runId) base.runId = crypto.randomUUID()
@@ -184,7 +186,7 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
   }
   const joined = parts.join('\n').trimStart()
   const output = base.consumer === 'ai' ? injectAiPrefixes(joined, base) : joined
-  return { output, errors, warnings: base.warnings, events: base.events }
+  return { output, errors, warnings: base.warnings, events: base.events, chosenTransition: base.chosenTransition }
 }
 
 // Inject execute + parse into exec-ops for @render-template sub-renders.
@@ -224,7 +226,21 @@ function walkNodes(nodes: ASTNode[], ctx: EngineContext): string[] {
 function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
   switch (node.type) {
     case 'header': return ''
-    case 'transition': return ''
+    case 'transition': {
+      // Walking the transition means it's inside an @if/@switch/@else branch
+      // that the engine actually picked (untaken branches are never walked).
+      // Record the first @on complete -> <phase> we see inside the active
+      // phase so resolve_phase / next_phase can return it as the advised next.
+      if (
+        ctx.phase !== null
+        && node.event === 'complete'
+        && node.action.type === 'phase'
+        && ctx.chosenTransition === null
+      ) {
+        ctx.chosenTransition = { event: 'complete', phaseTarget: node.action.name }
+      }
+      return ''
+    }
     case 'passthrough': return node.raw
     case 'graph': return node.raw
     case 'markdown': return resolveInterpolations(node.text, node.interpolations, ctx, node.shellInlines)

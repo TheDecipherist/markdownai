@@ -1,4 +1,4 @@
-export type { EngineContext, Connection, SecurityConfig, MCPContext, MacroDefinition, EngineEvent, EventMeta } from './context.js'
+export type { EngineContext, Connection, SecurityConfig, MCPContext, MacroDefinition, EngineEvent, EventMeta, ChosenTransition } from './context.js'
 export type { TraceConfig } from './trace/config.js'
 export type { TraceSpan } from './trace/span.js'
 export { defaultSecurityConfig, loadSecurityConfig } from './security/config.js'

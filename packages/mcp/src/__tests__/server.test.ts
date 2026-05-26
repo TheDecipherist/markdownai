@@ -113,7 +113,7 @@ describe('listPhases', () => {
 
 describe('resolvePhase', () => {
   it('returns found=false for missing file', () => {
-    const result = resolvePhase('missing.md', 'setup', '/tmp')
+    const result = resolvePhase({ filePath: 'missing.md', phase: 'setup' }, '/tmp')
     expect(result.found).toBe(false)
   })
 
@@ -121,7 +121,7 @@ describe('resolvePhase', () => {
     setup()
     const content = '@markdownai\n@phase setup\nSetup content.\n@end\n@phase teardown\nTeardown.\n@end'
     writeFileSync(join(TMP, 'doc.md'), content)
-    const result = resolvePhase('doc.md', 'setup', TMP)
+    const result = resolvePhase({ filePath: 'doc.md', phase: 'setup' }, TMP)
     expect(result.found).toBe(true)
     expect(result.content).toContain('Setup content.')
     expect(result.content).not.toContain('Teardown.')
@@ -131,7 +131,7 @@ describe('resolvePhase', () => {
   it('returns found=false for non-existent phase', () => {
     setup()
     writeFileSync(join(TMP, 'doc2.md'), '@markdownai\n@phase setup\nContent.\n@end')
-    const result = resolvePhase('doc2.md', 'nonexistent', TMP)
+    const result = resolvePhase({ filePath: 'doc2.md', phase: 'nonexistent' }, TMP)
     expect(result.found).toBe(false)
     teardown()
   })
@@ -139,7 +139,7 @@ describe('resolvePhase', () => {
 
 describe('nextPhase', () => {
   it('returns null for missing file', () => {
-    const result = nextPhase('missing.md', 'setup', '/tmp')
+    const result = nextPhase({ filePath: 'missing.md', currentPhase: 'setup' }, '/tmp')
     expect(result.found).toBe(false)
     expect(result.phase).toBeNull()
   })
@@ -148,7 +148,7 @@ describe('nextPhase', () => {
     setup()
     const content = '@markdownai\n@phase setup\nContent.\n@on complete -> @phase teardown\n@end\n@phase teardown\nDone.\n@end'
     writeFileSync(join(TMP, 'next.md'), content)
-    const result = nextPhase('next.md', 'setup', TMP)
+    const result = nextPhase({ filePath: 'next.md', currentPhase: 'setup' }, TMP)
     expect(result.found).toBe(true)
     expect(result.phase).toBe('teardown')
     teardown()
@@ -157,7 +157,7 @@ describe('nextPhase', () => {
   it('returns null phase when no transition defined', () => {
     setup()
     writeFileSync(join(TMP, 'last.md'), '@markdownai\n@phase final\nDone.\n@end')
-    const result = nextPhase('last.md', 'final', TMP)
+    const result = nextPhase({ filePath: 'last.md', currentPhase: 'final' }, TMP)
     expect(result.found).toBe(true)
     expect(result.phase).toBeNull()
     teardown()

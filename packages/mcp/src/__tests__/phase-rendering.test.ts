@@ -83,7 +83,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'show-date', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'show-date' }, tmp)
       expect(r.found).toBe(true)
       expect(r.content).toMatch(/Today is 20\d\d-\d\d-\d\d\./)
       expect(r.content).not.toContain('@date')
@@ -103,7 +103,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'count-files', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'count-files' }, tmp)
       expect(r.content).toContain('There are 3 docs.')
       expect(r.content).not.toContain('@count')
     })
@@ -118,7 +118,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'show-status', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'show-status' }, tmp)
       expect(r.content).toContain('Status: complete')
       expect(r.content).not.toContain('@read-frontmatter')
     })
@@ -136,7 +136,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'branch', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'branch' }, tmp)
       expect(r.content).toContain('TRUE_BRANCH')
       expect(r.content).not.toContain('FALSE_BRANCH')
       expect(r.content).not.toContain('@if')
@@ -157,7 +157,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'loop', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'loop' }, tmp)
       expect(r.content).toContain('docs/01.md')
       expect(r.content).toContain('docs/02.md')
       expect(r.content).not.toContain('@foreach')
@@ -173,7 +173,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'set-demo', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'set-demo' }, tmp)
       expect(r.content).toContain('Hello, Alice.')
       expect(r.content).not.toContain('@set')
       expect(r.content).not.toContain('{{ name }}')
@@ -190,7 +190,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'use-macro', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'use-macro' }, tmp)
       expect(r.content).toContain('Hi from the macro.')
       expect(r.content).not.toContain('@call')
       expect(r.content).not.toContain('@define')
@@ -210,7 +210,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'mixed', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'mixed' }, tmp)
       expect(r.content).toContain('Feature foo has 2 source files.')
       expect(r.content).not.toContain('@count')
       expect(r.content).not.toContain('@read-frontmatter')
@@ -234,7 +234,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'two', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'two' }, tmp)
       expect(r.content).toContain('CONTENT_OF_TWO')
       expect(r.content).not.toContain('CONTENT_OF_ONE')
       expect(r.content).not.toContain('CONTENT_OF_THREE')
@@ -242,7 +242,7 @@ describe('MCP phase rendering invariants', () => {
 
     it('found=false for a non-existent phase', () => {
       writeFileSync(join(tmp, 'doc.md'), '@markdownai v1.0\n@phase a\nx\n@end\n', 'utf8')
-      const r = resolvePhase('doc.md', 'nonexistent', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'nonexistent' }, tmp)
       expect(r.found).toBe(false)
     })
   })
@@ -268,7 +268,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'max', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'max' }, tmp)
       const directiveTokens = [
         '@date', '@count', '@set', '@if', '@else', '@elseif', '@endif',
         '@foreach', '@read-frontmatter', '@list',
@@ -294,7 +294,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = nextPhase('doc.md', 'a', tmp)
+      const r = nextPhase({ filePath: 'doc.md', currentPhase: 'a' }, tmp)
       expect(r.found).toBe(true)
       expect(r.phase).toBe('b')
     })
@@ -307,7 +307,7 @@ describe('MCP phase rendering invariants', () => {
         '@end',
       ].join('\n'), 'utf8')
 
-      const r = nextPhase('doc.md', 'a', tmp)
+      const r = nextPhase({ filePath: 'doc.md', currentPhase: 'a' }, tmp)
       expect(r.phase).toBeNull()
     })
   })

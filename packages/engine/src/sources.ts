@@ -65,6 +65,46 @@ export function executeRead(node: ReadNode, ctx: EngineContext): string[] {
   } catch { return [] }
 }
 
+/**
+ * Extract a markdown section by heading substring match. Given an absolute
+ * file path and a needle, finds the first ATX heading whose text contains
+ * the needle (case-insensitive) and returns that heading line plus body
+ * up to the next heading at the same level or higher. Returns '' on miss.
+ *
+ * Used by the `read_section(path, heading_contains)` sandbox builtin so
+ * flows can inline a single section of a wave/feature doc without Claude
+ * touching the raw file. Matches headings #1 through #6.
+ */
+export function readMarkdownSection(absPath: string, headingContains: string): string {
+  const needle = String(headingContains ?? '').trim().toLowerCase()
+  if (!needle) return ''
+  let content: string
+  try { content = readFileSync(absPath, 'utf8') } catch { return '' }
+  const lines = content.split('\n')
+  let startIdx = -1
+  let startLevel = 0
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(#{1,6})\s+(.*)$/.exec(lines[i] ?? '')
+    if (!m) continue
+    const headingText = (m[2] ?? '').trim()
+    if (headingText.toLowerCase().includes(needle)) {
+      startIdx = i
+      startLevel = (m[1] ?? '').length
+      break
+    }
+  }
+  if (startIdx === -1) return ''
+  let endIdx = lines.length
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    const m = /^(#{1,6})\s/.exec(lines[i] ?? '')
+    if (m && (m[1] ?? '').length <= startLevel) {
+      endIdx = i
+      break
+    }
+  }
+  return lines.slice(startIdx, endIdx).join('\n').trim()
+}
+
 export function formatDate(date: Date, fmt: string): string {
   if (fmt === 'ISO') return date.toISOString()
   if (fmt === 'date') return date.toISOString().split('T')[0] ?? ''

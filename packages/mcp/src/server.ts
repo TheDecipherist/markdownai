@@ -109,12 +109,29 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
     case 'resolve_phase': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'phase', value: p['phase'] }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respondTool(id, resolvePhase(String(p['file'] ?? ''), String(p['phase'] ?? ''), cwd)); break
+      const rpArgs: Parameters<typeof resolvePhase>[0] = { filePath: String(p['file'] ?? ''), phase: String(p['phase'] ?? '') }
+      if (p['consumer'] != null) rpArgs.consumer = String(p['consumer'])
+      if (p['skill_args'] != null) rpArgs.skillArgs = String(p['skill_args'])
+      if (p['skill_session_id'] != null) rpArgs.skillSessionId = String(p['skill_session_id'])
+      if (p['skill_effort'] != null) rpArgs.skillEffort = String(p['skill_effort'])
+      if (p['skill_dir'] != null) rpArgs.skillDir = String(p['skill_dir'])
+      if (p['skill_named_args'] != null && typeof p['skill_named_args'] === 'object' && !Array.isArray(p['skill_named_args'])) {
+        rpArgs.skillNamedArgs = Object.fromEntries(Object.entries(p['skill_named_args']).map(([k, v]) => [k, String(v)]))
+      }
+      respondTool(id, resolvePhase(rpArgs, cwd)); break
     }
     case 'next_phase': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'current_phase', value: p['current_phase'] }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respondTool(id, nextPhase(String(p['file'] ?? ''), String(p['current_phase'] ?? ''), cwd)); break
+      const npArgs: Parameters<typeof nextPhase>[0] = { filePath: String(p['file'] ?? ''), currentPhase: String(p['current_phase'] ?? '') }
+      if (p['skill_args'] != null) npArgs.skillArgs = String(p['skill_args'])
+      if (p['skill_session_id'] != null) npArgs.skillSessionId = String(p['skill_session_id'])
+      if (p['skill_effort'] != null) npArgs.skillEffort = String(p['skill_effort'])
+      if (p['skill_dir'] != null) npArgs.skillDir = String(p['skill_dir'])
+      if (p['skill_named_args'] != null && typeof p['skill_named_args'] === 'object' && !Array.isArray(p['skill_named_args'])) {
+        npArgs.skillNamedArgs = Object.fromEntries(Object.entries(p['skill_named_args']).map(([k, v]) => [k, String(v)]))
+      }
+      respondTool(id, nextPhase(npArgs, cwd)); break
     }
     case 'call_macro': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'macro', value: p['macro'] }])
@@ -170,8 +187,8 @@ function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean):
             { name: 'read_file', description: 'Read and render a MarkdownAI document. Returns ai-format (token-efficient) by default. Pass format="standard" to override. When reading a skill/command file, pass skill_args and skill_* fields to enable @if conditions on $ARGUMENTS, $CLAUDE_EFFORT, etc.', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' }, passthrough: { type: 'boolean', description: 'Pass plain markdown files through the engine unchanged instead of returning raw source' }, skill_args: { type: 'string', description: 'Raw $ARGUMENTS string from the Claude Code slash command invocation' }, skill_named_args: { type: 'object', description: 'Named arguments from the skill frontmatter arguments: list', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string', description: '${CLAUDE_SESSION_ID} from Claude Code' }, skill_effort: { type: 'string', description: '${CLAUDE_EFFORT} from Claude Code (low/medium/high/xhigh/max)' }, skill_dir: { type: 'string', description: '${CLAUDE_SKILL_DIR} — directory containing the skill file' } }, required: ['path'] } },
             { name: 'render', description: 'Render a MarkdownAI document. Alias for read_file with the `file` parameter (consistent with list_phases / resolve_phase / call_macro / get_constraints). Returns ai-format by default. Pass format="standard" to override. Used by slash-command flows that need to render an entire flow file in one call.', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' }, passthrough: { type: 'boolean' }, skill_args: { type: 'string' }, skill_named_args: { type: 'object', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string' }, skill_effort: { type: 'string' }, skill_dir: { type: 'string' } }, required: ['file'] } },
             { name: 'list_phases', description: 'List all phases in a MarkdownAI document', inputSchema: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'] } },
-            { name: 'resolve_phase', description: 'Resolve a named phase in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' } }, required: ['file', 'phase'] } },
-            { name: 'next_phase', description: 'Get the next phase after current_phase', inputSchema: { type: 'object', properties: { file: { type: 'string' }, current_phase: { type: 'string' } }, required: ['file', 'current_phase'] } },
+            { name: 'resolve_phase', description: 'Render a named phase. Returns rendered content plus `nextPhase` advising which phase fired in @on complete (honors @if/@switch). Pass skill_args (etc.) so the engine binds $ARGUMENTS / argsList — required when a phase reads positional skill args.', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' }, consumer: { type: 'string' }, skill_args: { type: 'string', description: 'Raw $ARGUMENTS string from the slash command' }, skill_named_args: { type: 'object', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string' }, skill_effort: { type: 'string' }, skill_dir: { type: 'string' } }, required: ['file', 'phase'] } },
+            { name: 'next_phase', description: 'Get the next phase after current_phase. Renders the phase with skill context to honor conditional @on complete inside @if/@switch; falls back to the first static transition when no conditional fires.', inputSchema: { type: 'object', properties: { file: { type: 'string' }, current_phase: { type: 'string' }, skill_args: { type: 'string' }, skill_named_args: { type: 'object', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string' }, skill_effort: { type: 'string' }, skill_dir: { type: 'string' } }, required: ['file', 'current_phase'] } },
             { name: 'call_macro', description: 'Call a named macro in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, macro: { type: 'string' }, args: { type: 'object' } }, required: ['file', 'macro'] } },
             { name: 'get_env', description: 'Get an environment variable value', inputSchema: { type: 'object', properties: { key: { type: 'string' }, fallback: { type: 'string' } }, required: ['key'] } },
             { name: 'execute_directive', description: 'Execute a MarkdownAI directive string', inputSchema: { type: 'object', properties: { directive: { type: 'string' } }, required: ['directive'] } },

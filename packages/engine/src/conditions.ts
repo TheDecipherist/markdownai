@@ -34,6 +34,7 @@ function loadProjectSettings(cwd: string): unknown {
   return undefined
 }
 import { readFrontmatterField } from './frontmatter-utils.js'
+import { readMarkdownSection } from './sources.js'
 
 function makeFileHelpers(
   dataJail: string | null,
@@ -78,6 +79,11 @@ function makeFileHelpers(
         const v = readFrontmatterField(content, field)
         return v ?? ''
       } catch { return '' }
+    },
+    readSection: (p: string, headingContains: string): string => {
+      const abs = confined(p)
+      if (abs === null) return ''
+      return readMarkdownSection(abs, headingContains)
     },
     containsSection: (p: string, heading: string): boolean => {
       const abs = confined(p)
@@ -324,6 +330,14 @@ function buildSandbox(ctx: EngineContext): Record<string, unknown> {
     // JSON serializer.
     to_json: (v: unknown): string => {
       try { return JSON.stringify(v ?? null) } catch { return 'null' }
+    },
+    // Markdown section extractor. Returns the section under the first heading
+    // whose text contains the needle (case-insensitive), up to the next
+    // heading at the same level or higher. Empty string on miss. Lets flows
+    // emit one feature's brief from a multi-section wave doc inline, without
+    // Claude reading the raw file.
+    read_section: (path: unknown, headingContains: unknown): string => {
+      return file.readSection(String(path ?? ''), String(headingContains ?? ''))
     },
   }
 }

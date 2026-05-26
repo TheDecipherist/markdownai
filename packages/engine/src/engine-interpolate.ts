@@ -3,6 +3,7 @@ import { resolve, isAbsolute } from 'node:path'
 import { existsSync, statSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import type { InterpolationSpan, ShellInlineSpan } from '@markdownai/parser'
+import { readMarkdownSection } from './sources.js'
 import { resolveEnv, type EngineContext } from './context.js'
 import { allowed } from './conditions.js'
 import { logEngineError } from './error-log.js'
@@ -132,24 +133,31 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
   const dataJail = ctx.security.dataJail ?? ctx.security.jailRoot ?? ctx.docDir ?? null
   const allowedDataPaths = ctx.security.allowedDataPaths
   const fsConfig = ctx.security.filesystemConfig
+  function confinedPath(p: string): string | null {
+    if (!dataJail) return null
+    const check = checkDataPath(p, dataJail, allowedDataPaths, fsConfig)
+    if (check.level === 'blocked') return null
+    return isAbsolute(p) ? p : resolve(dataJail, p)
+  }
   const fileHelper = {
     exists: (p: string): boolean => {
-      if (!dataJail) return false
-      const check = checkDataPath(p, dataJail, allowedDataPaths, fsConfig)
-      if (check.level === 'blocked') return false
-      return existsSync(isAbsolute(p) ? p : resolve(dataJail, p))
+      const abs = confinedPath(p)
+      return abs !== null && existsSync(abs)
     },
     isFile: (p: string): boolean => {
-      if (!dataJail) return false
-      const check = checkDataPath(p, dataJail, allowedDataPaths, fsConfig)
-      if (check.level === 'blocked') return false
-      try { return statSync(isAbsolute(p) ? p : resolve(dataJail, p)).isFile() } catch { return false }
+      const abs = confinedPath(p)
+      if (abs === null) return false
+      try { return statSync(abs).isFile() } catch { return false }
     },
     isDir: (p: string): boolean => {
-      if (!dataJail) return false
-      const check = checkDataPath(p, dataJail, allowedDataPaths, fsConfig)
-      if (check.level === 'blocked') return false
-      try { return statSync(isAbsolute(p) ? p : resolve(dataJail, p)).isDirectory() } catch { return false }
+      const abs = confinedPath(p)
+      if (abs === null) return false
+      try { return statSync(abs).isDirectory() } catch { return false }
+    },
+    readSection: (p: string, headingContains: string): string => {
+      const abs = confinedPath(p)
+      if (abs === null) return ''
+      return readMarkdownSection(abs, headingContains)
     },
   }
   // Build the sandbox with skill context variables exposed at the top level
@@ -210,6 +218,9 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
     },
     to_json: (v: unknown): string => {
       try { return JSON.stringify(v ?? null) } catch { return 'null' }
+    },
+    read_section: (path: unknown, headingContains: unknown): string => {
+      return fileHelper.readSection(String(path ?? ''), String(headingContains ?? ''))
     },
   }
   try {
