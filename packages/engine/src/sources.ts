@@ -8,6 +8,8 @@ import { checkHttpUrl } from './security/http.js'
 import { checkDataPath } from './security/filesystem.js'
 import { checkDbOperation } from './security/database.js'
 import { checkShellCommand } from './security/shell.js'
+import { expandPattern } from './security/path-expand.js'
+import { interpolatePathSoft } from './engine-include.js'
 import type { HttpSecurityConfig } from './security/config.js'
 import { globToRegex, walkDir, listJson, listCsv, readEnvFile } from './sources-file-utils.js'
 
@@ -260,21 +262,33 @@ export function executeQuery(node: QueryNode, ctx: EngineContext): string[] {
 
   if (!node.command) { ctx.warnings.push('@query: empty command — skipped'); return [] }
 
+  // Resolve {{ expr }} interpolations and ${VAR} expansions in the command
+  // string before checking security + executing. Without this, flows that
+  // use `@query "ls *{{ feature_slug }}*"` would run literal "{{ }}" text
+  // as a shell glob (no match, silent miss). interpolatePathSoft handles
+  // the {{ }}; expandPattern handles ${CWD}/${HOME}/${VAR}.
+  const interpolated = interpolatePathSoft(node.command, ctx)
+  const command = expandPattern(interpolated, {
+    env: { ...ctx.env, ...ctx.envFiles },
+    skillDir: ctx.skillContext?.skillDir ?? '',
+    sessionId: ctx.skillContext?.sessionId ?? '',
+  })
+
   if (ctx.security.shellConfig) {
-    const shellCheck = checkShellCommand(node.command, ctx.security.shellConfig)
+    const shellCheck = checkShellCommand(command, ctx.security.shellConfig)
     if (!shellCheck.allowed) {
       const prefix = shellCheck.tier === 'always_block' ? 'SECURITY_ALERT' : 'WARN'
-      const cmdPreview = node.command.length > 80 ? node.command.slice(0, 77) + '...' : node.command
+      const cmdPreview = command.length > 80 ? command.slice(0, 77) + '...' : command
       ctx.warnings.push(`${prefix}: @query command blocked [${shellCheck.tier}] — ${shellCheck.reason}: \`${cmdPreview}\``)
       return []
     }
   }
 
   try {
-    const out = execSync(node.command, { cwd: ctx.cwd, encoding: 'utf8', timeout: 10_000 })
+    const out = execSync(command, { cwd: ctx.cwd, encoding: 'utf8', timeout: 10_000 })
     return out.split('\n').filter(l => l !== '')
   } catch {
-    ctx.warnings.push(`@query: command failed — "${node.command}"`)
+    ctx.warnings.push(`@query: command failed — "${command}"`)
     return []
   }
 }

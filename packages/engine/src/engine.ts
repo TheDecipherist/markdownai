@@ -5,7 +5,7 @@ import type {
   InterpolationSpan, ShellInlineSpan, RenderNode, PromptNode, SectionNode, ConceptNode, ConstraintNode,
   ChunkBoundaryNode, NoteNode, EventNode,
 } from '@markdownai/parser'
-import { parse as parserParse } from '@markdownai/parser'
+import { parse as parserParse, scanInterpolations } from '@markdownai/parser'
 import { render } from '@markdownai/renderer'
 import type { RenderType, RendererInput } from '@markdownai/renderer'
 import { makeContext, resolveEnv, type EngineContext } from './context.js'
@@ -340,8 +340,12 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
 }
 
 function executePrompt(node: PromptNode, ctx: EngineContext): string {
-  if (ctx.consumer === 'ai') return `[AI INSTRUCTION — ${node.role}]\n${node.body}\n[/AI INSTRUCTION]`
-  const lines = node.body.split('\n').map(l => `> ${l}`).join('\n')
+  // Interpolate {{ }} in the body so dynamic state (feature_slug, paths,
+  // pivot, etc.) is substituted before the instruction reaches Claude.
+  // Without this, @prompt bodies show literal "{{ x }}" — confusing the AI.
+  const body = resolveInterpolations(node.body, scanInterpolations(node.body), ctx, [])
+  if (ctx.consumer === 'ai') return `[AI INSTRUCTION — ${node.role}]\n${body}\n[/AI INSTRUCTION]`
+  const lines = body.split('\n').map(l => `> ${l}`).join('\n')
   return `> **Note (${node.role}):**\n${lines}`
 }
 
@@ -351,7 +355,9 @@ function executeNote(node: NoteNode, ctx: EngineContext): string {
     const effective = ctx.consumer ?? 'human'
     if (node.consumer !== effective) return ''
   }
-  const lines = node.body.split('\n').map((l: string) => `> ${l}`).join('\n')
+  // Same interpolation treatment as @prompt — dynamic state in @note bodies.
+  const body = resolveInterpolations(node.body, scanInterpolations(node.body), ctx, [])
+  const lines = body.split('\n').map((l: string) => `> ${l}`).join('\n')
   return `> **Note:**\n${lines}`
 }
 
