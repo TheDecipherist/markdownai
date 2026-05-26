@@ -6,6 +6,67 @@ import type { InterpolationSpan, ShellInlineSpan } from '@markdownai/parser'
 import { resolveEnv, type EngineContext } from './context.js'
 import { allowed } from './conditions.js'
 import { logEngineError } from './error-log.js'
+import { readFileSync, statSync as fsStatSync } from 'node:fs'
+
+// Project-settings loader (matches conditions.ts; same cache shape).
+const settingsCache = new Map<string, { mtimeMs: number; value: unknown }>()
+function loadProjectSettings(cwd: string): unknown {
+  const candidates = [
+    resolve(cwd, '.mdd', 'settings.json'),
+    resolve(cwd, '.markdownai', 'settings.json'),
+  ]
+  for (const path of candidates) {
+    try {
+      const stat = fsStatSync(path)
+      const cached = settingsCache.get(path)
+      if (cached && cached.mtimeMs === stat.mtimeMs) return cached.value
+      const raw = readFileSync(path, 'utf8')
+      const parsed = JSON.parse(raw) as unknown
+      settingsCache.set(path, { mtimeMs: stat.mtimeMs, value: parsed })
+      return parsed
+    } catch { continue }
+  }
+  return undefined
+}
+
+/**
+ * Expression-level pipe transform (mirrors conditions.ts transformPipes).
+ * Rewrites `X | filter | filter2(arg)` as `filter2(filter(X), arg)`.
+ */
+function transformPipes(expr: string): string {
+  const segments: string[] = []
+  let depth = 0
+  let inStr: string | null = null
+  let start = 0
+  for (let i = 0; i < expr.length; i++) {
+    const c = expr[i]!
+    if (inStr !== null) {
+      if (c === '\\') { i++; continue }
+      if (c === inStr) inStr = null
+      continue
+    }
+    if (c === '"' || c === "'" || c === '`') { inStr = c; continue }
+    if (c === '(' || c === '[' || c === '{') { depth++; continue }
+    if (c === ')' || c === ']' || c === '}') { depth--; continue }
+    if (c === '|' && depth === 0 && expr[i + 1] !== '|' && expr[i - 1] !== '|') {
+      segments.push(expr.slice(start, i))
+      start = i + 1
+    }
+  }
+  segments.push(expr.slice(start))
+  const trimmed = segments.map(s => s.trim()).filter(s => s.length > 0)
+  if (trimmed.length < 2) return expr
+  let acc = trimmed[0]!
+  for (let i = 1; i < trimmed.length; i++) {
+    const filter = trimmed[i]!
+    const m = filter.match(/^([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:\(([\s\S]*)\))?\s*$/)
+    if (!m) return expr
+    const fn = m[1]!
+    const args = m[2]?.trim() ?? ''
+    acc = args ? `${fn}(${acc}, ${args})` : `${fn}(${acc})`
+  }
+  return acc
+}
 import { checkShellCommand } from './security/shell.js'
 import { checkDataPath } from './security/filesystem.js'
 import type { ShellSecurityConfig } from './security/config.js'
@@ -104,9 +165,11 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
   for (const [k, v] of Object.entries(ctx.data ?? {})) {
     if (/^[A-Z_][A-Z0-9_]*$/i.test(k) && !RESERVED.has(k)) safeData[k] = v
   }
+  const settings = loadProjectSettings(ctx.cwd)
   const sandbox: Record<string, unknown> = {
     ...envObj,
     ...safeData,
+    settings,
     env: envObj,
     file: fileHelper,
     ARGUMENTS: skill?.args ?? '',
@@ -150,7 +213,11 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
     },
   }
   try {
-    const result = runInNewContext(trimmed, sandbox, { timeout: 500 })
+    // Pipe-style expression transform: `X | filter | filter2(arg)` →
+    // `filter2(filter(X), arg)`. Lets flows write {{ argsList | to_json }}
+    // and similar without needing parser-level pipe syntax in expressions.
+    const piped = transformPipes(trimmed)
+    const result = runInNewContext(piped, sandbox, { timeout: 500 })
     if (result === undefined || result === null) return ''
     // Render objects/arrays as JSON so {{ structVar }} produces useful
     // output instead of "[object Object]" or "Array(2)".

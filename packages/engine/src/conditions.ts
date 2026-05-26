@@ -4,6 +4,35 @@ import { resolve, isAbsolute } from 'node:path'
 import type { EngineContext } from './context.js'
 import { checkDataPath } from './security/filesystem.js'
 import { logEngineError } from './error-log.js'
+
+/**
+ * Read <cwd>/.mdd/settings.json (or <cwd>/.markdownai/settings.json as a
+ * fallback) and parse as JSON. Cached per (cwd, mtime) to avoid re-reading
+ * on every expression evaluation. Failure is silent — returns undefined,
+ * and `settings.X` references then resolve to ReferenceError (suppressed).
+ */
+const settingsCache = new Map<string, { mtimeMs: number; value: unknown }>()
+
+function loadProjectSettings(cwd: string): unknown {
+  const candidates = [
+    resolve(cwd, '.mdd', 'settings.json'),
+    resolve(cwd, '.markdownai', 'settings.json'),
+  ]
+  for (const path of candidates) {
+    try {
+      const stat = statSync(path)
+      const cached = settingsCache.get(path)
+      if (cached && cached.mtimeMs === stat.mtimeMs) return cached.value
+      const raw = readFileSync(path, 'utf8')
+      const parsed = JSON.parse(raw) as unknown
+      settingsCache.set(path, { mtimeMs: stat.mtimeMs, value: parsed })
+      return parsed
+    } catch {
+      continue
+    }
+  }
+  return undefined
+}
 import { readFrontmatterField } from './frontmatter-utils.js'
 
 function makeFileHelpers(
@@ -121,7 +150,62 @@ export function evalExpression(expr: string, ctx: EngineContext): string {
   return String(result)
 }
 
+/**
+ * Transform expression-level pipe chains into nested function calls.
+ *
+ *   X | filter1 | filter2(arg2)   →   filter2(filter1(X), arg2)
+ *
+ * Splits on top-level `|` (ignores `||`, quoted strings, and `|` inside
+ * brackets/braces/parens). Each segment after the first is treated as a
+ * filter — bare identifier or `fn(args)` form. The piped value is inserted
+ * as the FIRST argument to the filter.
+ *
+ * Returns the original expression unchanged if there are no pipes or if
+ * any segment is malformed (so the existing parser/evaluator handles it).
+ */
+function transformPipes(expr: string): string {
+  const segments: string[] = []
+  let depth = 0
+  let inStr: string | null = null
+  let start = 0
+  for (let i = 0; i < expr.length; i++) {
+    const c = expr[i]!
+    if (inStr !== null) {
+      if (c === '\\') { i++; continue }
+      if (c === inStr) inStr = null
+      continue
+    }
+    if (c === '"' || c === "'" || c === '`') { inStr = c; continue }
+    if (c === '(' || c === '[' || c === '{') { depth++; continue }
+    if (c === ')' || c === ']' || c === '}') { depth--; continue }
+    // Top-level | that isn't part of || (logical OR)
+    if (c === '|' && depth === 0 && expr[i + 1] !== '|' && expr[i - 1] !== '|') {
+      segments.push(expr.slice(start, i))
+      start = i + 1
+    }
+  }
+  segments.push(expr.slice(start))
+  if (segments.length < 2) return expr
+
+  const trimmedSegs = segments.map(s => s.trim()).filter(s => s.length > 0)
+  if (trimmedSegs.length < 2) return expr
+
+  let acc = trimmedSegs[0]!
+  for (let i = 1; i < trimmedSegs.length; i++) {
+    const filter = trimmedSegs[i]!
+    // Match: fn  OR  fn(args)
+    const m = filter.match(/^([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:\(([\s\S]*)\))?\s*$/)
+    if (!m) return expr // bail — return original so callers see the parse failure
+    const fn = m[1]!
+    const args = m[2]?.trim() ?? ''
+    acc = args ? `${fn}(${acc}, ${args})` : `${fn}(${acc})`
+  }
+  return acc
+}
+
 function preprocessExpr(expr: string): string {
+  // Pipe transform runs first so subsequent transforms see the rewritten form.
+  expr = transformPipes(expr)
   // Convert file.exists "./path" → file.exists("./path") (and isFile, isDir)
   let result = expr.replace(/\bfile\.(exists|isFile|isDir)\s+"([^"]*)"/g, 'file.$1("$2")')
                    .replace(/\bfile\.(exists|isFile|isDir)\s+'([^']*)'/g, "file.$1('$2')")
@@ -185,8 +269,15 @@ function buildSandbox(ctx: EngineContext): Record<string, unknown> {
   for (const [k, v] of Object.entries(ctx.data ?? {})) {
     if (SAFE_ENV_KEY.test(k) && !RESERVED_SANDBOX_KEYS.has(k)) safeData[k] = v
   }
+  // Project settings: read .mdd/settings.json (or .markdownai/settings.json
+  // as a fallback) from cwd and expose as `settings`. Lets flows read
+  // {{ settings.telemetry.commandLogging }} etc. without each touching
+  // the filesystem. Failure to read is silent — settings becomes undefined,
+  // and references resolve to ReferenceError (silently caught).
+  const settings = loadProjectSettings(ctx.cwd)
   return {
     ...rootEnv, ...safeData, env: envObj, file, consumer: ctx.consumer ?? '',
+    settings,
     ARGUMENTS, args: ARGUMENTS, argsList,
     arg0: argsList[0] ?? '', arg1: argsList[1] ?? '', arg2: argsList[2] ?? '', arg3: argsList[3] ?? '',
     ...safeNamedArgs,
