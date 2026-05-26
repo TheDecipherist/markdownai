@@ -66,6 +66,53 @@ export function executeRead(node: ReadNode, ctx: EngineContext): string[] {
 }
 
 /**
+ * Parse a wave/feature brief into labeled fields. A brief is a markdown
+ * block whose paragraphs start with a bold label like `**Purpose.**` or
+ * `**Definition of Done.**`. Each label opens a section; the next bold
+ * label closes it.
+ *
+ * Returns a struct keyed by snake_case label name. The label "Definition
+ * of Done" becomes `definition_of_done`. Trailing periods, leading/trailing
+ * whitespace, and the original `**...**` markers are stripped from values.
+ *
+ * Used by Phase 3 of build flows to seed the feature-doc template's intent
+ * fields (purpose, business_rules, definition_of_done) from the wave brief
+ * the engine extracted via read_section — so the first draft is structured
+ * rather than dumping the whole brief into a single field.
+ */
+export function parseFeatureBrief(text: string): Record<string, string> {
+  const result: Record<string, string> = {}
+  const src = String(text ?? '')
+  if (!src) return result
+  // Match `**Label.**` (or `**Label (qualifier).**`) at line start. Capture
+  // the label text inside the bold markers, strip trailing period before
+  // snake_case-ing. Allow any non-bold content between matches.
+  const LABEL_RE = /^\*\*([^*]+?)\*\*\s*/gm
+  type Match = { label: string; start: number; bodyStart: number }
+  const matches: Match[] = []
+  let m: RegExpExecArray | null
+  while ((m = LABEL_RE.exec(src)) !== null) {
+    matches.push({ label: m[1] ?? '', start: m.index, bodyStart: m.index + m[0].length })
+  }
+  if (matches.length === 0) return result
+  for (let i = 0; i < matches.length; i++) {
+    const cur = matches[i]!
+    const next = matches[i + 1]
+    const end = next ? next.start : src.length
+    const rawLabel = cur.label.trim().replace(/\.$/, '')
+    const key = rawLabel
+      .toLowerCase()
+      .replace(/\s*\([^)]*\)\s*$/, '')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '')
+    if (!key) continue
+    const body = src.slice(cur.bodyStart, end).trim()
+    result[key] = body
+  }
+  return result
+}
+
+/**
  * Extract a markdown section by heading substring match. Given an absolute
  * file path and a needle, finds the first ATX heading whose text contains
  * the needle (case-insensitive) and returns that heading line plus body

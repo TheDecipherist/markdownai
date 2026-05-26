@@ -34,7 +34,7 @@ function loadProjectSettings(cwd: string): unknown {
   return undefined
 }
 import { readFrontmatterField } from './frontmatter-utils.js'
-import { readMarkdownSection } from './sources.js'
+import { readMarkdownSection, parseFeatureBrief } from './sources.js'
 
 function makeFileHelpers(
   dataJail: string | null,
@@ -338,6 +338,12 @@ function buildSandbox(ctx: EngineContext): Record<string, unknown> {
     // Claude reading the raw file.
     read_section: (path: unknown, headingContains: unknown): string => {
       return file.readSection(String(path ?? ''), String(headingContains ?? ''))
+    },
+    // Brief parser: splits a `**Label.**`-delimited markdown block into a
+    // struct of { snake_case_label: body_text }. Use to seed feature-doc
+    // template params (purpose, definition_of_done, etc.) from a wave brief.
+    parse_brief: (text: unknown): Record<string, string> => {
+      return parseFeatureBrief(String(text ?? ''))
     },
   }
 }
