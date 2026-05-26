@@ -118,6 +118,18 @@ export function defaultSecurityConfig(): SecurityJsonConfig {
         'echo *',
         'date', 'date *',
         'test *',                         // POSIX file tests
+        // Test runners and build tools — flow files use @test and @check to
+        // run these via the engine's allowlisted shell. The runners are
+        // read-only (they execute the test suite, exit code is the signal)
+        // and standard in any JS/TS project.
+        'npx vitest*', 'npx jest*', 'npx playwright*',
+        'pnpm test*', 'pnpm run test*', 'pnpm vitest*', 'pnpm exec vitest*',
+        'pnpm typecheck*', 'pnpm run typecheck*',
+        'pnpm lint*', 'pnpm run lint*',
+        'pnpm build*', 'pnpm run build*',
+        'pnpm tsc*', 'npx tsc*', 'tsc', 'tsc *',
+        'node --test*',
+        'vitest*',
       ],
       deny_patterns: [],
       allow_network: false,
