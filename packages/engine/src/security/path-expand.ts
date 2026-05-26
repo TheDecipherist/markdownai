@@ -42,6 +42,13 @@ export function expandPattern(pattern: string, ctx: PatternExpandContext): strin
   return expanded.replace(VAR_RE, (_, name: string) => {
     const upper = name.toUpperCase()
     if (upper === 'HOME') return homedir()
+    // ${CWD} resolves to the process working directory. This is essential
+    // for flow files installed at a system location (e.g.
+    // ~/.claude/mdd2/flows/X.md) that need to @include or @read files in
+    // the user's project (e.g. ${CWD}/.mdd/.startup.md). Without it,
+    // relative paths in those flows resolve against the flow file's
+    // directory, which is the wrong tree.
+    if (upper === 'CWD') return process.cwd()
     if (upper === 'CLAUDE_SKILL_DIR' && ctx.skillDir) return ctx.skillDir
     if (upper === 'CLAUDE_SESSION_ID' && ctx.sessionId) return ctx.sessionId
     return ctx.env[name] ?? ctx.env[upper] ?? ''
