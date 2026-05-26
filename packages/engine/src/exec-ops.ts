@@ -167,11 +167,16 @@ function runCommand(
 }
 
 export function executeTest(node: TestNode, ctx: EngineContext): string {
-  const command = node.command ?? detectCommand(ctx, ['test'])
-  if (!command) {
+  const rawCommand = node.command ?? detectCommand(ctx, ['test'])
+  if (!rawCommand) {
     ctx.warnings.push('@test: no command= provided and no scripts.test in package.json')
     return ''
   }
+  // Interpolate {{ }} in the command so e.g. `npx vitest run tests/unit/
+  // {{ feature_slug }}.test.ts` resolves before the shell runs it. Without
+  // this, vitest sees `{{` and `}}` as separate filter terms and matches
+  // nothing.
+  const command = interpolatePathSoft(rawCommand, ctx)
   const r = runCommand(command, ctx, '@test', 'test')
   if (!r) return ''
   const label = node.args['label']
@@ -189,11 +194,12 @@ export function executeTest(node: TestNode, ctx: EngineContext): string {
 }
 
 export function executeCheck(node: CheckNode, ctx: EngineContext): string {
-  const command = node.command ?? detectCommand(ctx, ['typecheck', 'check', 'lint', 'build'])
-  if (!command) {
+  const rawCommand = node.command ?? detectCommand(ctx, ['typecheck', 'check', 'lint', 'build'])
+  if (!rawCommand) {
     ctx.warnings.push('@check: no command= provided and no scripts.typecheck/check/lint/build in package.json')
     return ''
   }
+  const command = interpolatePathSoft(rawCommand, ctx)
   const r = runCommand(command, ctx, '@check', 'check')
   if (!r) return ''
   const label = node.args['label']
