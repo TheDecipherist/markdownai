@@ -10,6 +10,7 @@ import type { MkdirNode, CopyNode, AppendIfMissingNode, UpdateFrontmatterNode } 
 import type { EngineContext } from './context.js'
 import { checkDataPath, checkWritePath } from './security/filesystem.js'
 import { expandPattern } from './security/path-expand.js'
+import { interpolatePathSoft } from './engine-include.js'
 import { extractFrontmatter, fieldRegex } from './frontmatter-utils.js'
 
 function buildExpandContext(ctx: EngineContext) {
@@ -36,7 +37,13 @@ function ensureWriteEnabled(ctx: EngineContext, directive: string): boolean {
 
 function resolveWritePath(rawPath: string, ctx: EngineContext, directive: string): string | null {
   // ${VAR} expansion at use time so users can reference CLAUDE_SKILL_DIR etc.
-  const expanded = expandPattern(rawPath, buildExpandContext(ctx))
+  const varExpanded = expandPattern(rawPath, buildExpandContext(ctx))
+  // {{ expression }} interpolation so paths like
+  //   "${CWD}/.mdd/docs/{{ feature_id }}.md"
+  // resolve both halves. Without this, the engine substitutes ${CWD} but
+  // leaves {{ feature_id }} literal in the path, then complains the file
+  // doesn't exist with the literal {{ }} still visible in the warning.
+  const expanded = interpolatePathSoft(varExpanded, ctx)
   const writeJail = ctx.security.writeJail!
   const abs = isAbsolute(expanded) ? expanded : resolve(writeJail, expanded)
   const check = checkWritePath(abs, writeJail, ctx.security.allowedWritePaths, ctx.security.filesystemConfig)

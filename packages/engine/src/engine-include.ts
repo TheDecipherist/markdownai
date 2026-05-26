@@ -47,6 +47,21 @@ function interpolatePathExpressions(path: string, ctx: EngineContext): string {
   })
 }
 
+/**
+ * Non-fatal variant of interpolatePathExpressions. Used by data/write ops
+ * (@update-frontmatter, @hash, @read, @list, @copy, @mkdir, etc.) which
+ * should warn-and-continue on an empty interpolation rather than throwing
+ * — multi-phase document renders walk every phase, and phases that don't
+ * apply to the current invocation legitimately produce empty path
+ * interpolations. Letting them throw aborts the whole render.
+ */
+export function interpolatePathSoft(path: string, ctx: EngineContext): string {
+  return path.replace(INTERP_RE, (_, expr: string) => {
+    const value = evalExpression(expr.trim(), ctx)
+    return value === 'null' ? '' : value
+  })
+}
+
 export function versionIsNewer(required: string, installed: string): boolean {
   const [rMaj = 0, rMin = 0] = required.split('.').map(Number)
   const [iMaj = 0, iMin = 0] = installed.split('.').map(Number)
