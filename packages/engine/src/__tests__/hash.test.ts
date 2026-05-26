@@ -36,7 +36,7 @@ describe('@hash', () => {
     const expected = createHash('sha256').update(body).digest('hex')
     const result = render(
       `@markdownai v1.0
-@hash path="doc.md" label=h
+@hash path="doc.md" label=h /
 {{ h }}
 `,
     )
@@ -49,7 +49,7 @@ describe('@hash', () => {
     const full = createHash('sha256').update(body).digest('hex')
     const result = render(
       `@markdownai v1.0
-@hash path="doc.md" length=8 label=h
+@hash path="doc.md" length=8 label=h /
 {{ h }}
 `,
     )

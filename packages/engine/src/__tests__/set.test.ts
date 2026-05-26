@@ -32,7 +32,7 @@ describe('@set', () => {
   it('binds a literal string', () => {
     const result = render(
       `@markdownai v1.0
-@set name = "Alice"
+@set name = "Alice" /
 Hello, {{ name }}.
 `,
     )
@@ -42,7 +42,7 @@ Hello, {{ name }}.
   it('binds the output of a directive', () => {
     const result = render(
       `@markdownai v1.0
-@set today = @date format="YYYY-MM-DD"
+@set today = @date format="YYYY-MM-DD" /
 Today is {{ today }}.
 `,
     )
@@ -52,8 +52,8 @@ Today is {{ today }}.
   it('binds an interpolated value', () => {
     const result = render(
       `@markdownai v1.0
-@set greeting = "hello"
-@set message = "{{ greeting }} world"
+@set greeting = "hello" /
+@set message = "{{ greeting }} world" /
 {{ message }}
 `,
     )
@@ -63,9 +63,9 @@ Today is {{ today }}.
   it('overrides a previously set value', () => {
     const result = render(
       `@markdownai v1.0
-@set x = "first"
+@set x = "first" /
 before: {{ x }}
-@set x = "second"
+@set x = "second" /
 after: {{ x }}
 `,
     )
@@ -76,7 +76,7 @@ after: {{ x }}
   it('warns when missing var name', () => {
     const result = render(
       `@markdownai v1.0
-@set = "no name"
+@set = "no name" /
 `,
     )
     expect(result.warnings.join('\n')).toMatch(/missing variable name/i)
@@ -85,7 +85,7 @@ after: {{ x }}
   it('binds a single-quoted literal', () => {
     const result = render(
       `@markdownai v1.0
-@set greeting = 'hi'
+@set greeting = 'hi' /
 > {{ greeting }}
 `,
     )
@@ -96,7 +96,7 @@ after: {{ x }}
     writeFileSync(join(projectDir, 'a.txt'), 'one\ntwo\nthree\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@set lines = @count ./a.txt
+@set lines = @count ./a.txt /
 Lines: {{ lines }}
 `,
     )

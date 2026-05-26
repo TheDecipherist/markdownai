@@ -1,14 +1,12 @@
-import type { ParseModule, ParseContext, ASTNode, PromptNode } from '../types.js'
-import { parseArgs } from '../args.js'
+import type { ParseModule, ParseContext, DirectiveInput, ASTNode, PromptNode } from '../types.js'
 
 const prompt: ParseModule = {
   name: 'prompt',
-  block: true,
-  closeTag: 'end',
-  parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
-    const parsed = parseArgs(args)
-    const role = parsed.named['role'] ?? 'context'
-    const node: PromptNode = { type: 'prompt', line: ctx.line, role, body: '' }
+  parse(input: DirectiveInput, ctx: ParseContext): ASTNode {
+    // Role is the positional (e.g. `@prompt instruction`) or the role= attr.
+    const role = input.positional || input.attrs['role'] || 'context'
+    const body = input.body.join('\n').trim()
+    const node: PromptNode = { type: 'prompt', line: ctx.line, role, body }
     return node
   },
 }

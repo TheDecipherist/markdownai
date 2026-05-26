@@ -1,16 +1,13 @@
-import type { ParseModule, ParseContext, ASTNode, DbNode } from '../types.js'
-import { parseArgs } from '../args.js'
+import type { ParseModule, ParseContext, DirectiveInput, ASTNode, DbNode } from '../types.js'
 
 const db: ParseModule = {
   name: 'db',
-  block: false,
-  parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
-    const parsed = parseArgs(args)
+  parse(input: DirectiveInput, ctx: ParseContext): ASTNode {
     const node: DbNode = {
       type: 'db',
       line: ctx.line,
-      args: parsed.named,
-      cache: parsed.cache,
+      args: { ...input.attrs },
+      cache: null,
     }
     return node
   },

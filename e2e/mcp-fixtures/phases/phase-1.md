@@ -4,12 +4,12 @@
 
 @define greet(name)
 Welcome to the setup phase, **{{name}}**!
-@end
+@define-end
 
 This is the initial setup phase of the project.
 Configure your environment and install all dependencies before proceeding.
 
-@call greet(name=developer)
+@call greet(name=developer) /
 
 Prerequisites:
 - Node.js >= 18

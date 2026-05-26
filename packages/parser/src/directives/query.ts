@@ -1,24 +1,27 @@
-import type { ParseModule, ParseContext, ASTNode, QueryNode } from '../types.js'
-import { parseArgs } from '../args.js'
+import type { ParseModule, ParseContext, DirectiveInput, ASTNode, QueryNode } from '../types.js'
 
 const query: ParseModule = {
   name: 'query',
-  block: false,
-  parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
-    const parsed = parseArgs(args)
-    // Single positional: use as-is (e.g. @query "SELECT * FROM users")
-    // Multiple positionals: rejoin, re-quoting any that contain spaces (e.g. bash -c "echo hi")
-    const command = parsed.positional.length === 1
-      ? (parsed.positional[0] ?? '')
-      : parsed.positional.length > 1
-        ? parsed.positional.map(p => p.includes(' ') ? `"${p}"` : p).join(' ')
-        : parsed.named['command'] ?? ''
+  parse(input: DirectiveInput, ctx: ParseContext): ASTNode {
+    // command can be the positional argument OR the `command=` attr OR — for
+    // multi-token shell commands like `bash -c "echo hi"` — the positional
+    // plus the flags joined back together.
+    let command: string
+    if (input.attrs['command']) {
+      command = input.attrs['command']
+    } else if (input.flags.length > 0) {
+      // Recombine the positional + flag tokens, re-quoting any that contain spaces.
+      const parts = [input.positional, ...input.flags].filter(Boolean)
+      command = parts.map(p => p.includes(' ') ? `"${p}"` : p).join(' ')
+    } else {
+      command = input.positional
+    }
     const node: QueryNode = {
       type: 'query',
       line: ctx.line,
       command,
-      args: parsed.named,
-      cache: parsed.cache,
+      args: { ...input.attrs },
+      cache: null,
     }
     return node
   },

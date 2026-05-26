@@ -10,11 +10,10 @@ describe('getAvailableDirectives (parser export)', () => {
     expect(directives.length).toBeGreaterThan(10)
   })
 
-  it('each entry has name and block fields', () => {
+  it('each entry has name field', () => {
     const directives = getAvailableDirectives()
     for (const d of directives) {
       expect(typeof d.name).toBe('string')
-      expect(typeof d.block).toBe('boolean')
     }
   })
 
@@ -25,32 +24,28 @@ describe('getAvailableDirectives (parser export)', () => {
     expect(names).toEqual(sorted)
   })
 
-  it('includes env directive (non-block)', () => {
+  it('includes env directive', () => {
     const directives = getAvailableDirectives()
     const envDir = directives.find(d => d.name === 'env')
     expect(envDir).toBeDefined()
-    expect(envDir?.block).toBe(false)
   })
 
-  it('includes plugin-detect as a block directive', () => {
+  it('includes plugin-detect', () => {
     const directives = getAvailableDirectives()
     const pd = directives.find(d => d.name === 'plugin-detect')
     expect(pd).toBeDefined()
-    expect(pd?.block).toBe(true)
   })
 
-  it('includes markdownai-detect as non-block', () => {
+  it('includes markdownai-detect', () => {
     const directives = getAvailableDirectives()
     const md = directives.find(d => d.name === 'markdownai-detect')
     expect(md).toBeDefined()
-    expect(md?.block).toBe(false)
   })
 
-  it('includes plugin-data as non-block', () => {
+  it('includes plugin-data', () => {
     const directives = getAvailableDirectives()
     const pd = directives.find(d => d.name === 'plugin-data')
     expect(pd).toBeDefined()
-    expect(pd?.block).toBe(false)
   })
 })
 

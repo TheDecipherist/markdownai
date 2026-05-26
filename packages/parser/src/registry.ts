@@ -45,6 +45,7 @@ import pluginLayout from './directives/plugin-layout.js'
 import pluginConventions from './directives/plugin-conventions.js'
 import markdownaiDetect from './directives/markdownai-detect.js'
 import pluginData from './directives/plugin-data.js'
+import onComplete from './directives/on-complete.js'
 
 const modules: ParseModule[] = [
   header, include, importDir, env, define, call, phase, connect,
@@ -54,7 +55,7 @@ const modules: ParseModule[] = [
   render, ifDir, graph, pipe,
   prompt, section, chunkBoundary, defineConcept, constraint, note, eventDir,
   pluginMeta, pluginDetect, pluginLayout, pluginConventions,
-  markdownaiDetect, pluginData,
+  markdownaiDetect, pluginData, onComplete,
 ]
 
 const registry = new Map<string, ParseModule>(
@@ -67,16 +68,10 @@ export function getModule(name: string): ParseModule | undefined {
 
 export interface DirectiveInfo {
   name: string
-  block: boolean
-  closeTag?: string
 }
 
 export function getAvailableDirectives(): DirectiveInfo[] {
   return [...registry.values()]
-    .map(m => {
-      const info: DirectiveInfo = { name: m.name, block: m.block }
-      if (m.closeTag) info.closeTag = m.closeTag
-      return info
-    })
+    .map(m => ({ name: m.name }))
     .sort((a, b) => a.name.localeCompare(b.name))
 }

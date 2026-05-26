@@ -7,15 +7,15 @@ const STDLIB_SAMPLE = `@markdownai
 <!-- Compact view: M=modified, A=added, D=deleted.                               -->
 <!-- Usage:  @call git-status  →  {{ git_status }}                               -->
 @define git-status
-@query git status --short label=git_status
-@end
+@query git status --short label=git_status /
+@define-end
 
 <!-- git-branch → current_branch                                                  -->
 <!-- Name of the currently checked-out branch.                                   -->
 <!-- Usage:  @call git-branch  →  {{ current_branch }}                           -->
 @define git-branch
-@query git branch --show-current label=current_branch
-@end
+@query git branch --show-current label=current_branch /
+@define-end
 `;
 
 describe('parseStdlibMacros - definition line tracking', () => {

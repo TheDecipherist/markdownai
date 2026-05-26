@@ -38,7 +38,7 @@ describe('file.frontmatterField (@if helper)', () => {
 done
 @else
 not done
-@endif
+@if-end
 `,
     )
     expect(result.output).toContain('done')
@@ -54,7 +54,7 @@ not done
 empty
 @else
 present
-@endif
+@if-end
 `,
     )
     expect(result.output).toContain('empty')
@@ -65,7 +65,7 @@ present
       `@markdownai v1.0
 @if file.frontmatterField("missing.md", "status") == ""
 missing
-@endif
+@if-end
 `,
     )
     expect(result.output).toContain('missing')
@@ -78,7 +78,7 @@ missing
       `@markdownai v1.0
 @if file.frontmatterField("doc.md", "tags").includes("beta")
 has beta
-@endif
+@if-end
 `,
     )
     expect(result.output).toContain('has beta')

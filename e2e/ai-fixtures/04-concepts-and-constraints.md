@@ -8,11 +8,11 @@
 
 @constraint id="no-eval" severity="critical"
 eval() is never used anywhere in the codebase. Use vm.runInNewContext() for all expression evaluation.
-@end
+@constraint-end
 
 @constraint id="no-traversal" severity="critical"
 File paths must never escape the jailRoot. ../ sequences are always blocked by checkFilePath.
-@end
+@constraint-end
 
 ## Document Content
 
