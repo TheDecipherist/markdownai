@@ -47,6 +47,27 @@ function respond(id: string | number | null, result: unknown): void {
   mcpLog({ level: 'info', event: 'response', id: id ?? undefined })
 }
 
+/**
+ * MCP tool-response wrapper. The MCP spec for `tools/call` responses requires
+ * the result to be `{ content: [{ type: "text", text: "..." }], isError?: bool }`
+ * — an ARRAY of typed content blocks, not a bare object. Tool implementations
+ * return their own structured shape (e.g. `{ content: "...", warnings: [...] }`);
+ * this wraps that structured result as a single JSON-encoded text block so
+ * clients (Claude Code, etc.) that validate against the MCP schema can parse it.
+ *
+ * Without this wrapper, clients reject the response with:
+ *   "expected array, received string at content"
+ * because they read the tool's own `content: "..."` field as the MCP envelope's
+ * content (which must be an array).
+ */
+function respondTool(id: string | number | null, toolResult: unknown): void {
+  respond(id, {
+    content: [
+      { type: 'text', text: JSON.stringify(toolResult) },
+    ],
+  })
+}
+
 function respondError(id: string | number | null, code: number, message: string): void {
   const resp: JsonRpcResponse = { jsonrpc: '2.0', id, error: { code, message } }
   process.stdout.write(JSON.stringify(resp) + '\n')
@@ -77,23 +98,23 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
       if (p['skill_named_args'] != null && typeof p['skill_named_args'] === 'object' && !Array.isArray(p['skill_named_args'])) {
         rfArgs.skillNamedArgs = Object.fromEntries(Object.entries(p['skill_named_args']).map(([k, v]) => [k, String(v)]))
       }
-      respond(id, readFile(rfArgs, cwd))
+      respondTool(id, readFile(rfArgs, cwd))
       break
     }
     case 'list_phases': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, listPhases(String(p['file'] ?? ''), cwd)); break
+      respondTool(id, listPhases(String(p['file'] ?? ''), cwd)); break
     }
     case 'resolve_phase': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'phase', value: p['phase'] }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, resolvePhase(String(p['file'] ?? ''), String(p['phase'] ?? ''), cwd)); break
+      respondTool(id, resolvePhase(String(p['file'] ?? ''), String(p['phase'] ?? ''), cwd)); break
     }
     case 'next_phase': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'current_phase', value: p['current_phase'] }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, nextPhase(String(p['file'] ?? ''), String(p['current_phase'] ?? ''), cwd)); break
+      respondTool(id, nextPhase(String(p['file'] ?? ''), String(p['current_phase'] ?? ''), cwd)); break
     }
     case 'call_macro': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'macro', value: p['macro'] }])
@@ -102,28 +123,28 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
       const macroArgs: Record<string, string> = (typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs))
         ? Object.fromEntries(Object.entries(rawArgs).map(([k, v]) => [k, String(v)]))
         : {}
-      respond(id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), macroArgs, cwd))
+      respondTool(id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), macroArgs, cwd))
       break
     }
     case 'get_env': {
       const v = validateMcpInput([{ field: 'key', value: p['key'], isEnvKey: true }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, getEnv(String(p['key'] ?? ''), p['fallback'] != null ? String(p['fallback']) : undefined)); break
+      respondTool(id, getEnv(String(p['key'] ?? ''), p['fallback'] != null ? String(p['fallback']) : undefined)); break
     }
     case 'execute_directive': {
       const v = validateMcpInput([{ field: 'directive', value: p['directive'] }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, executeDirective(String(p['directive'] ?? ''), cwd)); break
+      respondTool(id, executeDirective(String(p['directive'] ?? ''), cwd)); break
     }
-    case 'invalidate_cache': respond(id, invalidateCache(p['directive'] != null ? String(p['directive']) : undefined)); break
+    case 'invalidate_cache': respondTool(id, invalidateCache(p['directive'] != null ? String(p['directive']) : undefined)); break
     case 'get_constraints': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, getConstraints(String(p['file'] ?? ''), cwd)); break
+      respondTool(id, getConstraints(String(p['file'] ?? ''), cwd)); break
     }
     case 'available_directives': {
       const include = p['include_plugin_directives']
-      respond(id, availableDirectives({ include_plugin_directives: include !== false })); break
+      respondTool(id, availableDirectives({ include_plugin_directives: include !== false })); break
     }
     default: respondError(id, -32601, `Unknown tool: "${method}"`)
   }

@@ -173,6 +173,13 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
       return { ...node as ConceptNode, definition: subStr(node.definition, args) }
     case 'constraint':
       return { ...node as ConstraintNode, body: subStr(node.body, args) }
+    case 'event':
+      return {
+        ...node,
+        name: subStr(node.name, args),
+        data: subStr(node.data, args),
+        transports: node.transports.map(s => subStr(s, args)),
+      }
     case 'markdownai-detect':
       return {
         ...node,
