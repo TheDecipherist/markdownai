@@ -14,6 +14,7 @@ import type { ASTNode, ForeachNode, SetNode, InterpolationSpan, ShellInlineSpan 
 import { parse as parserParse, scanInterpolations } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
 import { substituteParams } from './macros.js'
+import { evalExpressionTyped } from './conditions.js'
 
 type WalkFn = (nodes: ASTNode[], ctx: EngineContext) => string[]
 type ResolveInterpFn = (text: string, spans: InterpolationSpan[], ctx: EngineContext, shellInlines?: ShellInlineSpan[]) => string
@@ -102,10 +103,29 @@ export function executeSet(node: SetNode, ctx: EngineContext): string {
     ctx.warnings.push('@set: missing variable name')
     return ''
   }
-  const literal = node.literalExpr ?? ''
+  const literal = (node.literalExpr ?? '').trim()
+  // Fast path: literal is a single `{{ expr }}` with nothing else around it.
+  // Evaluate the expression with type preserved (boolean / number / object
+  // stay typed) and store under ctx.data so @if/@switch downstream see the
+  // real type. Without this, `@set t = {{ false }}` stored "false" as a
+  // string, and `@if {{ t }}` then took the truthy branch (non-empty string).
+  const singleInterp = literal.match(/^\{\{\s*([\s\S]*?)\s*\}\}$/)
+  if (singleInterp) {
+    const typed = evalExpressionTyped(singleInterp[1]!.trim(), ctx)
+    if (typed !== undefined && typed !== null) {
+      ctx.data[node.varName] = typed
+      // Stringified fallback for callers that read via ctx.envFiles
+      // (interpolation in text contexts, legacy code paths).
+      ctx.envFiles[node.varName] = typeof typed === 'object'
+        ? JSON.stringify(typed)
+        : String(typed)
+    } else {
+      ctx.envFiles[node.varName] = ''
+    }
+    return ''
+  }
+  // Mixed text+interpolation or @directive RHS: fall back to string eval.
   let value = evaluateSource(literal, ctx)
-  // Unquote a single-pair surrounding quote so `@set x = "outer"` binds the
-  // bare string `outer`, matching the @set directive's natural ergonomics.
   if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
     value = value.slice(1, -1)
   }

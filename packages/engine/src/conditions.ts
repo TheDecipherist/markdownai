@@ -151,6 +151,16 @@ export function evalExpression(expr: string, ctx: EngineContext): string {
 }
 
 /**
+ * Same as evalExpression but returns the raw typed value (boolean, number,
+ * object, etc.) without stringification. Used by directives like @set that
+ * need to preserve type when binding a value so subsequent @if checks see
+ * the real boolean/number rather than its string form.
+ */
+export function evalExpressionTyped(expr: string, ctx: EngineContext): unknown {
+  return runExpr(expr, ctx)
+}
+
+/**
  * Transform expression-level pipe chains into nested function calls.
  *
  *   X | filter1 | filter2(arg2)   →   filter2(filter1(X), arg2)
