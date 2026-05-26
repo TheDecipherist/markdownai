@@ -5,6 +5,7 @@ import type { PhaseNode } from '@markdownai/parser'
 import { execute, checkFilePath, loadSecurityConfig } from '@markdownai/engine'
 import { validateMcpInput, validateEnvRecord } from '../validate.js'
 import { buildSkillContext, type SkillArgsInput } from '../skill-context.js'
+import { loadSession, saveSession } from '../session-state.js'
 
 export interface ResolvePhaseArgs extends SkillArgsInput {
   filePath: string
@@ -65,14 +66,24 @@ export function resolvePhase(args: ResolvePhaseArgs, cwd: string): ResolvePhaseR
     source_root: 'auto',
     data_root: 'cwd',
   }
+  const skillCtx = buildSkillContext(args)
+  // Cross-call closure: load any @set values bound in earlier resolve_phase
+  // calls for this (session × document) pair. Seeds the engine's ctx so this
+  // phase can read variables defined upstream without re-deriving them.
+  // Scope is per-document: switching to a different .md file gets a fresh
+  // state, matching "one flow = one md walk" semantics.
+  const session = loadSession(skillCtx.sessionId, full)
+  const seedData = session?.data ?? {}
+  const seedEnvFiles = session ? { ...session.envFiles, ...(env ?? {}) } : (env ?? {})
   const result = execute(ast, {
     filePath: full,
     ctx: {
       cwd,
-      envFiles: env ?? {},
+      data: seedData,
+      envFiles: seedEnvFiles,
       phase,
       consumer: consumer ?? 'ai',
-      skillContext: buildSkillContext(args),
+      skillContext: skillCtx,
       security: {
         allowShell: sec.shell.enabled,
         allowHttp: sec.http.enabled,
@@ -83,6 +94,10 @@ export function resolvePhase(args: ResolvePhaseArgs, cwd: string): ResolvePhaseR
       },
     },
   })
+  // Capture the post-execute scope back into the session so the next
+  // resolve_phase call inherits it. No-op when sessionId is empty (e.g.
+  // standalone tool tests with no Claude session).
+  saveSession(skillCtx.sessionId, full, result.data, result.envFiles)
   return {
     content: result.output,
     warnings: result.warnings,

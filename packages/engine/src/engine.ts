@@ -47,6 +47,18 @@ export interface EngineResult {
   events: import('./context.js').EngineEvent[]
   /** The @on complete transition that fired during execution, if any. */
   chosenTransition: import('./context.js').ChosenTransition | null
+  /**
+   * Final ctx.data (struct values from @set with single-{{ }} RHS) at end of
+   * execution. Exposed so the MCP can persist this into a session and
+   * restore it on the next resolve_phase call, giving cross-phase closure
+   * semantics over the MCP boundary.
+   */
+  data: Record<string, unknown>
+  /**
+   * Final ctx.envFiles (string values from @set) at end of execution.
+   * Same session-persistence role as `data`.
+   */
+  envFiles: Record<string, string>
 }
 
 function resolveGitMeta(cwd: string): { hash: string; short: string } | null {
@@ -146,7 +158,7 @@ function expandAllowList(raw: string[] | undefined, ctx: EngineContext): string[
 
 export function execute(ast: ParseResult, options?: EngineOptions): EngineResult {
   if (!ast.isMarkdownAI && !options?.passthrough) {
-    return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [], events: [], chosenTransition: null }
+    return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [], events: [], chosenTransition: null, data: {}, envFiles: {} }
   }
   const base = makeContext(options?.ctx)
   if (!base.runId) base.runId = crypto.randomUUID()
@@ -186,7 +198,7 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
   }
   const joined = parts.join('\n').trimStart()
   const output = base.consumer === 'ai' ? injectAiPrefixes(joined, base) : joined
-  return { output, errors, warnings: base.warnings, events: base.events, chosenTransition: base.chosenTransition }
+  return { output, errors, warnings: base.warnings, events: base.events, chosenTransition: base.chosenTransition, data: base.data, envFiles: base.envFiles }
 }
 
 // Inject execute + parse into exec-ops for @render-template sub-renders.
@@ -268,7 +280,8 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
     case 'http':
     case 'query': {
       const lines = executeSource(node, ctx)
-      const label = 'args' in node && (node as { args: Record<string, string> }).args?.['label']
+      const sourceArgs = 'args' in node ? (node as { args: Record<string, string> }).args : undefined
+      const label = sourceArgs?.['label']
       if (label && typeof label === 'string') {
         // For single-line scalar-shaped directives (count, date), the value
         // is the first (and only) line. For multi-line sources (read, list,
@@ -279,6 +292,12 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
           ? (lines[0]?.trim() ?? '')
           : lines.join('\n').trim()
       }
+      // visible="false" or silent="true" suppresses inline output (useful
+      // when label= captures the data and inline rendering would just dump
+      // a long file listing into the phase output).
+      const visible = sourceArgs?.['visible']
+      const silent = sourceArgs?.['silent']
+      if (visible === 'false' || silent === 'true') return ''
       return lines.join('\n')
     }
     case 'mkdir': return executeMkdir(node, ctx)
@@ -420,7 +439,13 @@ function handlePhase(node: PhaseNode, ctx: EngineContext): string {
   if (ctx.phase !== null && ctx.phase !== node.name) return ''
   ctx.callstack.push(`phase:${node.name}`)
   try {
-    return walkNodes(node.body, ctx).join('\n').trimStart()
+    const out = walkNodes(node.body, ctx).join('\n').trimStart()
+    // Top-level `@on complete -> X` parses into phase.transitions (separate
+    // from body). Walk them after the body so the transition handler in
+    // walkNodeCore records ctx.chosenTransition. Conditional @on complete
+    // inside @if/@else lives in body and is captured naturally there.
+    for (const t of node.transitions) walkNode(t, ctx)
+    return out
   } finally {
     ctx.callstack.pop()
   }

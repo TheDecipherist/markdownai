@@ -5,6 +5,7 @@ import type { PhaseNode } from '@markdownai/parser'
 import { execute, checkFilePath, loadSecurityConfig } from '@markdownai/engine'
 import { validateMcpInput } from '../validate.js'
 import { buildSkillContext, type SkillArgsInput } from '../skill-context.js'
+import { loadSession, saveSession, clearSession } from '../session-state.js'
 
 export interface NextPhaseArgs extends SkillArgsInput {
   filePath: string
@@ -54,14 +55,17 @@ export function nextPhase(args: NextPhaseArgs, cwd: string): NextPhaseResult {
     source_root: 'auto',
     data_root: 'cwd',
   }
+  const skillCtx = buildSkillContext(args)
+  const session = loadSession(skillCtx.sessionId, full)
   const result = execute(ast, {
     filePath: full,
     ctx: {
       cwd,
-      envFiles: {},
+      data: session?.data ?? {},
+      envFiles: session?.envFiles ?? {},
       phase: currentPhase,
       consumer: 'ai',
-      skillContext: buildSkillContext(args),
+      skillContext: skillCtx,
       security: {
         allowShell: sec.shell.enabled,
         allowHttp: sec.http.enabled,
@@ -72,14 +76,22 @@ export function nextPhase(args: NextPhaseArgs, cwd: string): NextPhaseResult {
       },
     },
   })
+  saveSession(skillCtx.sessionId, full, result.data, result.envFiles)
 
+  let next: string | null = null
   if (result.chosenTransition?.phaseTarget) {
-    return { phase: result.chosenTransition.phaseTarget, found: true }
-  }
-  for (const t of phaseNode.transitions) {
-    if (t.event === 'complete' && t.action.type === 'phase') {
-      return { phase: t.action.name, found: true }
+    next = result.chosenTransition.phaseTarget
+  } else {
+    for (const t of phaseNode.transitions) {
+      if (t.event === 'complete' && t.action.type === 'phase') {
+        next = t.action.name
+        break
+      }
     }
   }
-  return { phase: null, found: true }
+  // Flow terminated → release the session so a re-run of the same flow
+  // (or a different one in the same Claude session) starts with a clean
+  // scope. Per the spec: scope lives for the duration of one flow.
+  if (next === null && skillCtx.sessionId) clearSession(skillCtx.sessionId, full)
+  return { phase: next, found: true }
 }
