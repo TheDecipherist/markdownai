@@ -142,13 +142,31 @@ function buildAccumulator(op: AggregateOp): Record<string, unknown> {
   }
 }
 
+// Preserve the document's tree shape (arrays + nested objects) so consumers
+// can dot-access nested fields and iterate arrays via @foreach. ObjectIds
+// and Dates are normalized to strings recursively.
+function normalizeValue(val: unknown): import('../query.js').RowValue {
+  if (val === null || val === undefined) return null
+  if (val instanceof ObjectId) return val.toString()
+  if (val instanceof Date) return val.toISOString()
+  if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return val
+  if (Array.isArray(val)) return val.map(v => normalizeValue(v))
+  if (typeof val === 'object') {
+    const out: Record<string, import('../query.js').RowValue> = {}
+    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+      const nv = normalizeValue(v)
+      if (nv !== undefined) out[k] = nv
+    }
+    return out
+  }
+  return String(val)
+}
+
 function normalizeRow(doc: Record<string, unknown>): Row {
   const row: Row = {}
   for (const [key, val] of Object.entries(doc)) {
-    if (val instanceof ObjectId) row[key] = val.toString()
-    else if (val instanceof Date) row[key] = val.toISOString()
-    else if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean' || val === null) row[key] = val
-    else if (val !== undefined) row[key] = String(val)
+    if (val === undefined) continue
+    row[key] = normalizeValue(val)
   }
   return row
 }

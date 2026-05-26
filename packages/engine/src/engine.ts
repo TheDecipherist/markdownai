@@ -291,6 +291,22 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
         ctx.envFiles[label] = scalarShaped
           ? (lines[0]?.trim() ?? '')
           : lines.join('\n').trim()
+
+        // @db struct capture: when as=row / as=json, the engine's sync
+        // worker stashed the parsed rows on the node via __dbRows. Lift
+        // them into ctx.data so `{{ feature.sourceFiles }}` dot-access
+        // works (rather than just `{{ feature }}` printing a JSON blob).
+        // - as=row → first row as an object (single-doc lookup)
+        // - as=json → full array of rows
+        // For other `as=` shapes, the existing string-join path is fine.
+        if (node.type === 'db') {
+          const asShape = sourceArgs?.['as']
+          const dbRows = (node as { __dbRows?: unknown[] }).__dbRows
+          if (Array.isArray(dbRows)) {
+            if (asShape === 'row') ctx.data[label] = dbRows[0] ?? null
+            else if (asShape === 'json') ctx.data[label] = dbRows
+          }
+        }
       }
       // visible="false" or silent="true" suppresses inline output (useful
       // when label= captures the data and inline rendering would just dump
@@ -481,12 +497,47 @@ function handleSwitch(node: SwitchNode, ctx: EngineContext): string {
 
 function executePipe(node: PipeNode, ctx: EngineContext): string {
   let lines: string[] = []
+  // Source-stage args that affect labeling/visibility need to be honored
+  // even though the parser auto-wraps `@db ... as=row label=x visible=false`
+  // into a pipe — the label binding and visibility suppression apply to the
+  // SOURCE, not the rendered sink output. The parser moves `as=` from the
+  // source onto the sink, so we read the render type from the sink.
+  const sinkStage = node.stages.find(s => s.type === 'sink') as { type: 'sink'; node: { args: Record<string, string> } } | undefined
+  const sinkRenderType = sinkStage?.node.args['type']
+  let sourceArgs: Record<string, string> | undefined
+  let sourceNode: ASTNode | null = null
   for (const stage of node.stages) {
     switch (stage.type) {
-      case 'source': lines = executeSource(stage.node, ctx); break
+      case 'source': {
+        sourceNode = stage.node
+        if ('args' in stage.node) sourceArgs = (stage.node as { args: Record<string, string> }).args
+        lines = executeSource(stage.node, ctx)
+        // Label-capture mirrors walkNodeCore for bare source directives:
+        //   - default: ctx.envFiles[label] = joined string
+        //   - @db with as=row (sink type=row): ctx.data[label] = first row as object
+        //   - @db with as=json (sink type=json): ctx.data[label] = full row array
+        const label = sourceArgs?.['label']
+        if (label && typeof label === 'string') {
+          ctx.envFiles[label] = lines.join('\n').trim()
+          if (sourceNode.type === 'db') {
+            const dbRows = (sourceNode as { __dbRows?: unknown[] }).__dbRows
+            if (Array.isArray(dbRows)) {
+              if (sinkRenderType === 'row') ctx.data[label] = dbRows[0] ?? null
+              else if (sinkRenderType === 'json') ctx.data[label] = dbRows
+            }
+          }
+        }
+        break
+      }
       case 'builtin': lines = runBuiltin(stage.command, lines); break
       case 'shell': lines = runShell(stage.command, lines, ctx); break
       case 'sink': {
+        // visible=false / silent=true on the SOURCE suppresses the sink's
+        // rendered output — caller wants the data captured into a label,
+        // not dumped inline.
+        const visible = sourceArgs?.['visible']
+        const silent = sourceArgs?.['silent']
+        if (visible === 'false' || silent === 'true') return ''
         const { type: t, columns: cols, ...rest } = stage.node.args
         const input: RendererInput = { type: (t ?? 'list') as RenderType, data: lines }
         if (cols) input.columns = cols.split(',').map((c: string) => c.trim())

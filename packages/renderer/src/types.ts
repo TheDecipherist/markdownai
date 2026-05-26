@@ -10,6 +10,7 @@ export type RenderType =
   | 'tree'
   | 'timeline'
   | 'json'
+  | 'row'
 
 export interface RendererInput {
   type: RenderType

@@ -10,9 +10,10 @@ import flow from './formats/flow.js'
 import tree from './formats/tree.js'
 import timeline from './formats/timeline.js'
 import json from './formats/json.js'
+import row from './formats/row.js'
 
 const modules: FormatModule[] = [
-  list, numbered, links, table, code, inline, bar, flow, tree, timeline, json,
+  list, numbered, links, table, code, inline, bar, flow, tree, timeline, json, row,
 ]
 
 const registry = new Map<RenderType, FormatModule>(

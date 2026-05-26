@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { resolve, join, isAbsolute } from 'node:path'
-import { execSync } from 'node:child_process'
+import { resolve, join, isAbsolute, dirname } from 'node:path'
+import { execSync, spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import type { ListNode, ReadNode, CountNode, DateNode, TreeNode, DbNode, HttpNode, QueryNode } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
 import { parseQuery, DbParseError } from './db/query.js'
@@ -305,14 +306,69 @@ export function executeDb(node: DbNode, ctx: EngineContext): string[] {
     }
   }
 
-  // Async DB execution is not available in the synchronous render path — use @cache mock= for development
   if (parsed.kind === 'raw') {
-    ctx.warnings.push('@db: raw query requires async execution — use @cache mock= for development or call via MCP')
+    ctx.warnings.push('@db: raw query is read-only and not supported via the sync worker yet — use a structured `find=`/`one=`/`count=` query instead')
     return []
   }
 
-  ctx.warnings.push('@db: database query requires async execution — use @cache mock= for development or call via MCP')
-  return []
+  // Resolve the URI. Connection args take precedence over inline uri=. The
+  // `env.VARNAME` form reads from process.env; literal strings pass through.
+  const rawUri = (connection?.args['uri'] ?? uriArg ?? '').trim()
+  if (!rawUri) {
+    ctx.warnings.push('@db: connection has no uri= configured')
+    return []
+  }
+  const uri = rawUri.startsWith('env.') ? (process.env[rawUri.slice(4)] ?? '') : rawUri
+  if (!uri) {
+    ctx.warnings.push(`@db: environment variable "${rawUri.slice(4)}" is empty or unset`)
+    return []
+  }
+
+  const connType = connection?.type ?? 'mongodb'
+  if (connType !== 'mongodb') {
+    ctx.warnings.push(`@db: only mongodb is wired today (got "${connType}") — other adapters require finishing the sync worker`)
+    return []
+  }
+
+  // Spawn the sync worker. The worker reads JSON from stdin, executes the
+  // plan against MongoDB, and writes a JSON result envelope to stdout.
+  const workerPath = join(dirname(fileURLToPath(import.meta.url)), 'db', 'sync-worker.js')
+  const payload = JSON.stringify({ type: connType, uri, plan: parsed.plan, timeoutMs: 5000 })
+  const result = spawnSync(process.execPath, [workerPath], {
+    input: payload,
+    encoding: 'utf8',
+    timeout: 10_000,  // outer timeout: worker's own 5s + slack for spawn + connect
+  })
+  if (result.status !== 0) {
+    const stderr = (result.stderr ?? '').trim()
+    const stdout = (result.stdout ?? '').trim()
+    let workerMsg = ''
+    try {
+      const parsed = JSON.parse(stdout) as { ok?: boolean; error?: string }
+      if (parsed.error) workerMsg = parsed.error
+    } catch { /* stdout not JSON; fall back to stderr */ }
+    ctx.warnings.push(`@db: worker failed (exit ${result.status}) — ${workerMsg || stderr || 'no diagnostic output'}`)
+    return []
+  }
+  let envelope: { ok: boolean; rows?: unknown[]; error?: string }
+  try {
+    envelope = JSON.parse((result.stdout ?? '').trim())
+  } catch (err) {
+    ctx.warnings.push(`@db: worker output not parseable as JSON — ${String(err)}`)
+    return []
+  }
+  if (!envelope.ok) {
+    ctx.warnings.push(`@db: worker error — ${envelope.error ?? 'unknown'}`)
+    return []
+  }
+  const rows = Array.isArray(envelope.rows) ? envelope.rows : []
+  // Stash the parsed rows on the node for the engine's label-capture path to
+  // pick up (so as=row / as=json land as real objects in ctx.data, not just
+  // JSON strings in ctx.envFiles). The engine reads node.__dbRows after
+  // executeSource returns to do struct-capture.
+  ;(node as DbNode & { __dbRows?: unknown[] }).__dbRows = rows
+  // Return one line per row's JSON for the existing line-based label/path.
+  return rows.map(r => JSON.stringify(r))
 }
 
 // Permissive fallback used when no httpConfig is loaded — only immutable rules apply
