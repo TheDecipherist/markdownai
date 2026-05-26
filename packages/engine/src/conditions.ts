@@ -3,6 +3,7 @@ import { existsSync, statSync, readFileSync } from 'node:fs'
 import { resolve, isAbsolute } from 'node:path'
 import type { EngineContext } from './context.js'
 import { checkDataPath } from './security/filesystem.js'
+import { logEngineError } from './error-log.js'
 import { readFrontmatterField } from './frontmatter-utils.js'
 
 function makeFileHelpers(
@@ -191,6 +192,38 @@ function buildSandbox(ctx: EngineContext): Record<string, unknown> {
     ...safeNamedArgs,
     CLAUDE_SESSION_ID: skill?.sessionId ?? '', CLAUDE_EFFORT: skill?.effort ?? '', CLAUDE_SKILL_DIR: skill?.skillDir ?? '',
     allowed,
+    // Time + identity builtins. Mirrored in engine-interpolate.ts so {{ }}
+    // in markdown body and @if conditions see the same surface.
+    now_iso: () => new Date().toISOString(),
+    now_ms: () => Date.now(),
+    parse_iso_ms: (s: unknown) => {
+      const t = new Date(String(s ?? '')).getTime()
+      return Number.isNaN(t) ? 0 : t
+    },
+    uuid_v4: () => {
+      // Prefer crypto.randomUUID when available (Node ≥ 14.17 / ≥ 16).
+      // Falls back to a Math.random-based RFC4122-shaped value otherwise.
+      const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+      if (c?.randomUUID) return c.randomUUID()
+      const hex = (n: number) => Math.floor(Math.random() * 16).toString(16)
+      let out = ''
+      for (let i = 0; i < 32; i++) {
+        if (i === 8 || i === 12 || i === 16 || i === 20) out += '-'
+        out += hex(i)
+      }
+      return out
+    },
+    // Pipe-style helpers callable as functions: truncate("text", 500).
+    truncate: (s: unknown, n: unknown): string => {
+      const text = String(s ?? '')
+      const limit = Number(n)
+      if (Number.isNaN(limit) || limit <= 0 || text.length <= limit) return text
+      return text.slice(0, limit) + '…'
+    },
+    // JSON serializer.
+    to_json: (v: unknown): string => {
+      try { return JSON.stringify(v ?? null) } catch { return 'null' }
+    },
   }
 }
 
@@ -198,8 +231,29 @@ function runExpr(expr: string, ctx: EngineContext): unknown {
   try {
     return runInNewContext(preprocessExpr(expr), buildSandbox(ctx), { timeout: 500 })
   } catch (err) {
-    if ((err as Error)?.name === 'ReferenceError') return undefined
+    const e = err as Error
+    if (e?.name === 'ReferenceError') {
+      logEngineError({
+        source: 'runExpr',
+        decision: 'suppressed',
+        expression: expr.trim(),
+        document: ctx.docDir,
+        phase: ctx.phase ?? undefined,
+        error_name: e.name,
+        error_message: e.message,
+      })
+      return undefined
+    }
     ctx.warnings.push(`Unresolvable expression: ${expr.trim()}`)
+    logEngineError({
+      source: 'runExpr',
+      decision: 'warned',
+      expression: expr.trim(),
+      document: ctx.docDir,
+      phase: ctx.phase ?? undefined,
+      error_name: e?.name ?? 'Error',
+      error_message: e?.message ?? String(err),
+    })
     return undefined
   }
 }

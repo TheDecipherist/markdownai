@@ -5,6 +5,7 @@ import { runInNewContext } from 'node:vm'
 import type { InterpolationSpan, ShellInlineSpan } from '@markdownai/parser'
 import { resolveEnv, type EngineContext } from './context.js'
 import { allowed } from './conditions.js'
+import { logEngineError } from './error-log.js'
 import { checkShellCommand } from './security/shell.js'
 import { checkDataPath } from './security/filesystem.js'
 import type { ShellSecurityConfig } from './security/config.js'
@@ -119,6 +120,34 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
     CLAUDE_EFFORT: skill?.effort ?? '',
     CLAUDE_SKILL_DIR: skill?.skillDir ?? '',
     allowed,
+    // Mirrors conditions.ts buildSandbox builtins so {{ }} in markdown body
+    // and @if conditions resolve the same surface.
+    now_iso: () => new Date().toISOString(),
+    now_ms: () => Date.now(),
+    parse_iso_ms: (s: unknown) => {
+      const t = new Date(String(s ?? '')).getTime()
+      return Number.isNaN(t) ? 0 : t
+    },
+    uuid_v4: () => {
+      const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto
+      if (c?.randomUUID) return c.randomUUID()
+      const hex = () => Math.floor(Math.random() * 16).toString(16)
+      let out = ''
+      for (let i = 0; i < 32; i++) {
+        if (i === 8 || i === 12 || i === 16 || i === 20) out += '-'
+        out += hex()
+      }
+      return out
+    },
+    truncate: (s: unknown, n: unknown): string => {
+      const text = String(s ?? '')
+      const limit = Number(n)
+      if (Number.isNaN(limit) || limit <= 0 || text.length <= limit) return text
+      return text.slice(0, limit) + '…'
+    },
+    to_json: (v: unknown): string => {
+      try { return JSON.stringify(v ?? null) } catch { return 'null' }
+    },
   }
   try {
     const result = runInNewContext(trimmed, sandbox, { timeout: 500 })
@@ -127,8 +156,39 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
     // output instead of "[object Object]" or "Array(2)".
     if (typeof result === 'object') return JSON.stringify(result, null, 2)
     return String(result)
-  } catch {
+  } catch (err) {
+    const e = err as Error
+    // Match conditions.ts runExpr behavior: ReferenceError (undefined
+    // variable) is silent in the warnings array — multi-phase document
+    // renders walk every phase, and phases that don't apply legitimately
+    // reference variables that other phases would have set. Emitting a
+    // warning per reference floods the output with noise that's already
+    // implied by the missing content.
+    //
+    // Every error (suppressed or warned) is logged to
+    // ~/.markdownai/logs/markdownai-error.log for audit/debugging.
+    if (e?.name === 'ReferenceError') {
+      logEngineError({
+        source: 'evalExpr',
+        decision: 'suppressed',
+        expression: trimmed,
+        document: ctx.docDir,
+        phase: ctx.phase ?? undefined,
+        error_name: e.name,
+        error_message: e.message,
+      })
+      return ''
+    }
     ctx.warnings.push(`Unresolvable expression: ${trimmed}`)
+    logEngineError({
+      source: 'evalExpr',
+      decision: 'warned',
+      expression: trimmed,
+      document: ctx.docDir,
+      phase: ctx.phase ?? undefined,
+      error_name: e?.name ?? 'Error',
+      error_message: e?.message ?? String(err),
+    })
     return ''
   }
 }
