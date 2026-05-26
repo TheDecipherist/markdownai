@@ -463,6 +463,32 @@ function executeSource(node: ASTNode, ctx: EngineContext): string[] {
     case 'db': return executeDb(node, ctx)
     case 'http': return executeHttp(node, ctx)
     case 'query': return executeQuery(node, ctx)
+    case 'call': {
+      // @call as a pipe source: invoke the macro and treat its rendered
+      // output as the pipe input. Macros that return multi-line text
+      // become a line-array; single-line scalars become a single-element
+      // array. Empty output yields an empty array (no rows).
+      const out = handleCall(node as CallNode, ctx)
+      if (out === '') return []
+      return out.split('\n')
+    }
+    case 'read-frontmatter': {
+      // Field read returns a scalar; emit as a single line.
+      const out = executeReadFrontmatter(node as import('@markdownai/parser').ReadFrontmatterNode, ctx)
+      return out === '' ? [] : out.split('\n')
+    }
+    case 'hash': {
+      const out = executeHash(node as import('@markdownai/parser').HashNode, ctx)
+      return out === '' ? [] : [out]
+    }
+    case 'markdownai-detect': {
+      const out = executeMarkdownaiDetect(node as import('@markdownai/parser').MarkdownaiDetectNode, ctx)
+      return out === '' ? [] : out.split('\n')
+    }
+    case 'plugin-data': {
+      const out = executePluginData(node as import('@markdownai/parser').PluginDataNode, ctx)
+      return out === '' ? [] : out.split('\n')
+    }
     default: throw new Error(`"@${node.type}" cannot be used as a pipe source`)
   }
 }

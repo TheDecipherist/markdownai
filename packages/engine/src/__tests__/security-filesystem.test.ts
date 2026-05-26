@@ -5,8 +5,19 @@ import { checkFilePath } from '../security/filesystem.js'
 import { matchGlob } from '../security/rules.js'
 
 describe('defaultSecurityConfig', () => {
-  it('is jail-first: shell disabled by default', () => {
-    expect(defaultSecurityConfig().shell.enabled).toBe(false)
+  it('ships a curated allowlist of safe read-only shell commands', () => {
+    // Updated 2026-05-25: shell defaults shifted from "disabled" to
+    // "enabled with curated read-only allowlist" so common flow operations
+    // (git introspection, cat, hostname, etc.) work out of the box. The
+    // immutable always-block list still applies to destructive commands.
+    const cfg = defaultSecurityConfig()
+    expect(cfg.shell.enabled).toBe(true)
+    expect(cfg.shell.allow_patterns).toContain('git *')
+    expect(cfg.shell.allow_patterns).toContain('cat *')
+    expect(cfg.shell.allow_patterns).toContain('hostname')
+    // Destructive commands stay out of the default allowlist.
+    expect(cfg.shell.allow_patterns).not.toContain('rm *')
+    expect(cfg.shell.allow_patterns).not.toContain('mv *')
   })
 
   it('is jail-first: http disabled by default', () => {
@@ -20,23 +31,19 @@ describe('defaultSecurityConfig', () => {
   it('db config is empty by default', () => {
     expect(defaultSecurityConfig().db).toEqual({})
   })
-
-  it('shell has no allow patterns by default', () => {
-    expect(defaultSecurityConfig().shell.allow_patterns).toEqual([])
-  })
 })
 
 describe('loadSecurityConfig', () => {
-  it('returns defaults when file does not exist', () => {
+  it('returns defaults when file does not exist (shell enabled with curated allowlist)', () => {
     const cfg = loadSecurityConfig('/nonexistent/path/security.json')
-    expect(cfg.shell.enabled).toBe(false)
+    expect(cfg.shell.enabled).toBe(true)
+    expect(cfg.shell.allow_patterns).toContain('git *')
     expect(cfg.http.enabled).toBe(false)
   })
 
   it('returns defaults on invalid JSON', () => {
-    // write a temp invalid file — just use a path that doesn't exist
     const cfg = loadSecurityConfig('/tmp/not-real-markdownai-security.json')
-    expect(cfg.shell.enabled).toBe(false)
+    expect(cfg.shell.enabled).toBe(true)
   })
 })
 

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -165,18 +165,26 @@ describe('REDIRECT_MESSAGE', () => {
  */
 describe('PreToolUse hook (end-to-end via spawn)', () => {
   let projectDir: string
+  let systemDir: string                  // path that mimics a system root (~/.claude/mdd2/...)
   let hookPath: string
 
   beforeEach(() => {
     projectDir = mkdtempSync(join(tmpdir(), 'mai-hook-proj-'))
     hookPath = join(projectDir, 'hook.mjs')
-    // Write the bundled hook source directly to a temp file. No reliance on
-    // ~/.markdownai - tests are fully isolated.
+    // The hook scopes its block to SYSTEM-installed paths (under ~/.claude/mdd2,
+    // ~/.markdownai, etc.). Create a fake system-shaped subdirectory inside HOME
+    // so the hook's SYSTEM_ROOTS check matches; tests then write a file there
+    // and expect it to be blocked. The path is unique per test run; we clean
+    // it up in afterEach so the user's real ~/.claude/mdd2 is not polluted.
+    systemDir = join(process.env['HOME'] ?? tmpdir(), '.claude', 'mdd2', `__hook_test_${process.pid}_${Date.now()}`)
+    rmSync(systemDir, { recursive: true, force: true })
     writeFileSync(hookPath, HOOK_SCRIPT, 'utf8')
+    mkdirSync(systemDir, { recursive: true })
   })
 
   afterEach(() => {
     try { rmSync(projectDir, { recursive: true, force: true }) } catch { /* ignore */ }
+    try { rmSync(systemDir, { recursive: true, force: true }) } catch { /* ignore */ }
   })
 
   function runHookWith(stdinJson: object): { code: number; stderr: string; stdout: string } {
@@ -191,8 +199,11 @@ describe('PreToolUse hook (end-to-end via spawn)', () => {
     }
   }
 
-  it('blocks Read on a bare-@markdownai file with exit 2 and the redirect message', () => {
-    const docPath = join(projectDir, 'doc.md')
+  it('blocks Read on a bare-@markdownai file in a system path with exit 2 and the redirect message', () => {
+    // Updated 2026-05-25: the hook only blocks .md files in SYSTEM-installed
+    // paths (~/.claude/mdd2, ~/.markdownai, etc.). Project source files
+    // remain readable so authors (and Claude) can edit them.
+    const docPath = join(systemDir, 'doc.md')
     writeFileSync(docPath, '@markdownai v1.0\n\n# Hello\n', 'utf8')
     const out = runHookWith({
       tool_name: 'Read',
@@ -203,8 +214,8 @@ describe('PreToolUse hook (end-to-end via spawn)', () => {
     expect(out.stderr).toContain('PRIMARY TOOL')
   })
 
-  it('blocks Read on a file with YAML frontmatter then @markdownai', () => {
-    const docPath = join(projectDir, 'mdd.md')
+  it('blocks Read on a YAML-frontmatter @markdownai file in a system path', () => {
+    const docPath = join(systemDir, 'mdd.md')
     writeFileSync(docPath, [
       '---',
       'description: "MDD"',
@@ -221,6 +232,18 @@ describe('PreToolUse hook (end-to-end via spawn)', () => {
     })
     expect(out.code).toBe(2)
     expect(out.stderr).toContain('mcp__markdownai__resolve_phase')
+  })
+
+  it('allows Read on @markdownai files in a PROJECT (non-system) path', () => {
+    // Project source files where the user is authoring — Claude needs raw
+    // source to help edit them, so the hook lets these through.
+    const docPath = join(projectDir, 'doc.md')
+    writeFileSync(docPath, '@markdownai v1.0\n\n# Hello\n', 'utf8')
+    const out = runHookWith({
+      tool_name: 'Read',
+      tool_input: { file_path: docPath },
+    })
+    expect(out.code).toBe(0)
   })
 
   it('allows Read on a plain Markdown file (no @markdownai header)', () => {
@@ -267,8 +290,8 @@ describe('PreToolUse hook (end-to-end via spawn)', () => {
     expect(out.code).toBe(0)
   })
 
-  it('handles read_file tool name (MCP-style payload) the same as Read', () => {
-    const docPath = join(projectDir, 'doc.md')
+  it('handles read_file tool name (MCP-style payload) the same as Read for system paths', () => {
+    const docPath = join(systemDir, 'doc.md')
     writeFileSync(docPath, '@markdownai v1.0\n', 'utf8')
     const out = runHookWith({
       tool_name: 'read_file',

@@ -224,24 +224,41 @@ export const REDIRECT_MESSAGE = [
 
 export const HOOK_SCRIPT = `#!/usr/bin/env node
 // MarkdownAI PreToolUse hook - installed by mai init
-// Blocks direct Read of any .md file that contains directive lines.
+// Blocks direct Read of .md files in SYSTEM/INSTALLED locations that
+// contain directive lines. System locations are paths under:
+//   ~/.claude/mdd2/, ~/.claude/markdownai/, ~/.markdownai/,
+//   ~/.claude/commands/, /usr/share/markdownai/
+// These are the trees that ship rendered to Claude via the MCP — direct
+// Read would expose raw directives that the engine should be running.
+//
+// Files OUTSIDE these system trees (the user's project source: macros,
+// flows, feature docs being authored) ARE readable. The user is editing
+// them; Claude needs to see the raw source to help. The engine still
+// runs them via @import/@include when other docs reference them.
+//
 // A directive line is any line whose first non-whitespace character is
 // '@' followed by an identifier (e.g. @phase, @if, @call, @markdownai,
-// @define, @plugin-meta, etc.). Claude is NEVER permitted to see raw
-// directive syntax — directives execute in the MarkdownAI engine only,
-// and Claude consumes their rendered output via the MCP server.
-// Returns an ironclad message listing every MCP tool.
+// @define, @plugin-meta, etc.).
 import { createInterface } from 'node:readline'
 import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+
+const HOME = homedir()
+const SYSTEM_ROOTS = [
+  HOME + '/.claude/mdd2/',
+  HOME + '/.claude/markdownai/',
+  HOME + '/.markdownai/',
+  HOME + '/.claude/commands/',
+  '/usr/share/markdownai/',
+]
+
+function isSystemPath(filePath) {
+  return SYSTEM_ROOTS.some(root => filePath.startsWith(root))
+}
 
 // Match a line whose first non-whitespace token starts with '@' followed
 // by a directive-style identifier (letter/underscore start, then
-// letters/digits/_/-). This catches every MarkdownAI directive (@phase,
-// @if, @call, @markdownai-detect, @plugin-meta, @define, etc.) without
-// matching Python decorators (those are in .py files, not .md), JSDoc
-// (@param lines are inside /** */ blocks; the bare-line test fires only
-// when @ is the first non-whitespace character on the LINE — JSDoc is
-// usually \\" * @param\\" with the leading asterisk).
+// letters/digits/_/-).
 const DIRECTIVE_LINE_RE = /^\\s*@[a-zA-Z_][a-zA-Z0-9_-]*/
 
 function isMarkdownAIDocument(content) {
@@ -263,6 +280,10 @@ try {
   if (toolName !== 'Read' && toolName !== 'read_file') process.exit(0)
   const filePath = data.tool_input?.file_path ?? data.tool_input?.path ?? ''
   if (!filePath.endsWith('.md')) process.exit(0)
+  // Only enforce the no-direct-read rule for files in SYSTEM-installed
+  // locations. Project source files (which the user is authoring) are
+  // exempt — Claude needs raw source to help edit them.
+  if (!isSystemPath(filePath)) process.exit(0)
   let content = ''
   try { content = readFileSync(filePath, 'utf8') } catch { process.exit(0) }
   if (!isMarkdownAIDocument(content)) process.exit(0)

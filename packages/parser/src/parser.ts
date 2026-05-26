@@ -275,7 +275,16 @@ function parseNextNode(state: State): ASTNode | null {
 
   const n = parseDirective(trimmed, lineNumber, state)
   const asType = extractAs(n)
-  if (asType !== null) {
+  // Auto-wrap in a pipe with a render sink ONLY for data-source directives
+  // where `as=` declares the render type (table/list/json/etc.). Directives
+  // that use `as=` as a LABEL/output-binding (e.g. @call X as=my_var,
+  // @markdownai-detect as=info, @plugin-data as=data) keep the storage
+  // semantic and do NOT get auto-wrapped — wrapping them produced
+  // "Unknown render type" errors at execute time.
+  const LABEL_AS_DIRECTIVES = new Set([
+    'call', 'markdownai-detect', 'plugin-data',
+  ])
+  if (asType !== null && !LABEL_AS_DIRECTIVES.has(n.type)) {
     return { type: 'pipe', line: lineNumber, stages: [{ type: 'source', node: n }, { type: 'sink', node: { type: 'render', line: lineNumber, args: { type: asType } } }] }
   }
   return n

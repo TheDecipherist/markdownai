@@ -264,7 +264,8 @@ export function executeQuery(node: QueryNode, ctx: EngineContext): string[] {
     const shellCheck = checkShellCommand(node.command, ctx.security.shellConfig)
     if (!shellCheck.allowed) {
       const prefix = shellCheck.tier === 'always_block' ? 'SECURITY_ALERT' : 'WARN'
-      ctx.warnings.push(`${prefix}: @query command blocked [${shellCheck.tier}] — ${shellCheck.reason}`)
+      const cmdPreview = node.command.length > 80 ? node.command.slice(0, 77) + '...' : node.command
+      ctx.warnings.push(`${prefix}: @query command blocked [${shellCheck.tier}] — ${shellCheck.reason}: \`${cmdPreview}\``)
       return []
     }
   }

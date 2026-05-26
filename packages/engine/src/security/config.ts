@@ -96,8 +96,29 @@ export interface SecurityJsonConfig {
 export function defaultSecurityConfig(): SecurityJsonConfig {
   return {
     shell: {
-      enabled: false,
-      allow_patterns: [],
+      // Enabled by default with a curated allowlist of read-only commands
+      // commonly used by flow files (git introspection, file/system reads,
+      // text processing). The immutable always-block list (SHELL_ALWAYS_BLOCK
+      // in rules.ts) still applies — destructive commands like rm/dd/mkfs
+      // and code execution like `node -e`/`eval` are unconditionally blocked
+      // regardless of allowlist. Users who want a stricter default can drop
+      // `~/.markdownai/security.json` with their own shell.allow_patterns.
+      enabled: true,
+      allow_patterns: [
+        'git *',                          // branch, log, status, diff, rev-parse, config, show, etc.
+        'cat *',                          // read text files
+        'head *', 'tail *', 'wc *',       // text processing
+        'grep *', 'sort *', 'uniq *',
+        'find *',
+        'ls', 'ls *',
+        'pwd',
+        'whoami', 'id',
+        'hostname',
+        'which *',
+        'echo *',
+        'date', 'date *',
+        'test *',                         // POSIX file tests
+      ],
       deny_patterns: [],
       allow_network: false,
       require_confirmation: false,
