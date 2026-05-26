@@ -150,6 +150,12 @@ export interface MkdirNode extends ASTNodeBase {
   args: Record<string, string>  // optional: recursive=false (default true)
 }
 
+export interface TouchNode extends ASTNodeBase {
+  type: 'touch'
+  path: string
+  args: Record<string, string>
+}
+
 export interface CopyNode extends ASTNodeBase {
   type: 'copy'
   from: string
@@ -389,6 +395,7 @@ export type ASTNode =
   | DateNode
   | CountNode
   | MkdirNode
+  | TouchNode
   | CopyNode
   | AppendIfMissingNode
   | UpdateFrontmatterNode

@@ -113,6 +113,22 @@ export function parseFeatureBrief(text: string): Record<string, string> {
 }
 
 /**
+ * Pull backtick-wrapped file paths out of a markdown string. Used by build
+ * Phase 3b to extract `src/foo.ts`-style paths from a wave brief's
+ * **Source files.** paragraph (e.g. "`src/rules/parser.ts`,
+ * `src/rules/loader.ts`, ..."). Only matches strings inside single backticks
+ * that contain a dot followed by a 1-6 char alphabetic extension — avoids
+ * picking up unrelated backtick spans like `@constraint id`. Returns each
+ * matched path in source order.
+ */
+export function extractFilePaths(text: string): string[] {
+  const src = String(text ?? '')
+  if (!src) return []
+  const matches = Array.from(src.matchAll(/`([^`\s]+\.[A-Za-z]{1,6})`/g))
+  return matches.map(m => m[1] ?? '').filter(p => p.length > 0)
+}
+
+/**
  * Extract a markdown section by heading substring match. Given an absolute
  * file path and a needle, finds the first ATX heading whose text contains
  * the needle (case-insensitive) and returns that heading line plus body

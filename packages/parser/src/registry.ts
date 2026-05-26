@@ -16,6 +16,7 @@ import tree from './directives/tree.js'
 import date from './directives/date.js'
 import count from './directives/count.js'
 import mkdir from './directives/mkdir.js'
+import touch from './directives/touch.js'
 import copy from './directives/copy.js'
 import appendIfMissing from './directives/append-if-missing.js'
 import updateFrontmatter from './directives/update-frontmatter.js'
@@ -47,7 +48,7 @@ import pluginData from './directives/plugin-data.js'
 
 const modules: ParseModule[] = [
   header, include, importDir, env, define, call, phase, connect,
-  list, read, query, db, http, tree, date, count, mkdir, copy, appendIfMissing,
+  list, read, query, db, http, tree, date, count, mkdir, touch, copy, appendIfMissing,
   updateFrontmatter, readFrontmatter, renderTemplate, test, check, hash,
   foreach, setDir, switchDir,
   render, ifDir, graph, pipe,

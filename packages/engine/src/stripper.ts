@@ -102,6 +102,23 @@ function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[
     case 'plugin-layout':
     case 'plugin-conventions':
       return ''
+    // Write directives produce no user-visible markdown when stripped — the
+    // strip mode is for extracting prose, not for running write ops.
+    case 'mkdir':
+    case 'touch':
+    case 'copy':
+    case 'append-if-missing':
+    case 'update-frontmatter':
+    case 'render-template':
+    case 'test':
+    case 'check':
+    case 'event':
+    case 'set':
+    case 'switch':
+    case 'foreach':
+    case 'hash':
+    case 'read-frontmatter':
+      return ''
     default:
       throw new Error(`stripNode: unhandled AST node type "${(node as ASTNode).type}"`)
 

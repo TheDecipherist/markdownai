@@ -6,7 +6,7 @@
 
 import { mkdirSync, copyFileSync, existsSync, readFileSync, appendFileSync, writeFileSync, statSync } from 'node:fs'
 import { resolve, isAbsolute, dirname } from 'node:path'
-import type { MkdirNode, CopyNode, AppendIfMissingNode, UpdateFrontmatterNode } from '@markdownai/parser'
+import type { MkdirNode, TouchNode, CopyNode, AppendIfMissingNode, UpdateFrontmatterNode } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
 import { checkDataPath, checkWritePath } from './security/filesystem.js'
 import { expandPattern } from './security/path-expand.js'
@@ -86,6 +86,35 @@ export function executeMkdir(node: MkdirNode, ctx: EngineContext): string {
     mkdirSync(target, { recursive })
   } catch (err) {
     ctx.warnings.push(`@mkdir failed: ${node.path} — ${String(err)}`)
+  }
+  return ''
+}
+
+export function executeTouch(node: TouchNode, ctx: EngineContext): string {
+  if (!ensureWriteEnabled(ctx, '@touch')) return ''
+  const target = resolveWritePath(node.path, ctx, '@touch')
+  if (!target) return ''
+  // Idempotent: if the file already exists, do nothing. Existing content is
+  // preserved (we don't truncate). If it doesn't exist, create parents and
+  // an empty file. Used by build flows to scaffold the source files declared
+  // in a wave brief so tests can import from them and `@derive-*` directives
+  // have something to walk.
+  if (existsSync(target)) {
+    try {
+      const st = statSync(target)
+      if (st.isFile()) return ''
+      ctx.warnings.push(`@touch: path exists but is not a regular file — ${node.path}`)
+      return ''
+    } catch (err) {
+      ctx.warnings.push(`@touch failed to stat existing path: ${node.path} — ${String(err)}`)
+      return ''
+    }
+  }
+  try {
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(target, '', 'utf8')
+  } catch (err) {
+    ctx.warnings.push(`@touch failed: ${node.path} — ${String(err)}`)
   }
   return ''
 }

@@ -31,17 +31,26 @@ export function setIterEngine(walk: WalkFn, resolveInterp: ResolveInterpFn): voi
 function splitItems(raw: string): string[] {
   const trimmed = (raw ?? '').trim()
   if (trimmed === '') return []
-  // Prefer newline-separated (the natural output of @list, @read, @query).
-  if (trimmed.includes('\n')) {
-    return trimmed.split('\n').map(s => s.trim()).filter(s => s !== '')
-  }
-  // Inline YAML list: `[a, b, c]` — strip brackets, split on comma.
+  // JSON array shape FIRST — `[a, b, c]` or pretty-printed
+  // `[\n  "a",\n  "b"\n]`. The interpolation sandbox JSON.stringify's arrays
+  // with indent=2 so they reach here with newlines; without this branch
+  // running first, the newline-split below treats `[`, `"a",`, `]` as
+  // separate items. Try real JSON.parse before the fallback bracket-strip
+  // so quoted strings round-trip cleanly even when they contain commas.
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) return parsed.map(v => String(v)).filter(s => s !== '')
+    } catch { /* fall through to manual bracket strip */ }
     return trimmed
       .slice(1, -1)
       .split(',')
       .map(s => s.trim().replace(/^["']|["']$/g, ''))
       .filter(s => s !== '')
+  }
+  // Newline-separated (the natural output of @list, @read, @query).
+  if (trimmed.includes('\n')) {
+    return trimmed.split('\n').map(s => s.trim()).filter(s => s !== '')
   }
   // Comma-separated list (e.g. @read-frontmatter list field).
   if (trimmed.includes(',')) {

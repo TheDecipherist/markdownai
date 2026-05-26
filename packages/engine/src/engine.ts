@@ -14,7 +14,7 @@ import { evalCondition, evalExpression } from './conditions.js'
 import { runBuiltin, isBuiltin } from './pipe.js'
 import { runShell } from './shell.js'
 import { executeList, executeRead, executeCount, executeDate, executeTree, executeDb, executeHttp, executeQuery } from './sources.js'
-import { executeMkdir, executeCopy, executeAppendIfMissing, executeUpdateFrontmatter } from './write-ops.js'
+import { executeMkdir, executeTouch, executeCopy, executeAppendIfMissing, executeUpdateFrontmatter } from './write-ops.js'
 import { executeReadFrontmatter, executeHash } from './read-ops.js'
 import { executeTest, executeCheck, executeRenderTemplate, setEngineExecute } from './exec-ops.js'
 import { executeForeach, executeSet, setIterEngine } from './iter-ops.js'
@@ -301,6 +301,7 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
       return lines.join('\n')
     }
     case 'mkdir': return executeMkdir(node, ctx)
+    case 'touch': return executeTouch(node, ctx)
     case 'copy': return executeCopy(node, ctx)
     case 'append-if-missing': return executeAppendIfMissing(node, ctx)
     case 'update-frontmatter': return executeUpdateFrontmatter(node, ctx)

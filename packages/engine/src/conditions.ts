@@ -34,7 +34,7 @@ function loadProjectSettings(cwd: string): unknown {
   return undefined
 }
 import { readFrontmatterField } from './frontmatter-utils.js'
-import { readMarkdownSection, parseFeatureBrief } from './sources.js'
+import { readMarkdownSection, parseFeatureBrief, extractFilePaths } from './sources.js'
 
 function makeFileHelpers(
   dataJail: string | null,
@@ -344,6 +344,11 @@ function buildSandbox(ctx: EngineContext): Record<string, unknown> {
     // template params (purpose, definition_of_done, etc.) from a wave brief.
     parse_brief: (text: unknown): Record<string, string> => {
       return parseFeatureBrief(String(text ?? ''))
+    },
+    // Pull backtick-wrapped file paths from a markdown chunk. Use to extract
+    // the file list from a wave brief's **Source files.** paragraph.
+    extract_paths: (text: unknown): string[] => {
+      return extractFilePaths(String(text ?? ''))
     },
   }
 }

@@ -75,6 +75,8 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
       return { ...node as DateNode, args: subArgs(node.args, args) }
     case 'mkdir':
       return { ...node, path: subStr(node.path, args), args: subArgs(node.args, args) }
+    case 'touch':
+      return { ...node, path: subStr(node.path, args), args: subArgs(node.args, args) }
     case 'copy':
       return {
         ...node,

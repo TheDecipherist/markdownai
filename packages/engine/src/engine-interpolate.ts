@@ -3,7 +3,7 @@ import { resolve, isAbsolute } from 'node:path'
 import { existsSync, statSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import type { InterpolationSpan, ShellInlineSpan } from '@markdownai/parser'
-import { readMarkdownSection, parseFeatureBrief } from './sources.js'
+import { readMarkdownSection, parseFeatureBrief, extractFilePaths } from './sources.js'
 import { resolveEnv, type EngineContext } from './context.js'
 import { allowed } from './conditions.js'
 import { logEngineError } from './error-log.js'
@@ -224,6 +224,9 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
     },
     parse_brief: (text: unknown): Record<string, string> => {
       return parseFeatureBrief(String(text ?? ''))
+    },
+    extract_paths: (text: unknown): string[] => {
+      return extractFilePaths(String(text ?? ''))
     },
   }
   try {
