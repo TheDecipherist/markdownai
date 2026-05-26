@@ -2,6 +2,7 @@ import { homedir } from 'node:os'
 import { resolve, relative, isAbsolute, basename } from 'node:path'
 import type { FilesystemSecurityConfig } from './config.js'
 import {
+  FILESYSTEM_ALWAYS_ALLOW_PATHS,
   FILESYSTEM_ALWAYS_BLOCK_PATHS, FILESYSTEM_ALWAYS_BLOCK_PATTERNS,
   FILESYSTEM_ALWAYS_ALERT_PATTERNS, matchGlob,
 } from './rules.js'
@@ -26,9 +27,31 @@ export function checkFilePath(
   docRoot: string,
   config?: FilesystemSecurityConfig
 ): FilesystemCheckResult {
-  // 1. Absolute paths always blocked
+  // 0. Absolute paths under a built-in safe root (MarkdownAI / MDD / Claude
+  //    system dirs) are explicitly allowed — block list below still applies
+  //    inside them so sensitive filenames (.env, *.pem) stay blocked.
   if (isAbsolute(filePath)) {
-    return { level: 'blocked', reason: 'Absolute paths are not permitted' }
+    const expandedFull = expandHome(filePath)
+    let inSafeRoot = false
+    for (const pattern of FILESYSTEM_ALWAYS_ALLOW_PATHS) {
+      if (matchGlob(pattern, expandedFull)) { inSafeRoot = true; break }
+    }
+    if (!inSafeRoot) {
+      return { level: 'blocked', reason: 'Absolute paths are not permitted (not in a built-in safe root)' }
+    }
+    // Inside a safe root: still consult built-in block patterns (sensitive filenames).
+    const name = basename(filePath)
+    for (const pattern of FILESYSTEM_ALWAYS_BLOCK_PATHS) {
+      if (matchGlob(expandHome(pattern), expandedFull)) {
+        return { level: 'blocked', reason: `Built-in blocked path: ${pattern}` }
+      }
+    }
+    for (const pattern of FILESYSTEM_ALWAYS_BLOCK_PATTERNS) {
+      if (matchGlob(pattern, name)) {
+        return { level: 'blocked', reason: `Built-in blocked file pattern: ${pattern}` }
+      }
+    }
+    return { level: 'allowed', reason: '' }
   }
 
   // 2. Traversal above document root
@@ -166,6 +189,16 @@ function checkJailedPath(
   const insideJail = !rel.startsWith('..') && !isAbsolute(rel)
   if (insideJail) {
     return classifyAlert(name, opType)
+  }
+
+  // 3b. Outside the jail but under a built-in safe root (MarkdownAI / MDD /
+  //     Claude system dirs)? Allowed. This is what lets flow files at
+  //     ~/.claude/mdd2/flows/ @import macros at ~/.claude/mdd2/macros/
+  //     without each project having to configure allowed_source_paths.
+  for (const pattern of FILESYSTEM_ALWAYS_ALLOW_PATHS) {
+    if (matchGlob(pattern, expandedAbs)) {
+      return classifyAlert(name, opType)
+    }
   }
 
   // 4. Outside the jail — only allowed if it matches an allowlist pattern.

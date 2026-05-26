@@ -44,18 +44,21 @@ describe('isMarkdownAIDocument', () => {
     expect(isMarkdownAIDocument('# Just a regular doc\n\nNothing special.\n')).toBe(false)
   })
 
-  it('rejects a file with @markdownai mentioned mid-document but not at the top', () => {
+  it('detects a directive line ANYWHERE in the document (stricter rule)', () => {
+    // Updated 2026-05-25: the rule is now "any @-directive line, anywhere".
+    // A file that mentions @markdownai mid-document still contains directive
+    // syntax that Claude must not see raw. The engine must render it.
     const content = [
       '# Some other doc',
       '',
-      'This doc mentions @markdownai in prose but does not start with it.',
+      'Some prose.',
       '',
       '@markdownai v1.0',
     ].join('\n')
-    expect(isMarkdownAIDocument(content)).toBe(false)
+    expect(isMarkdownAIDocument(content)).toBe(true)
   })
 
-  it('rejects a file with frontmatter but the post-frontmatter content is regular Markdown', () => {
+  it('rejects a file with frontmatter but no directive lines anywhere', () => {
     const content = [
       '---',
       'title: Hello',
@@ -67,14 +70,41 @@ describe('isMarkdownAIDocument', () => {
     expect(isMarkdownAIDocument(content)).toBe(false)
   })
 
-  it('rejects a file with an unclosed frontmatter block', () => {
+  it('detects directives even inside an unclosed frontmatter block', () => {
+    // The new rule does not depend on frontmatter parsing — any line that
+    // begins with @ + identifier triggers blocking, malformed YAML or not.
     const content = [
       '---',
       'title: Hello',
       '',
       '@markdownai v1.0',
     ].join('\n')
-    // No closing `---` - this is malformed; reject conservatively.
+    expect(isMarkdownAIDocument(content)).toBe(true)
+  })
+
+  it('detects any markdownai directive (@phase, @if, @call, @plugin-meta, etc.)', () => {
+    expect(isMarkdownAIDocument('# Doc\n@phase setup\n')).toBe(true)
+    expect(isMarkdownAIDocument('# Doc\n@if {{ x }}\n')).toBe(true)
+    expect(isMarkdownAIDocument('# Doc\n@call my-macro\n')).toBe(true)
+    expect(isMarkdownAIDocument('# Doc\n@plugin-meta\n')).toBe(true)
+    expect(isMarkdownAIDocument('# Doc\n@markdownai-detect\n')).toBe(true)
+  })
+
+  it('does NOT flag JSDoc-style annotations (leading asterisk before @)', () => {
+    // JSDoc comment lines like " * @param foo" start with a space-asterisk-
+    // space-@. The regex requires the @ to be the first non-whitespace
+    // character on the line, so JSDoc inside Markdown code blocks is fine.
+    const content = [
+      '# API doc',
+      '',
+      '```js',
+      '/**',
+      ' * @param {string} name',
+      ' * @returns {Promise}',
+      ' */',
+      'function foo(name) {}',
+      '```',
+    ].join('\n')
     expect(isMarkdownAIDocument(content)).toBe(false)
   })
 
@@ -107,8 +137,14 @@ describe('REDIRECT_MESSAGE', () => {
     expect(REDIRECT_MESSAGE).toMatch(/resolve_phase[\s\S]*PRIMARY TOOL/)
   })
 
+  it('opens with ironclad imperative framing', () => {
+    expect(REDIRECT_MESSAGE).toContain('STOP. I CANNOT read this file')
+    expect(REDIRECT_MESSAGE).toContain('I MUST forward it to the MarkdownAI MCP server')
+  })
+
   it('explains why direct Read is blocked', () => {
-    expect(REDIRECT_MESSAGE).toContain('unrendered directive syntax')
+    expect(REDIRECT_MESSAGE).toContain('unexecuted directives')
+    expect(REDIRECT_MESSAGE).toContain('FORBIDDEN')
   })
 
   it('includes a typical workflow with numbered steps', () => {

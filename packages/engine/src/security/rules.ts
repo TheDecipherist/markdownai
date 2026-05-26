@@ -53,6 +53,27 @@ export const DB_ALWAYS_BLOCK_MONGO: readonly string[] = Object.freeze([
 ])
 
 // Filesystem paths — always matched against absolute resolved paths; ~ expanded at module load
+//
+// Built-in safe roots: paths under these trees are explicitly permitted to
+// MarkdownAI's tools even when the caller hasn't configured an allowlist.
+// These are the canonical system directories for MarkdownAI itself and for
+// frameworks built on top (MDD). Within them, the always-block patterns
+// (e.g. `.env*`, `*.pem`) still apply — the allowlist grants entry to the
+// tree, not unconditional read access to every file inside.
+export const FILESYSTEM_ALWAYS_ALLOW_PATHS: readonly string[] = Object.freeze([
+  `${home}/.claude/mdd2/**`,
+  `${home}/.claude/mdd2/*`,
+  `${home}/.claude/mdd2`,
+  `${home}/.claude/markdownai/**`,
+  `${home}/.claude/markdownai/*`,
+  `${home}/.claude/markdownai`,
+  `${home}/.markdownai/**`,
+  `${home}/.markdownai/*`,
+  `${home}/.markdownai`,
+  `${home}/.claude/commands/**`,
+  `${home}/.claude/commands/*`,
+])
+
 export const FILESYSTEM_ALWAYS_BLOCK_PATHS: readonly string[] = Object.freeze([
   `${home}/.ssh/*`, `${home}/.aws/*`, `${home}/.gnupg/*`,
   `${home}/.config/gcloud/*`, `${home}/.kube/*`,

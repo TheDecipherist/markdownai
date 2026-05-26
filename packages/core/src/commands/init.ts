@@ -51,24 +51,19 @@ export interface InitResult {
  * Exported for unit testing.
  */
 export function isMarkdownAIDocument(content: string): boolean {
-  const lines = content.split('\n')
-  let i = 0
-  // Skip leading blank lines
-  while (i < lines.length && (lines[i] ?? '').trim() === '') i++
-  if (i >= lines.length) return false
-
-  // Case 1: first non-blank line starts with `@markdownai`
-  if ((lines[i] ?? '').trimStart().startsWith('@markdownai')) return true
-
-  // Case 2: leading YAML frontmatter, then `@markdownai`
-  if ((lines[i] ?? '').trim() === '---') {
-    for (let j = i + 1; j < lines.length; j++) {
-      if ((lines[j] ?? '').trim() === '---') {
-        let k = j + 1
-        while (k < lines.length && (lines[k] ?? '').trim() === '') k++
-        return k < lines.length && (lines[k] ?? '').trimStart().startsWith('@markdownai')
-      }
-    }
+  // Updated 2026-05-25: stricter rule. ANY line whose first non-whitespace
+  // token is a directive-style identifier (`@<name>` where <name> starts
+  // with a letter/underscore) marks the file as containing MarkdownAI
+  // directive syntax. Claude must never see these raw — the engine runs
+  // them and substitutes the result.
+  //
+  // The pattern matches MarkdownAI directives (@phase, @if, @call,
+  // @markdownai-detect, @plugin-meta, @define, @import, @include, etc.)
+  // without matching JSDoc " * @param" lines (those have a leading
+  // asterisk before the @).
+  const directiveLineRe = /^\s*@[a-zA-Z_][a-zA-Z0-9_-]*/
+  for (const line of content.split('\n')) {
+    if (directiveLineRe.test(line)) return true
   }
   return false
 }
@@ -80,14 +75,33 @@ export function isMarkdownAIDocument(content: string): boolean {
  * no excuse to retry the Read or guess at the API.
  */
 export const REDIRECT_MESSAGE = [
-  'This file is a MarkdownAI document. Reading it directly via Read/read_file',
-  'would expose unrendered directive syntax (@if, @foreach, @test, @hash,',
-  '@read-frontmatter, @date, @count, @list, @read, @include, @import, @call,',
-  '@phase, @set, @env, @update-frontmatter, @render-template, @mkdir, @copy,',
-  '@append-if-missing, @query, etc.) - the engine has NOT executed them yet.',
-  'The MCP server\'s job is to run every directive in a phase and substitute',
-  'the result back into the document text, then return rendered text to you.',
-  'Direct file reads bypass the engine and leave you with raw source.',
+  '════════════════════════════════════════════════════════════════════',
+  'STOP. I CANNOT read this file.',
+  'I MUST forward it to the MarkdownAI MCP server.',
+  '════════════════════════════════════════════════════════════════════',
+  '',
+  'This file is a MarkdownAI document (it contains an `@markdownai` header).',
+  'Reading it through Read / read_file / Bash cat / any other local tool is',
+  'FORBIDDEN. The raw bytes on disk contain unexecuted directives — they are',
+  'NOT the content. The content only exists AFTER the MarkdownAI engine has',
+  'processed every directive and substituted the results back in.',
+  '',
+  'Directives that may be present and that MUST be executed by the engine',
+  '(NEVER by me): @if, @foreach, @test, @hash, @read-frontmatter, @date,',
+  '@count, @list, @read, @include, @import, @call, @phase, @set, @env,',
+  '@update-frontmatter, @render-template, @mkdir, @copy, @append-if-missing,',
+  '@query, @markdownai-detect, @plugin-data, @plugin-meta, @plugin-detect,',
+  '@plugin-layout, @plugin-conventions.',
+  '',
+  'RULE: NEVER run a directive yourself. NEVER guess at what a directive',
+  'resolves to. NEVER read a .md file with an `@markdownai` header through',
+  'any tool other than the MarkdownAI MCP server below. There is no fallback,',
+  'no manual interpretation, no inline-execute — the MCP server is the ONLY',
+  'way to get the content of a MarkdownAI document.',
+  '',
+  'The MCP server\'s job is to run every directive in the document, substitute',
+  'the result back into the text, and return rendered text to me. Direct file',
+  'reads bypass the engine and leave me with raw source — useless and wrong.',
   '',
   'NOTE on CLAUDE-MarkdownAI.md specifically:',
   '  If the blocked file is named `CLAUDE-MarkdownAI.md`, its rendered content',
@@ -118,7 +132,15 @@ export const REDIRECT_MESSAGE = [
   '   use:     to follow @on complete -> @phase <next> transitions between',
   '            phases. Pass the current phase name, get the next name.',
   '',
-  '4. mcp__markdownai__read_file',
+  '4. mcp__markdownai__render',
+  '   args:    { file: string, phase?: string, env?: Record<string,string>,',
+  '              format?: \'ai\'|\'standard\' }',
+  '   returns: { content: string, isMarkdownAI: boolean, warnings: string[] }',
+  '   use:     friendly alias for read_file with `file` parameter (consistent',
+  '            with list_phases / resolve_phase / call_macro / get_constraints).',
+  '            Renders a full MarkdownAI document with all directives executed.',
+  '',
+  '5. mcp__markdownai__read_file',
   '   args:    { path: string, phase?: string, env?: Record<string,string>,',
   '              format?: \'ai\'|\'standard\', skillArgs?: string,',
   '              skillDir?: string, skillSessionId?: string,',
@@ -129,37 +151,54 @@ export const REDIRECT_MESSAGE = [
   '            Pass `skillArgs` / `skillDir` when this file is a Claude Code',
   '            slash command and you need $ARGUMENTS substitution.',
   '',
-  '5. mcp__markdownai__execute_directive',
+  '6. mcp__markdownai__execute_directive',
   '   args:    { directive: string, cwd: string, env?: Record<string,string> }',
   '   returns: { output: string, warnings: string[], errors: string[], events: [] }',
   '   use:     to execute a single directive in isolation. Allowlisted:',
   '            @env, @date, @count, @list, @read, @read-frontmatter, @hash,',
-  '            @if. NOT allowed: @query/@shell/@http/@db/@include/@import/',
-  '            @connect/@call (those need document context).',
+  '            @if, @markdownai-detect, @plugin-data. NOT allowed:',
+  '            @query/@shell/@http/@db/@include/@import/@connect/@call',
+  '            (those need document context — call_macro for @call).',
   '',
-  '6. mcp__markdownai__call_macro',
+  '7. mcp__markdownai__call_macro',
   '   args:    { filePath: string, macroName: string, args: Record<string,string>, cwd: string, env?: Record<string,string> }',
   '   returns: { output: string, warnings: string[], found: boolean, error?: string }',
   '   use:     to invoke a @define-d macro from this file or its @import-ed',
   '            shared library.',
   '',
-  '7. mcp__markdownai__get_constraints',
+  '8. mcp__markdownai__get_constraints',
   '   args:    { filePath: string, cwd: string }',
   '   returns: { constraints: Array<{id, severity, body}>, isMarkdownAI: boolean, blocked?: boolean }',
   '   use:     to surface @constraint declarations (immutable rules) without',
   '            rendering the whole document.',
   '',
-  '8. mcp__markdownai__get_env',
+  '9. mcp__markdownai__get_env',
   '   args:    { key: string, fallback?: string, allowedKeys?: string[] }',
   '   returns: { value: string, found: boolean, denied?: boolean }',
   '   use:     to read a single env var through the security gate. Keys',
   '            containing SECRET/TOKEN/PASSWORD/KEY are denied.',
   '',
-  '9. mcp__markdownai__invalidate_cache',
-  '   args:    { directive?: string }',
-  '   returns: { cleared: { session: boolean, persist: boolean }, error?: string }',
-  '   use:     when cached directive output (e.g. @http with @cache persist)',
-  '            is stale and you need a fresh evaluation.',
+  '10. mcp__markdownai__invalidate_cache',
+  '    args:    { directive?: string }',
+  '    returns: { cleared: { session: boolean, persist: boolean }, error?: string }',
+  '    use:     when cached directive output (e.g. @http with @cache persist)',
+  '             is stale and you need a fresh evaluation.',
+  '',
+  '11. mcp__markdownai__available_directives           <-- DIRECTIVE CATALOG',
+  '    args:    { category?: string, format?: \'compact\'|\'full\' }',
+  '    returns: { directives: Array<{name, syntax, parameters, examples, category, ...}>, count: number }',
+  '    use:     to discover EVERY directive the engine knows about. Returns',
+  '             the complete catalog with usage, parameters, examples, and',
+  '             security notes. Call this when you need to know what is',
+  '             available, what each directive does, or how to invoke it.',
+  '             There is no need to guess at directive names or syntax — this',
+  '             tool is the authoritative source.',
+  '',
+  'COMPLETE TOOL SET: there are EXACTLY 11 tools in the markdownai MCP server.',
+  'They are the entire surface area for working with MarkdownAI documents.',
+  'If a need is not covered by one of these 11 tools, do NOT reach for Read,',
+  'Bash, or any local tool — pause and re-read this list. Always one of these',
+  'is the right answer.',
   '',
   'TYPICAL WORKFLOW for opening a MarkdownAI document:',
   '',
@@ -185,26 +224,30 @@ export const REDIRECT_MESSAGE = [
 
 export const HOOK_SCRIPT = `#!/usr/bin/env node
 // MarkdownAI PreToolUse hook - installed by mai init
-// Blocks direct Read of any .md file that is a MarkdownAI document (bare
-// @markdownai header OR YAML frontmatter then @markdownai). Returns an
-// ironclad message listing every MCP tool so Claude knows how to proceed.
+// Blocks direct Read of any .md file that contains directive lines.
+// A directive line is any line whose first non-whitespace character is
+// '@' followed by an identifier (e.g. @phase, @if, @call, @markdownai,
+// @define, @plugin-meta, etc.). Claude is NEVER permitted to see raw
+// directive syntax — directives execute in the MarkdownAI engine only,
+// and Claude consumes their rendered output via the MCP server.
+// Returns an ironclad message listing every MCP tool.
 import { createInterface } from 'node:readline'
 import { readFileSync } from 'node:fs'
 
+// Match a line whose first non-whitespace token starts with '@' followed
+// by a directive-style identifier (letter/underscore start, then
+// letters/digits/_/-). This catches every MarkdownAI directive (@phase,
+// @if, @call, @markdownai-detect, @plugin-meta, @define, etc.) without
+// matching Python decorators (those are in .py files, not .md), JSDoc
+// (@param lines are inside /** */ blocks; the bare-line test fires only
+// when @ is the first non-whitespace character on the LINE — JSDoc is
+// usually \\" * @param\\" with the leading asterisk).
+const DIRECTIVE_LINE_RE = /^\\s*@[a-zA-Z_][a-zA-Z0-9_-]*/
+
 function isMarkdownAIDocument(content) {
   const lines = content.split('\\n')
-  let i = 0
-  while (i < lines.length && (lines[i] ?? '').trim() === '') i++
-  if (i >= lines.length) return false
-  if ((lines[i] ?? '').trimStart().startsWith('@markdownai')) return true
-  if ((lines[i] ?? '').trim() === '---') {
-    for (let j = i + 1; j < lines.length; j++) {
-      if ((lines[j] ?? '').trim() === '---') {
-        let k = j + 1
-        while (k < lines.length && (lines[k] ?? '').trim() === '') k++
-        return k < lines.length && (lines[k] ?? '').trimStart().startsWith('@markdownai')
-      }
-    }
+  for (const line of lines) {
+    if (DIRECTIVE_LINE_RE.test(line)) return true
   }
   return false
 }
