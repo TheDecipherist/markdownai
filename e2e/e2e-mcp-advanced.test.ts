@@ -60,20 +60,20 @@ describe('MCP E2E — tool: execute_directive', () => {
     await client.close()
   })
 
-  it('@date format="YYYY" returns current year', async () => {
+  it('@date format="YYYY" returns current year /', async () => {
     const resp = await client.call('tools/call', {
       name: 'execute_directive',
-      arguments: { directive: '@date format="YYYY"' },
+      arguments: { directive: '@date format="YYYY" /' },
     })
     expect(resp.error).toBeUndefined()
     const result = resp.result as { output: string }
     expect(result.output).toContain('2026')
   })
 
-  it('@env with fallback returns fallback value', async () => {
+  it('@env with fallback returns fallback value /', async () => {
     const resp = await client.call('tools/call', {
       name: 'execute_directive',
-      arguments: { directive: '@env MARKDOWNAI_TEST_UNSET_VAR fallback="test-value"' },
+      arguments: { directive: '@env MARKDOWNAI_TEST_UNSET_VAR fallback="test-value" /' },
     })
     expect(resp.error).toBeUndefined()
     const result = resp.result as { output: string }

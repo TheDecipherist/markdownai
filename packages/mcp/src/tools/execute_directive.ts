@@ -62,7 +62,11 @@ export function executeDirective(
     }
   }
 
-  const doc = `@markdownai\n${sanitized}`
+  // v2: single-line directives need a trailing ` /` self-close. Add it if
+  // the caller didn't (preserves v1-style callers).
+  const trimmed = sanitized.trim()
+  const withSelfClose = /\s\/\s*$/.test(trimmed) ? sanitized : `${sanitized} /`
+  const doc = `@markdownai\n${withSelfClose}`
   const ast = parse(doc)
   if (!ast.isMarkdownAI) {
     return { output: '', warnings: [], errors: ['Failed to parse directive'], events: [] }

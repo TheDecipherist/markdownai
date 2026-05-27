@@ -9,7 +9,7 @@ function render(source: string): string {
 
 describe('@section — mda-section markers in engine output', () => {
   it('wraps section content in mda-section markers', () => {
-    const out = render('@markdownai\n@section priority="critical"\n  Must-see content.\n@end')
+    const out = render('@markdownai\n@section priority="critical"\n  Must-see content.\n@section-end')
     expect(out).toContain('<!-- mda-section priority="critical" -->')
     expect(out).toContain('<!-- /mda-section -->')
     expect(out).toContain('Must-see content.')
@@ -17,18 +17,18 @@ describe('@section — mda-section markers in engine output', () => {
 
   it('emits correct priority for each severity level', () => {
     for (const p of ['critical', 'high', 'medium', 'low']) {
-      const out = render(`@markdownai\n@section priority="${p}"\n  body\n@end`)
+      const out = render(`@markdownai\n@section priority="${p}"\n  body\n@section-end`)
       expect(out).toContain(`priority="${p}"`)
     }
   })
 
   it('includes id in marker when set', () => {
-    const out = render('@markdownai\n@section priority="high" id="summary"\n  content\n@end')
+    const out = render('@markdownai\n@section priority="high" id="summary"\n  content\n@section-end')
     expect(out).toContain('id="summary"')
   })
 
   it('produces well-formed open/close markers for each section', () => {
-    const src = '@markdownai\n@section priority="high"\n  A\n@end\n@section priority="low"\n  B\n@end'
+    const src = '@markdownai\n@section priority="high"\n  A\n@section-end\n@section priority="low"\n  B\n@section-end'
     const out = render(src)
     const opens = [...out.matchAll(/<!-- mda-section /g)].length
     const closes = [...out.matchAll(/<!-- \/mda-section -->/g)].length
@@ -38,7 +38,7 @@ describe('@section — mda-section markers in engine output', () => {
 
   it('preserves content between markers verbatim', () => {
     const body = 'Exact content preserved here'
-    const out = render(`@markdownai\n@section priority="medium"\n  ${body}\n@end`)
+    const out = render(`@markdownai\n@section priority="medium"\n  ${body}\n@section-end`)
     expect(out).toContain(body)
   })
 })

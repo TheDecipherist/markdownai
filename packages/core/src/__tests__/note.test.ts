@@ -20,7 +20,7 @@ function write(name: string, content: string): string {
 describe('@note — default (stripped)', () => {
   it('produces no output when @note has no arguments', () => {
     const file = write('note-stripped.md',
-      '@markdownai\n\n@note\nThis is a source comment.\n@end\n\n# After\n')
+      '@markdownai\n\n@note\nThis is a source comment.\n@note-end\n\n# After\n')
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output).not.toContain('source comment')
@@ -29,7 +29,7 @@ describe('@note — default (stripped)', () => {
 
   it('does not emit the @note or @end lines', () => {
     const file = write('note-no-lines.md',
-      '@markdownai\n\n@note\nHidden body.\n@end\n')
+      '@markdownai\n\n@note\nHidden body.\n@note-end\n')
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output.trim()).toBe('')
@@ -37,7 +37,7 @@ describe('@note — default (stripped)', () => {
 
   it('surrounding content is unaffected', () => {
     const file = write('note-surrounding.md',
-      '@markdownai\n\n# Before\n\n@note\nHidden.\n@end\n\n# After\n')
+      '@markdownai\n\n# Before\n\n@note\nHidden.\n@note-end\n\n# After\n')
     const result = runRender(file)
     expect(result.output).toContain('# Before')
     expect(result.output).toContain('# After')
@@ -46,7 +46,7 @@ describe('@note — default (stripped)', () => {
 
   it('consumer= without visible is silently ignored — still strips', () => {
     const file = write('note-consumer-no-visible.md',
-      '@markdownai\n\n@note consumer="human"\nShould still strip.\n@end\n')
+      '@markdownai\n\n@note consumer="human"\nShould still strip.\n@note-end\n')
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output).not.toContain('Should still strip')
@@ -58,7 +58,7 @@ describe('@note — default (stripped)', () => {
 describe('@note visible — renders to all consumers', () => {
   it('renders body as blockquote with Note: label', () => {
     const file = write('note-visible.md',
-      '@markdownai\n\n@note visible\nThis is visible.\n@end\n')
+      '@markdownai\n\n@note visible\nThis is visible.\n@note-end\n')
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('**Note:**')
@@ -68,7 +68,7 @@ describe('@note visible — renders to all consumers', () => {
 
   it('renders multi-line body with each line prefixed by >', () => {
     const file = write('note-visible-multiline.md',
-      '@markdownai\n\n@note visible\nLine one.\nLine two.\n@end\n')
+      '@markdownai\n\n@note visible\nLine one.\nLine two.\n@note-end\n')
     const result = runRender(file)
     const lines = result.output.split('\n').filter(l => l.trim())
     const bodyLines = lines.filter(l => l.startsWith('>') && !l.includes('**Note:**'))
@@ -77,7 +77,7 @@ describe('@note visible — renders to all consumers', () => {
 
   it('does not include @note or @end in output', () => {
     const file = write('note-visible-no-syntax.md',
-      '@markdownai\n\n@note visible\nContent.\n@end\n')
+      '@markdownai\n\n@note visible\nContent.\n@note-end\n')
     const result = runRender(file)
     expect(result.output).not.toContain('@note')
     expect(result.output).not.toContain('@end')
@@ -89,7 +89,7 @@ describe('@note visible — renders to all consumers', () => {
 describe('@note visible consumer="human"', () => {
   it('renders as blockquote when consumer is human (default)', () => {
     const file = write('note-human.md',
-      '@markdownai\n\n@note visible consumer="human"\nFor humans only.\n@end\n')
+      '@markdownai\n\n@note visible consumer="human"\nFor humans only.\n@note-end\n')
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('**Note:**')
@@ -99,7 +99,7 @@ describe('@note visible consumer="human"', () => {
 
   it('strips when consumer is ai', () => {
     const file = write('note-human-ai-consumer.md',
-      '@markdownai\n\n@note visible consumer="human"\nFor humans only.\n@end\n')
+      '@markdownai\n\n@note visible consumer="human"\nFor humans only.\n@note-end\n')
     const result = runRender(file, { consumer: 'ai' })
     expect(result.exitCode).toBe(0)
     expect(result.output).not.toContain('For humans only.')
@@ -111,7 +111,7 @@ describe('@note visible consumer="human"', () => {
 describe('@note visible consumer="ai"', () => {
   it('renders as blockquote when consumer is ai', () => {
     const file = write('note-ai.md',
-      '@markdownai\n\n@note visible consumer="ai"\nFor AI only.\n@end\n')
+      '@markdownai\n\n@note visible consumer="ai"\nFor AI only.\n@note-end\n')
     const result = runRender(file, { consumer: 'ai' })
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('**Note:**')
@@ -121,7 +121,7 @@ describe('@note visible consumer="ai"', () => {
 
   it('strips when consumer is human (default)', () => {
     const file = write('note-ai-human-consumer.md',
-      '@markdownai\n\n@note visible consumer="ai"\nFor AI only.\n@end\n')
+      '@markdownai\n\n@note visible consumer="ai"\nFor AI only.\n@note-end\n')
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output).not.toContain('For AI only.')
@@ -133,7 +133,7 @@ describe('@note visible consumer="ai"', () => {
 describe('@note inside @define macros', () => {
   it('strips @note when expanded via @call', () => {
     const file = write('note-in-macro.md',
-      '@markdownai\n\n@define greet\n@note\nThis is a macro note.\n@end\nHello!\n@end\n\n@call greet\n')
+      '@markdownai\n\n@define greet\n@note\nThis is a macro note.\n@note-end\nHello!\n@define-end\n\n@call greet /\n')
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('Hello!')
@@ -142,7 +142,7 @@ describe('@note inside @define macros', () => {
 
   it('renders visible @note when expanded via @call', () => {
     const file = write('note-visible-in-macro.md',
-      '@markdownai\n\n@define greet\n@note visible\nVisible macro note.\n@end\nHello!\n@end\n\n@call greet\n')
+      '@markdownai\n\n@define greet\n@note visible\nVisible macro note.\n@note-end\nHello!\n@define-end\n\n@call greet /\n')
     const result = runRender(file)
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('Hello!')
@@ -153,10 +153,10 @@ describe('@note inside @define macros', () => {
 // --- Nested @note ---
 
 describe('@note nesting', () => {
-  it('reports a parse error for nested @note blocks', () => {
+  it('renders nested @note blocks without error (v2 parser tracks depth)', () => {
     const file = write('note-nested.md',
-      '@markdownai\n\n@note\nOuter.\n@note\nInner.\n@end\n@end\n')
+      '@markdownai\n\n@note\nOuter.\n@note\nInner.\n@note-end\n@note-end\n')
     const result = runRender(file)
-    expect(result.errors.length).toBeGreaterThan(0)
+    expect(result.errors).toEqual([])
   })
 })

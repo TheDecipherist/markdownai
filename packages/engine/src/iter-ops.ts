@@ -66,7 +66,12 @@ function evaluateSource(literal: string, ctx: EngineContext): string {
   if (trimmed === '') return ''
   // If the literal starts with `@`, parse and execute it as a sub-directive.
   if (trimmed.startsWith('@')) {
-    const wrapper = `@markdownai v1.0\n${trimmed}\n`
+    // v2 inline directives need a trailing ` /` self-close. The literal here
+    // is a single-line directive expression (e.g. `@list ./docs/ match="*.md"`)
+    // — add ` /` if not already present.
+    const needsSlash = !/\s\/\s*$/.test(trimmed)
+    const dir = needsSlash ? `${trimmed} /` : trimmed
+    const wrapper = `@markdownai v1.0\n${dir}\n`
     const ast = parserParse(wrapper)
     const bodyNodes = ast.nodes.filter(n => n.type !== 'header' && n.type !== 'markdown')
     if (bodyNodes.length === 0) return ''

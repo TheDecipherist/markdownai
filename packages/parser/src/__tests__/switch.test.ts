@@ -19,7 +19,7 @@ describe('Parser — @switch directive', () => {
         '    World body',
         '  @default',
         '    Fallback body',
-        '@endswitch',
+        '@switch-end',
       ].join('\n')
       const result = parse(src)
       const n = node<SwitchNode>(result.nodes, 1)
@@ -39,7 +39,7 @@ describe('Parser — @switch directive', () => {
         '    Foo body',
         '  @default',
         '    Fallback',
-        '@endswitch',
+        '@switch-end',
       ].join('\n')
       const result = parse(src)
       const n = node<SwitchNode>(result.nodes, 1)
@@ -57,7 +57,7 @@ describe('Parser — @switch directive', () => {
         '    Stage body',
         '  @default',
         '    Fallback',
-        '@endswitch',
+        '@switch-end',
       ].join('\n')
       const result = parse(src)
       const n = node<SwitchNode>(result.nodes, 1)
@@ -75,7 +75,7 @@ describe('Parser — @switch directive', () => {
         '    Foo body',
         '  @case "bar"',
         '    Bar body',
-        '@endswitch',
+        '@switch-end',
       ].join('\n')
       const result = parse(src)
       const n = node<SwitchNode>(result.nodes, 1)
@@ -89,7 +89,7 @@ describe('Parser — @switch directive', () => {
         '@switch "anything"',
         '  @default',
         '    Fallback body',
-        '@endswitch',
+        '@switch-end',
       ].join('\n')
       const result = parse(src)
       const n = node<SwitchNode>(result.nodes, 1)
@@ -101,7 +101,7 @@ describe('Parser — @switch directive', () => {
       const src = [
         '@markdownai',
         '@switch "value"',
-        '@endswitch',
+        '@switch-end',
       ].join('\n')
       const result = parse(src)
       const n = node<SwitchNode>(result.nodes, 1)
@@ -118,7 +118,7 @@ describe('Parser — @switch directive', () => {
         '    Fallback body',
         '  @case "foo"',
         '    Foo body',
-        '@endswitch',
+        '@switch-end',
       ].join('\n')
       const result = parse(src)
       const n = node<SwitchNode>(result.nodes, 1)
@@ -138,10 +138,10 @@ describe('Parser — @switch directive', () => {
         '        Inner body',
         '      @default',
         '        Inner fallback',
-        '    @endswitch',
+        '    @switch-end',
         '  @default',
         '    Outer fallback',
-        '@endswitch',
+        '@switch-end',
       ].join('\n')
       const result = parse(src)
       const outer = node<SwitchNode>(result.nodes, 1)
@@ -162,8 +162,8 @@ describe('Parser — @switch directive', () => {
         '      A body',
         '    @default',
         '      Other',
-        '  @endswitch',
-        '@end',
+        '  @switch-end',
+        '@foreach-end',
       ].join('\n')
       const result = parse(src)
       const fe = node<ForeachNode>(result.nodes, 1)

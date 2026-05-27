@@ -34,6 +34,6 @@ This section provides historical context only.
 It is the first to be dropped when context budget is constrained.
 @section-end
 
-@chunk-boundary id="architecture" standalone="true"
+@chunk-boundary id="architecture" standalone="true" /
 
 Final notes: always run `mai validate` before deployment.

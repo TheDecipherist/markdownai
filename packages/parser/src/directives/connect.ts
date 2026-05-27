@@ -10,7 +10,7 @@ const connect: ParseModule = {
     if (!connectionType) throw new ParseError('@connect requires type=<driver>', ctx.line, ctx.filePath)
     const rest: Record<string, string> = { ...input.attrs }
     delete rest['type']
-    const local = input.flags.includes('local') || input.attrs['local'] === 'true'
+    const local = input.flags.includes('local') || input.flags.includes('@local') || input.attrs['local'] === 'true'
     const node: ConnectNode = {
       type: 'connect',
       line: ctx.line,

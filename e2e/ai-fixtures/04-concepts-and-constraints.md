@@ -2,9 +2,9 @@
 
 # Concepts and Constraints Demo
 
-@define-concept jailRoot "the document root directory, used to confine file include and read paths"
-@define-concept strictMode "when --strict is active, any warning becomes a fatal error"
-@define-concept aiFilter "the token-efficient output mode that removes decorative chrome from markdown"
+@define-concept jailRoot "the document root directory, used to confine file include and read paths" /
+@define-concept strictMode "when --strict is active, any warning becomes a fatal error" /
+@define-concept aiFilter "the token-efficient output mode that removes decorative chrome from markdown" /
 
 @constraint id="no-eval" severity="critical"
 eval() is never used anywhere in the codebase. Use vm.runInNewContext() for all expression evaluation.

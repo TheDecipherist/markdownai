@@ -20,9 +20,9 @@ const CONSTRAINT_FIXTURE = join(TMP, 'constraint.md')
 beforeAll(() => {
   mkdirSync(TMP, { recursive: true })
   writeFileSync(FIXTURE, '@markdownai v1.0\n\n# Hello\n\nWorld\n')
-  writeFileSync(MACRO_FIXTURE, '@markdownai v1.0\n\n@define greet(name)\nHello {{ name }}\n@end\n')
-  writeFileSync(PHASE_FIXTURE, '@markdownai v1.0\n\n@phase setup\nSetup content\n@on complete -> @phase main\n@end\n\n@phase main\nMain content\n@end\n')
-  writeFileSync(CONSTRAINT_FIXTURE, '@markdownai v1.0\n\n@constraint[critical] No secrets in output\n')
+  writeFileSync(MACRO_FIXTURE, '@markdownai v1.0\n\n@define greet(name)\nHello {{ name }}\n@define-end\n')
+  writeFileSync(PHASE_FIXTURE, '@markdownai v1.0\n\n@phase setup\nSetup content\n@on-complete @phase main /\n@phase-end\n\n@phase main\nMain content\n@phase-end\n')
+  writeFileSync(CONSTRAINT_FIXTURE, '@markdownai v1.0\n\n@constraint severity="critical"\nNo secrets in output\n@constraint-end\n')
 })
 
 afterAll(() => { rmSync(TMP, { recursive: true, force: true }) })

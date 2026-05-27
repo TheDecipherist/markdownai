@@ -21,9 +21,20 @@ const renderTemplate: ParseModule = {
     for (const tok of input.flags) {
       if (tok === 'force' || tok === 'if-missing') named[tok] = 'true'
     }
+    // The v2 tokenizer may park a bare `force`/`if-missing` token in
+    // `positional` if no other positional was set. Handle that.
+    if (input.positional === 'force' || input.positional === 'if-missing') {
+      named[input.positional] = 'true'
+    }
 
-    // Walk body lines, parsing key=value into params. Ignore blank/comment lines.
+    // Non-reserved attrs become template params. This handles the common
+    // Form 2 syntax where params live on attr-lines (no `>` separator).
+    const RESERVED_ATTRS = new Set(['from', 'to', 'force', 'if-missing', 'path'])
     const params: Record<string, string> = {}
+    for (const [k, v] of Object.entries(input.attrs)) {
+      if (!RESERVED_ATTRS.has(k)) params[k] = v
+    }
+    // Walk body lines, parsing key=value into params. Ignore blank/comment lines.
     for (const raw of input.body) {
       const trimmed = raw.trim()
       if (trimmed === '' || trimmed.startsWith('#')) continue

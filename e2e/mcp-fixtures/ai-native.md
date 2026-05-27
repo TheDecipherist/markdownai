@@ -5,8 +5,8 @@ This document describes the MarkdownAI rendering pipeline.
 All file paths are relative to the document root (jailRoot).
 @prompt-end
 
-@define-concept jailRoot "the document root directory, used to confine file include and read paths"
-@define-concept strictMode "when --strict is active, any warning becomes a fatal error"
+@define-concept jailRoot "the document root directory, used to confine file include and read paths" /
+@define-concept strictMode "when --strict is active, any warning becomes a fatal error" /
 
 @constraint id="no-eval" severity="critical"
 eval() is never used. Use vm.runInNewContext() for all expression evaluation.
@@ -26,7 +26,7 @@ The parser produces an AST. The engine walks it. Output is rendered markdown.
 MarkdownAI was created in 2026 as a documentation superset of standard markdown.
 @section-end
 
-@chunk-boundary id="core" standalone="true"
+@chunk-boundary id="core" standalone="true" /
 
 @phase implementation
 ## Implementation Phase

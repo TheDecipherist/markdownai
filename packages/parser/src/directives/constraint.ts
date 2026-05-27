@@ -10,7 +10,7 @@ function isTemplatedValue(value: string): boolean {
 const constraint: ParseModule = {
   name: 'constraint',
   parse(input: DirectiveInput, ctx: ParseContext): ASTNode {
-    const id = input.attrs['id'] ?? input.positional ?? `constraint-${ctx.line}`
+    const id = input.attrs['id'] || input.positional || `constraint-${ctx.line}`
     const rawSeverity = input.attrs['severity'] ?? 'high'
     if (!isTemplatedValue(rawSeverity) && !SEVERITIES.has(rawSeverity)) {
       throw new ParseError(

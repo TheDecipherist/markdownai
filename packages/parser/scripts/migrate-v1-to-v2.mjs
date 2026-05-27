@@ -18,7 +18,10 @@ const BLOCK_OPENERS = new Set([
   'render-template',
   'constraint',
   'switch',
-  'chunk-boundary',
+  'plugin-meta',
+  'plugin-detect',
+  'plugin-layout',
+  'plugin-conventions',
 ])
 
 // Directives that were inline (block: false) in v1.
@@ -48,6 +51,14 @@ const INLINE_DIRECTIVES = new Set([
   'test',
   'date',
   'read-frontmatter',
+  'env',
+  'render',
+  'graph',
+  'define-concept',
+  'invocation-start',
+  'verbose-trace',
+  'on-complete',
+  'chunk-boundary',
 ])
 
 // Mid-block directives — do NOT push or pop the block stack.

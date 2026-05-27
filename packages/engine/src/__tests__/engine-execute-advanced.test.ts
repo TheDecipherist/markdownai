@@ -7,26 +7,26 @@ const header = { type: 'header' as const, line: 1, version: null }
 
 describe('execute — macro params and positional call args', () => {
   it('expands macro with positional args via @define name(param) syntax', () => {
-    const ast = parse('@markdownai\n@define greet(name)\nHello, {{name}}!\n@end\n\n@call greet(World)')
+    const ast = parse('@markdownai\n@define greet(name)\nHello, {{name}}!\n@define-end\n\n@call greet(World) /')
     const result = execute(ast)
     expect(result.output).toBe('Hello, World!')
   })
 
   it('expands macro with named paren args', () => {
-    const ast = parse('@markdownai\n@define row(title, value)\n{{title}}: {{value}}\n@end\n\n@call row(title=Foo, value=Bar)')
+    const ast = parse('@markdownai\n@define row(title, value)\n{{title}}: {{value}}\n@define-end\n\n@call row(title=Foo, value=Bar) /')
     const result = execute(ast)
     expect(result.output).toBe('Foo: Bar')
   })
 
   it('unspecified param resolves to empty string', () => {
-    const ast = parse('@markdownai\n@define greet(name)\nHello, {{name}}!\n@end\n\n@call greet()')
+    const ast = parse('@markdownai\n@define greet(name)\nHello, {{name}}!\n@define-end\n\n@call greet() /')
     const result = execute(ast)
     expect(result.output).toBe('Hello, !')
   })
 })
 
 describe('execute — @http security', () => {
-  it('@http cloud metadata endpoint always blocked even with allowHttp', () => {
+  it('@http cloud metadata endpoint always blocked even with allowHttp /', () => {
     const ast: ParseResult = {
       isMarkdownAI: true, version: null,
       nodes: [header, { type: 'http', line: 2, args: { url: 'http://169.254.169.254/latest/meta-data' }, cache: null }],
@@ -36,7 +36,7 @@ describe('execute — @http security', () => {
     expect(result.output.trim()).toBe('')
   })
 
-  it('@http stripped silently when allowHttp is false', () => {
+  it('@http stripped silently when allowHttp is false /', () => {
     const ast: ParseResult = {
       isMarkdownAI: true, version: null,
       nodes: [header, { type: 'http', line: 2, args: { url: 'https://api.example.com' }, cache: null }],

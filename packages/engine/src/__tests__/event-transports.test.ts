@@ -81,9 +81,9 @@ function run(source: string, opts?: object) {
 // Worker dispatch (fire-and-forget)
 // ---------------------------------------------------------------------------
 
-describe('@event — worker dispatch', () => {
+describe('@event — worker dispatch /', () => {
   it('execute() returns synchronously before external transport dispatches complete', () => {
-    const result = run(`${DOC}@event name='x' data='v' transport='mcp'`, {
+    const result = run(`${DOC}@event name='x' data='v' transport='mcp' /`, {
       ctx: {
         security: {
           allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
@@ -117,7 +117,7 @@ describe('@event — worker dispatch', () => {
   })
 
   it('mcp transport populates EngineResult.events synchronously without a worker', () => {
-    const result = run(`${DOC}@event name='sync' data='hello' transport='mcp'`, {
+    const result = run(`${DOC}@event name='sync' data='hello' transport='mcp' /`, {
       ctx: {
         security: {
           allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
@@ -130,7 +130,7 @@ describe('@event — worker dispatch', () => {
   })
 
   it('worker-dispatched transport failures do not surface as execute() errors (fire-and-forget)', () => {
-    const result = run(`${DOC}@event name='x' data='v' transport='log'`, {
+    const result = run(`${DOC}@event name='x' data='v' transport='log' /`, {
       ctx: {
         security: {
           allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
@@ -142,7 +142,7 @@ describe('@event — worker dispatch', () => {
   })
 
   it('onError "fail" still captures to errors when transport is not in the allowlist', () => {
-    const result = run(`${DOC}@event name='x' data='v' transport='log'`, {
+    const result = run(`${DOC}@event name='x' data='v' transport='log' /`, {
       ctx: {
         security: {
           allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
@@ -158,7 +158,7 @@ describe('@event — worker dispatch', () => {
 // log transport
 // ---------------------------------------------------------------------------
 
-describe('@event — log transport', () => {
+describe('@event — log transport /', () => {
   beforeEach(() => {
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   })
@@ -198,9 +198,9 @@ describe('@event — log transport', () => {
 // mcp transport
 // ---------------------------------------------------------------------------
 
-describe('@event — mcp transport', () => {
+describe('@event — mcp transport /', () => {
   it('event appears in EngineResult.events with transport field set to "mcp"', () => {
-    const result = run(`${DOC}@event name='status' data='running' transport='mcp'`, {
+    const result = run(`${DOC}@event name='status' data='running' transport='mcp' /`, {
       ctx: {
         security: {
           allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
@@ -238,7 +238,7 @@ describe('@event — mcp transport', () => {
 // vscode transport
 // ---------------------------------------------------------------------------
 
-describe('@event — vscode transport', () => {
+describe('@event — vscode transport /', () => {
   it('writes event JSON to the temp file at /tmp/markdownai-events-<sessionId>.json', () => {
     fireVscode(makeEvent(), 'sess-1')
     expect(vi.mocked(appendFileSync)).toHaveBeenCalledOnce()
@@ -287,7 +287,7 @@ describe('@event — vscode transport', () => {
 // websocket transport
 // ---------------------------------------------------------------------------
 
-describe('@event — websocket transport', () => {
+describe('@event — websocket transport /', () => {
   it('is a no-op when no WebSocket clients are connected', () => {
     const unused = vi.fn()
     fireWebsocket(makeEvent(), new Set<WebsocketClient>())
@@ -325,7 +325,7 @@ describe('@event — websocket transport', () => {
 // file transport
 // ---------------------------------------------------------------------------
 
-describe('@event — file transport', () => {
+describe('@event — file transport /', () => {
   it('rejects a relative path — only absolute paths are accepted', () => {
     expect(() => fireFile(makeEvent(), './relative/path.json', '/project')).toThrow(/absolute/)
   })
@@ -360,7 +360,7 @@ describe('@event — file transport', () => {
 // http transport
 // ---------------------------------------------------------------------------
 
-describe('@event — http transport', () => {
+describe('@event — http transport /', () => {
   it('requires a valid URL — invalid URL throws before sending', () => {
     expect(() => fireHttp(makeEvent(), 'not-a-url', {}, ['example.com'])).toThrow(/invalid URL/)
   })
@@ -406,7 +406,7 @@ describe('@event — http transport', () => {
 // db transport
 // ---------------------------------------------------------------------------
 
-describe('@event — db transport', () => {
+describe('@event — db transport /', () => {
   beforeEach(() => {
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   })

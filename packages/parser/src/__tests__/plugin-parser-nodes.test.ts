@@ -15,7 +15,7 @@ function firstNode<T>(src: string, type: string): T | undefined {
 
 describe('@plugin-meta parser', () => {
   it('parses a plugin-meta block and captures raw body', () => {
-    const src = `${DOC}@plugin-meta\n  framework_name: "MDD"\n  framework_version: "2.0"\n@end`
+    const src = `${DOC}@plugin-meta\n  framework_name: "MDD"\n  framework_version: "2.0"\n@plugin-meta-end`
     const n = firstNode<PluginMetaNode>(src, 'plugin-meta')
     expect(n).toBeDefined()
     expect(n?.type).toBe('plugin-meta')
@@ -24,7 +24,7 @@ describe('@plugin-meta parser', () => {
   })
 
   it('preserves indented body content exactly', () => {
-    const src = `${DOC}@plugin-meta\n  key: "value"\n  nested:\n    sub: "x"\n@end`
+    const src = `${DOC}@plugin-meta\n  key: "value"\n  nested:\n    sub: "x"\n@plugin-meta-end`
     const n = firstNode<PluginMetaNode>(src, 'plugin-meta')
     expect(n?.body).toContain('nested:')
     expect(n?.body).toContain('sub: "x"')
@@ -44,7 +44,7 @@ describe('@plugin-detect parser', () => {
       '  required_marker: "@markdownai v2.0"',
       '  required_files:',
       '    - ".mdd/settings.json"',
-      '@end',
+      '@plugin-detect-end',
     ].join('\n')
     const n = firstNode<PluginDetectNode>(src, 'plugin-detect')
     expect(n).toBeDefined()
@@ -68,7 +68,7 @@ describe('@plugin-layout parser', () => {
       '    features: ".mdd/docs/"',
       '  files:',
       '    settings: ".mdd/settings.json"',
-      '@end',
+      '@plugin-layout-end',
     ].join('\n')
     const n = firstNode<PluginLayoutNode>(src, 'plugin-layout')
     expect(n).toBeDefined()
@@ -93,7 +93,7 @@ describe('@plugin-conventions parser', () => {
       '  required_frontmatter_fields:',
       '    - id',
       '    - title',
-      '@end',
+      '@plugin-conventions-end',
     ].join('\n')
     const n = firstNode<PluginConventionsNode>(src, 'plugin-conventions')
     expect(n).toBeDefined()
@@ -114,18 +114,18 @@ describe('plugin block coexistence', () => {
       DOC,
       '@plugin-meta',
       '  framework_name: "TestFW"',
-      '@end',
+      '@plugin-meta-end',
       '@plugin-detect',
       '  required_marker: "@markdownai v1.0"',
-      '@end',
+      '@plugin-detect-end',
       '@plugin-layout',
       '  directories:',
       '    features: ".fw/docs/"',
-      '@end',
+      '@plugin-layout-end',
       '@plugin-conventions',
       '  naming:',
       '    doc: "<N>-<slug>.md"',
-      '@end',
+      '@plugin-conventions-end',
     ].join('\n')
     const result = parse(src)
     const types = result.nodes.map(n => n.type)
@@ -136,7 +136,7 @@ describe('plugin block coexistence', () => {
   })
 
   it('records the correct line number for each plugin block', () => {
-    const src = `${DOC}@plugin-meta\n  k: v\n@end\n@plugin-detect\n  k: v\n@end`
+    const src = `${DOC}@plugin-meta\n  k: v\n@plugin-meta-end\n@plugin-detect\n  k: v\n@plugin-detect-end`
     const result = parse(src)
     const meta = result.nodes.find(n => n.type === 'plugin-meta') as PluginMetaNode
     const detect = result.nodes.find(n => n.type === 'plugin-detect') as PluginDetectNode
