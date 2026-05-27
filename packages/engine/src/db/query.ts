@@ -35,7 +35,13 @@ export interface QueryPlan {
   _hasOrFilters?: boolean
 }
 
-export type Row = Record<string, string | number | boolean | null>
+// RowValue covers MongoDB's actual document shape — flat scalars PLUS arrays
+// and nested objects. SQL adapters still produce flat rows; MongoDB returns
+// the document as-is (arrays + sub-docs preserved), so `{{ feature.sourceFiles }}`
+// dot-access on @db results lands on real arrays/objects rather than
+// comma-joined strings.
+export type RowValue = string | number | boolean | null | RowValue[] | { [key: string]: RowValue }
+export type Row = Record<string, RowValue>
 
 export interface DbAdapter {
   connect(uri: string): Promise<void>

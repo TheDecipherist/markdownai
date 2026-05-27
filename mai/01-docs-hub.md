@@ -8,13 +8,13 @@
 ---
 Welcome to **{{ project }}** — the live documentation system.
 ---
-@end
+@define-end
 
-@call welcome_banner(project=MarkdownAI)
+@call welcome_banner(project=MarkdownAI) /
 
-@include ./sections/intro.md
+@include ./sections/intro.md /
 
-@include ./sections/guide.md
+@include ./sections/guide.md /
 
 ## Status
 
@@ -22,22 +22,22 @@ Welcome to **{{ project }}** — the live documentation system.
 This document was rendered successfully with all directives resolved.
 @else
 This section should never appear.
-@endif
+@if-end
 
 ## Current Date
 
 This document was last rendered on:
 
-@date format="YYYY-MM-DD"
+@date format="YYYY-MM-DD" /
 
 ## Environment
 
-@env MARKDOWNAI_ENV fallback="development"
+@env MARKDOWNAI_ENV fallback="development" /
 
 @define footer(version)
 ---
 _MarkdownAI v{{ version }} — documentation as code._
 ---
-@end
+@define-end
 
-@call footer(version=1.0.0)
+@call footer(version=1.0.0) /

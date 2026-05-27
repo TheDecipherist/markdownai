@@ -150,6 +150,12 @@ export interface MkdirNode extends ASTNodeBase {
   args: Record<string, string>  // optional: recursive=false (default true)
 }
 
+export interface TouchNode extends ASTNodeBase {
+  type: 'touch'
+  path: string
+  args: Record<string, string>
+}
+
 export interface CopyNode extends ASTNodeBase {
   type: 'copy'
   from: string
@@ -389,6 +395,7 @@ export type ASTNode =
   | DateNode
   | CountNode
   | MkdirNode
+  | TouchNode
   | CopyNode
   | AppendIfMissingNode
   | UpdateFrontmatterNode
@@ -437,11 +444,41 @@ export interface ParseContext {
   inImport: boolean
 }
 
+/**
+ * v2.0 DirectiveInput — what each directive's parse() now receives.
+ *
+ * The parser pre-tokenizes the opener line + continuation lines into:
+ *   - positional: the first whitespace-separated argument on the opener line
+ *     after the directive name (everything up to the first key=value attr or
+ *     the trailing `/` self-close marker). Empty string if absent.
+ *   - attrs: key=value attributes from the opener line AND from continuation
+ *     attr-lines (Form 2/3). Keys are lowercased verbatim from source.
+ *   - flags: bare-name tokens (no `=`) — collected from both opener and
+ *     continuation lines.
+ *   - body: raw body lines (no leading indent stripped — directives that need
+ *     them do their own stripping). Empty array for Form 1 / Form 2.
+ *   - isSelfClosed: true when the opener line ended with ` /` (Form 1).
+ *   - line: 1-based line number of the opener.
+ *
+ * `rawArgs` is the verbatim text after the directive name on the opener line,
+ * stripped of the trailing self-close ` /`. Directives that need to parse
+ * non-trivial positional/expression syntax (e.g. @if condition, @foreach
+ * "x in source", @set "v = expr") read it directly instead of using the
+ * pre-split positional/attrs.
+ */
+export interface DirectiveInput {
+  positional: string
+  attrs: Record<string, string>
+  flags: string[]
+  body: string[]
+  isSelfClosed: boolean
+  line: number
+  rawArgs: string
+}
+
 export interface ParseModule {
   name: string
-  block: boolean
-  closeTag?: 'end' | 'endif'
-  parse(rawLine: string, args: string, ctx: ParseContext): ASTNode
+  parse(input: DirectiveInput, ctx: ParseContext): ASTNode
 }
 
 export class ParseError extends Error {

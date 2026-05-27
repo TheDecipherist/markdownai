@@ -61,7 +61,7 @@ Status: {{ status }}
 @render-template from="tpl/feature.md" to="out/feature.md"
   name=user-auth
   status=draft
-@end
+@render-template-end
 `,
     )
     const out = readFileSync(join(projectDir, 'out/feature.md'), 'utf8')
@@ -75,19 +75,19 @@ Status: {{ status }}
       `@markdownai v1.0
 @if {{ kind }} == "cli"
   CLI feature.
-@endif
+@if-end
 @if {{ kind }} == "web"
   Web feature.
-@endif
+@if-end
 `, 'utf8')
     render(
       `@markdownai v1.0
 @render-template from="tpl/feature.md" to="out/a.md"
   kind=cli
-@end
+@render-template-end
 @render-template from="tpl/feature.md" to="out/b.md"
   kind=web
-@end
+@render-template-end
 `,
     )
     expect(readFileSync(join(projectDir, 'out/a.md'), 'utf8')).toMatch(/CLI feature/)
@@ -106,7 +106,7 @@ Status: {{ status }}
       `@markdownai v1.0
 @render-template from="tpl/feature.md" to="out/feature.md"
   name=Alice
-@end
+@render-template-end
 `,
     )
     expect(readFileSync(join(projectDir, 'out/feature.md'), 'utf8')).toBe('EXISTING\n')
@@ -122,7 +122,7 @@ Status: {{ status }}
       `@markdownai v1.0
 @render-template from="tpl/feature.md" to="out/feature.md" force
   name=Alice
-@end
+@render-template-end
 `,
     )
     expect(readFileSync(join(projectDir, 'out/feature.md'), 'utf8')).toContain('Hello Alice')
@@ -136,7 +136,7 @@ Status: {{ status }}
       `@markdownai v1.0
 @render-template from="tpl/feature.ts.template" to="src/feature.ts"
   name=auth
-@end
+@render-template-end
 `,
     )
     expect(readFileSync(join(projectDir, 'src/feature.ts'), 'utf8')).toContain('export const NAME = "auth";')
@@ -150,7 +150,7 @@ Status: {{ status }}
       `@markdownai v1.0
 @render-template from="tpl/feature.md" to="out/feature.md"
   x=hi
-@end
+@render-template-end
 `,
       makeFsConfig({ write_enabled: false }),
     )
@@ -165,7 +165,7 @@ Status: {{ status }}
     render(
       `@markdownai v1.0
 @render-template from="tpl/feature.md" to="deep/nested/path/out.md"
-@end
+@render-template-end
 `,
     )
     expect(existsSync(join(projectDir, 'deep/nested/path/out.md'))).toBe(true)
@@ -176,7 +176,7 @@ Status: {{ status }}
       `@markdownai v1.0
 @render-template from="missing.md" to="out.md"
   x=1
-@end
+@render-template-end
 `,
     )
     expect(result.warnings.join('\n')).toMatch(/does not exist/i)

@@ -105,8 +105,55 @@ export function executeMarkdownaiDetect(node: MarkdownaiDetectNode, ctx: EngineC
     output = matched.map(p => formatPluginSummary(p, node.include, 'text')).join('\n')
   }
 
-  if (node.label) ctx.envFiles[node.label] = output
+  if (node.label) {
+    // Text form retained in envFiles for inline rendering.
+    ctx.envFiles[node.label] = output
+    // Structured form in ctx.data so callers can navigate the result:
+    //   {{ info.detected }}, {{ info.frameworks.mdd.layout.directories.features }}
+    ctx.data[node.label] = buildDetectStruct(matched, node.include)
+  }
   return output
+}
+
+interface FrameworkRecord {
+  name: string
+  framework_version: string
+  marker_version: string
+  meta?: PluginMeta
+  detect?: PluginDetect
+  layout?: PluginLayout
+  conventions?: PluginConventions
+}
+
+interface DetectStruct {
+  detected: boolean
+  count: number
+  frameworks: Record<string, FrameworkRecord>
+}
+
+function buildDetectStruct(matched: LoadedPlugin[], include: string[]): DetectStruct {
+  const wantsLayout = include.includes('layout') || include.includes('all')
+  const wantsAll = include.includes('all')
+  const frameworks: Record<string, FrameworkRecord> = {}
+  for (const p of matched) {
+    const entry: FrameworkRecord = {
+      name: p.name,
+      framework_version: p.meta?.framework_version ?? '',
+      marker_version: p.meta?.marker_version ?? '',
+      meta: p.meta,
+    }
+    if (wantsLayout && p.layout) entry.layout = p.layout
+    if (wantsAll) {
+      entry.detect = p.detect
+      if (p.conventions) entry.conventions = p.conventions
+    }
+    frameworks[p.name] = entry
+  }
+  return {
+    detected: matched.length > 0,
+    count: matched.length,
+    frameworks,
+  }
 }
 
 export function executePluginData(node: PluginDataNode, ctx: EngineContext): string {
@@ -118,12 +165,29 @@ export function executePluginData(node: PluginDataNode, ctx: EngineContext): str
   if (!plugin) {
     const msg = `[plugin-data: plugin "${node.name}" not found]`
     ctx.warnings.push(`@plugin-data: plugin "${node.name}" not found`)
-    if (node.label) ctx.envFiles[node.label] = msg
+    if (node.label) {
+      ctx.envFiles[node.label] = msg
+      ctx.data[node.label] = { found: false, name: node.name }
+    }
     return msg
   }
 
   const output = formatPluginSummary(plugin, node.include, 'info')
-  if (node.label) ctx.envFiles[node.label] = output
+  if (node.label) {
+    ctx.envFiles[node.label] = output
+    // Direct struct access to the plugin's descriptor without going
+    // through @markdownai-detect's project scan.
+    ctx.data[node.label] = {
+      found: true,
+      name: plugin.name,
+      framework_version: plugin.meta?.framework_version ?? '',
+      marker_version: plugin.meta?.marker_version ?? '',
+      meta: plugin.meta,
+      detect: plugin.detect,
+      layout: plugin.layout,
+      conventions: plugin.conventions,
+    }
+  }
   return output
 }
 

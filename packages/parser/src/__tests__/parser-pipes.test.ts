@@ -12,9 +12,9 @@ function node<T extends ASTNode>(nodes: ASTNode[], index: number): T {
 }
 
 describe('Parser', () => {
-  describe('@db directive', () => {
+  describe('@db directive /', () => {
     it('parses @db directive with query arg', () => {
-      const result = parse('@markdownai\n@db query="db.users.find()"')
+      const result = parse('@markdownai\n@db query="db.users.find()" /')
       const n = node<DbNode>(result.nodes, 1)
       expect(n.type).toBe('db')
       expect(n.args['query']).toBe('db.users.find()')
@@ -23,7 +23,7 @@ describe('Parser', () => {
 
   describe('@if conditional block', () => {
     it('parses @if ... @endif with one branch', () => {
-      const result = parse('@markdownai\n@if env.NODE_ENV == "development"\n> Debug mode\n@endif')
+      const result = parse('@markdownai\n@if env.NODE_ENV == "development"\n> Debug mode\n@if-end')
       const n = node<ConditionalNode>(result.nodes, 1)
       expect(n.type).toBe('conditional')
       expect(n.branches).toHaveLength(1)
@@ -31,7 +31,7 @@ describe('Parser', () => {
     })
 
     it('parses @if ... @else ... @endif with two branches', () => {
-      const result = parse('@markdownai\n@if env.ENV == "prod"\nProd\n@else\nDev\n@endif')
+      const result = parse('@markdownai\n@if env.ENV == "prod"\nProd\n@else\nDev\n@if-end')
       const n = node<ConditionalNode>(result.nodes, 1)
       expect(n.branches).toHaveLength(2)
       expect(n.branches[0]?.condition).toBe('env.ENV == "prod"')
@@ -47,7 +47,7 @@ describe('Parser', () => {
         'Pro',
         '@else',
         'Free',
-        '@endif',
+        '@if-end',
       ].join('\n')
       const result = parse(src)
       const n = node<ConditionalNode>(result.nodes, 1)
@@ -57,7 +57,7 @@ describe('Parser', () => {
 
   describe('pipe chains', () => {
     it('detects unquoted | and produces pipe node', () => {
-      const result = parse('@markdownai\n@list ./src/ match="**/*.ts" | sort | @render type="list"')
+      const result = parse('@markdownai\n@list ./src/ match="**/*.ts" | sort | @render type="list" /')
       const n = node<PipeNode>(result.nodes, 1)
       expect(n.type).toBe('pipe')
       expect(n.stages.length).toBeGreaterThanOrEqual(3)
@@ -66,7 +66,7 @@ describe('Parser', () => {
     })
 
     it('does not treat | inside quotes as pipe separator', () => {
-      const result = parse('@markdownai\n@db query="SELECT a | b FROM t" | @render type="table"')
+      const result = parse('@markdownai\n@db query="SELECT a | b FROM t" | @render type="table" /')
       const n = node<PipeNode>(result.nodes, 1)
       expect(n.type).toBe('pipe')
       expect(n.stages).toHaveLength(2)
@@ -78,14 +78,14 @@ describe('Parser', () => {
     })
 
     it('classifies builtin commands correctly', () => {
-      const result = parse('@markdownai\n@list ./src/ | sort | head -n 5 | @render type="list"')
+      const result = parse('@markdownai\n@list ./src/ | sort | head -n 5 | @render type="list" /')
       const n = node<PipeNode>(result.nodes, 1)
       const sortStage = n.stages[1]
       expect(sortStage?.type).toBe('builtin')
     })
 
     it('the last @render stage is a sink', () => {
-      const result = parse('@markdownai\n@list ./docs/ | @render type="numbered"')
+      const result = parse('@markdownai\n@list ./docs/ | @render type="numbered" /')
       const n = node<PipeNode>(result.nodes, 1)
       const last = n.stages[n.stages.length - 1]
       expect(last?.type).toBe('sink')
@@ -144,16 +144,16 @@ describe('Parser', () => {
 
   describe('unknown directives', () => {
     it('produces passthrough node for unknown @directive', () => {
-      const result = parse('@markdownai\n@unknownDirective some args')
+      const result = parse('@markdownai\n@unknownDirective some args /')
       const n = node<PassthroughNode>(result.nodes, 1)
       expect(n.type).toBe('passthrough')
-      expect(n.raw).toBe('@unknownDirective some args')
+      expect(n.raw).toBe('@unknownDirective some args /')
     })
   })
 
   describe('as="type" shorthand', () => {
-    it('@list with as="list" produces PipeNode with source and sink', () => {
-      const result = parse('@markdownai\n@list ./src/ as="list"')
+    it('@list with as="list" produces PipeNode with source and sink /', () => {
+      const result = parse('@markdownai\n@list ./src/ as="list" /')
       const n = node<PipeNode>(result.nodes, 1)
       expect(n.type).toBe('pipe')
       expect(n.stages[0]?.type).toBe('source')
@@ -165,7 +165,7 @@ describe('Parser', () => {
     })
 
     it('as="type" does not appear in the source node args', () => {
-      const result = parse('@markdownai\n@list ./src/ as="numbered"')
+      const result = parse('@markdownai\n@list ./src/ as="numbered" /')
       const n = node<PipeNode>(result.nodes, 1)
       const src = n.stages[0]
       if (src?.type === 'source') {
@@ -176,7 +176,7 @@ describe('Parser', () => {
 
   describe('pipe scalar stage', () => {
     it('pipe without @render sink gets scalar stage appended', () => {
-      const result = parse('@markdownai\n@list ./src/ | wc -l')
+      const result = parse('@markdownai\n@list ./src/ | wc -l /')
       const n = node<PipeNode>(result.nodes, 1)
       const last = n.stages[n.stages.length - 1]
       expect(last?.type).toBe('scalar')
@@ -185,27 +185,27 @@ describe('Parser', () => {
 
   describe('|| in @if conditions (Wave 2 fix)', () => {
     it('@if A || B parses as conditional, not pipe', () => {
-      const result = parse('@markdownai\n@if env.A == "x" || env.B == "y"\ncontent\n@endif')
+      const result = parse('@markdownai\n@if env.A == "x" || env.B == "y"\ncontent\n@if-end')
       const n = node<ConditionalNode>(result.nodes, 1)
       expect(n.type).toBe('conditional')
       expect(n.branches[0]?.condition).toBe('env.A == "x" || env.B == "y"')
     })
 
     it('@if A || B || C parses correctly', () => {
-      const result = parse('@markdownai\n@if a == 1 || b == 2 || c == 3\nx\n@endif')
+      const result = parse('@markdownai\n@if a == 1 || b == 2 || c == 3\nx\n@if-end')
       const n = node<ConditionalNode>(result.nodes, 1)
       expect(n.type).toBe('conditional')
       expect(n.branches[0]?.condition).toMatch(/c == 3/)
     })
 
     it('@if A && B || C parses correctly', () => {
-      const result = parse('@markdownai\n@if a && b || c\nx\n@endif')
+      const result = parse('@markdownai\n@if a && b || c\nx\n@if-end')
       const n = node<ConditionalNode>(result.nodes, 1)
       expect(n.type).toBe('conditional')
     })
 
     it('@elseif A || B parses correctly', () => {
-      const result = parse('@markdownai\n@if a == 1\nA\n@elseif b == 2 || c == 3\nBC\n@endif')
+      const result = parse('@markdownai\n@if a == 1\nA\n@elseif b == 2 || c == 3\nBC\n@if-end')
       const n = node<ConditionalNode>(result.nodes, 1)
       expect(n.type).toBe('conditional')
       expect(n.branches).toHaveLength(2)
@@ -219,12 +219,12 @@ describe('Parser', () => {
     })
 
     it('| inside single-quoted strings is not a pipe', () => {
-      const result = parse(`@markdownai\n@query bash -c 'echo a | wc -l'`)
+      const result = parse(`@markdownai\n@query bash -c 'echo a | wc -l' /`)
       expect(result.nodes[1]?.type).toBe('query')
     })
 
     it('existing pipe chains still work', () => {
-      const result = parse('@markdownai\n@list ./src/ | sort | @render type="list"')
+      const result = parse('@markdownai\n@list ./src/ | sort | @render type="list" /')
       const n = node<PipeNode>(result.nodes, 1)
       expect(n.type).toBe('pipe')
       expect(n.stages.length).toBeGreaterThanOrEqual(3)
@@ -234,20 +234,22 @@ describe('Parser', () => {
   describe('parse errors', () => {
     it('throws ParseError for @on outside @phase', () => {
       expect(() =>
-        parse('@markdownai\n@on complete -> @phase test')
+        parse('@markdownai\n@on-complete @phase test /')
       ).toThrow()
     })
 
     it('throws ParseError for @include with absolute path', () => {
       expect(() =>
-        parse('@markdownai\n@include /etc/passwd')
+        parse('@markdownai\n@include /etc/passwd /')
       ).toThrow(/absolute/)
     })
 
-    it('throws ParseError for standalone @render', () => {
-      expect(() =>
-        parse('@markdownai\n@render type="list"')
-      ).toThrow(/pipe chain/)
+    it('produces a render node for standalone @render (engine will detect missing input)', () => {
+      // v2: standalone @render parses as a self-closed directive; the engine
+      // is responsible for noting that no upstream pipe stage feeds it.
+      const result = parse('@markdownai\n@render type="list" /')
+      const n = result.nodes.find(node => node.type === 'render')
+      expect(n).toBeDefined()
     })
   })
 })

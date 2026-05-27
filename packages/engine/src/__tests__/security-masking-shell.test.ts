@@ -93,9 +93,12 @@ describe('built-in immutable shell rules', () => {
 })
 
 describe('shell jail', () => {
-  const disabledConfig = defaultSecurityConfig().shell
+  // Default config now ships shell enabled with a curated allowlist; use an
+  // explicit-disabled config for the "blocks when disabled" test.
+  const defaultConfig = defaultSecurityConfig().shell
+  const disabledConfig = { ...defaultConfig, enabled: false }
 
-  it('blocks when shell is disabled', () => {
+  it('blocks when shell is explicitly disabled', () => {
     const result = checkShellCommand('ls -la', disabledConfig)
     expect(result.allowed).toBe(false)
   })

@@ -1,17 +1,14 @@
-import type { ParseModule, ParseContext, ASTNode, MarkdownaiDetectNode } from '../types.js'
-import { parseArgs } from '../args.js'
+import type { ParseModule, ParseContext, DirectiveInput, ASTNode, MarkdownaiDetectNode } from '../types.js'
 
 const markdownaiDetect: ParseModule = {
   name: 'markdownai-detect',
-  block: false,
-  parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
-    const parsed = parseArgs(args)
-    const formatRaw = parsed.named['as'] ?? 'text'
+  parse(input: DirectiveInput, ctx: ParseContext): ASTNode {
+    const formatRaw = input.attrs['as'] ?? 'text'
     const format: 'text' | 'info' = formatRaw === 'info' ? 'info' : 'text'
-    const includeRaw = parsed.named['include'] ?? ''
+    const includeRaw = input.attrs['include'] ?? ''
     const include = includeRaw ? includeRaw.split(',').map(s => s.trim()).filter(Boolean) : []
-    const label = parsed.named['label'] ?? null
-    const projectOverride = parsed.named['project'] ?? null
+    const label = input.attrs['label'] ?? null
+    const projectOverride = input.attrs['project'] ?? null
     const node: MarkdownaiDetectNode = {
       type: 'markdownai-detect',
       line: ctx.line,

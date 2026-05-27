@@ -68,7 +68,7 @@ export function callMacro(
     .join(', ')
 
   // filePath here is relative — safe to embed after confinement check above
-  const callDoc = `@markdownai\n@import ./${filePath}\n@call ${macroName}(${sanitizedArgs})`
+  const callDoc = `@markdownai\n@import ./${filePath} /\n@call ${macroName}(${sanitizedArgs}) /`
   const ast = parse(callDoc)
   if (!ast.isMarkdownAI) return { output: '', warnings: [], found: false }
 

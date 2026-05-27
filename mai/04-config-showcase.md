@@ -8,30 +8,30 @@ This document demonstrates reading structured data from JSON and CSV files.
 
 ### Project Name
 
-@read ./data/config.json path="project"
+@read ./data/config.json path="project" /
 
 ### Version
 
-@read ./data/config.json path="version"
+@read ./data/config.json path="version" /
 
 ### Description
 
-@read ./data/config.json path="description"
+@read ./data/config.json path="description" /
 
 ## Feature Matrix
 
-@read ./data/features.json | @render type="table"
+@read ./data/features.json | @render type="table" /
 
 ## Team Members
 
-@read ./data/team.csv | @render type="table"
+@read ./data/team.csv | @render type="table" /
 
 ## Conditional Section — Always Visible
 
 @if true
 The configuration file was read successfully. All values above reflect the current
 state of `data/config.json` at render time.
-@endif
+@if-end
 
 ## Conditional Section — Else Branch
 
@@ -39,4 +39,4 @@ state of `data/config.json` at render time.
 This section should never appear in the rendered output.
 @else
 Conditional logic working — the else branch rendered correctly.
-@endif
+@if-end

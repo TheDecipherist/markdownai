@@ -13,6 +13,7 @@ import { invalidateCache } from './tools/invalidate_cache.js'
 import { getConstraints } from './tools/get_constraints.js'
 import { availableDirectives } from './tools/available_directives.js'
 import { validateMcpInput } from './validate.js'
+import { mcpLog, mcpLogPath, summarizeArgs } from './logger.js'
 
 interface JsonRpcRequest {
   jsonrpc: '2.0'
@@ -35,7 +36,7 @@ export interface ServerOptions {
 }
 
 const TOOL_ALLOWLIST = new Set([
-  'read_file', 'list_phases', 'resolve_phase', 'next_phase',
+  'read_file', 'render', 'list_phases', 'resolve_phase', 'next_phase',
   'call_macro', 'get_env', 'execute_directive', 'invalidate_cache', 'get_constraints',
   'available_directives',
 ])
@@ -43,19 +44,48 @@ const TOOL_ALLOWLIST = new Set([
 function respond(id: string | number | null, result: unknown): void {
   const resp: JsonRpcResponse = { jsonrpc: '2.0', id, result }
   process.stdout.write(JSON.stringify(resp) + '\n')
+  mcpLog({ level: 'info', event: 'response', id: id ?? undefined })
+}
+
+/**
+ * MCP tool-response wrapper. The MCP spec for `tools/call` responses requires
+ * the result to be `{ content: [{ type: "text", text: "..." }], isError?: bool }`
+ * — an ARRAY of typed content blocks, not a bare object. Tool implementations
+ * return their own structured shape (e.g. `{ content: "...", warnings: [...] }`);
+ * this wraps that structured result as a single JSON-encoded text block so
+ * clients (Claude Code, etc.) that validate against the MCP schema can parse it.
+ *
+ * Without this wrapper, clients reject the response with:
+ *   "expected array, received string at content"
+ * because they read the tool's own `content: "..."` field as the MCP envelope's
+ * content (which must be an array).
+ */
+function respondTool(id: string | number | null, toolResult: unknown): void {
+  respond(id, {
+    content: [
+      { type: 'text', text: JSON.stringify(toolResult) },
+    ],
+  })
 }
 
 function respondError(id: string | number | null, code: number, message: string): void {
   const resp: JsonRpcResponse = { jsonrpc: '2.0', id, error: { code, message } }
   process.stdout.write(JSON.stringify(resp) + '\n')
+  mcpLog({ level: 'error', event: 'response-error', id: id ?? undefined, error: `[${code}] ${message}` })
 }
 
 function dispatchTool(method: string, p: Record<string, unknown>, id: string | number | null, cwd: string, passthrough?: boolean): void {
   switch (method) {
-    case 'read_file': {
-      const v = validateMcpInput([{ field: 'path', value: p['path'], noPathInjection: true }])
+    case 'read_file':
+    case 'render': {
+      // `render` is an alias of `read_file` with the parameter renamed from
+      // `path` to `file` for consistency with list_phases/resolve_phase/etc.
+      // Internally both dispatch through readFile (which still uses `path`).
+      const pathField = method === 'render' ? 'file' : 'path'
+      const pathValue = method === 'render' ? p['file'] : p['path']
+      const v = validateMcpInput([{ field: pathField, value: pathValue, noPathInjection: true }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      const rfArgs: Parameters<typeof readFile>[0] = { path: String(p['path'] ?? '') }
+      const rfArgs: Parameters<typeof readFile>[0] = { path: String(pathValue ?? '') }
       if (p['phase'] != null) rfArgs.phase = String(p['phase'])
       if (p['format'] === 'standard' || p['format'] === 'ai') rfArgs.format = p['format']
       if (p['budget'] != null) rfArgs.budget = Number(p['budget'])
@@ -68,23 +98,40 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
       if (p['skill_named_args'] != null && typeof p['skill_named_args'] === 'object' && !Array.isArray(p['skill_named_args'])) {
         rfArgs.skillNamedArgs = Object.fromEntries(Object.entries(p['skill_named_args']).map(([k, v]) => [k, String(v)]))
       }
-      respond(id, readFile(rfArgs, cwd))
+      respondTool(id, readFile(rfArgs, cwd))
       break
     }
     case 'list_phases': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, listPhases(String(p['file'] ?? ''), cwd)); break
+      respondTool(id, listPhases(String(p['file'] ?? ''), cwd)); break
     }
     case 'resolve_phase': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'phase', value: p['phase'] }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, resolvePhase(String(p['file'] ?? ''), String(p['phase'] ?? ''), cwd)); break
+      const rpArgs: Parameters<typeof resolvePhase>[0] = { filePath: String(p['file'] ?? ''), phase: String(p['phase'] ?? '') }
+      if (p['consumer'] != null) rpArgs.consumer = String(p['consumer'])
+      if (p['skill_args'] != null) rpArgs.skillArgs = String(p['skill_args'])
+      if (p['skill_session_id'] != null) rpArgs.skillSessionId = String(p['skill_session_id'])
+      if (p['skill_effort'] != null) rpArgs.skillEffort = String(p['skill_effort'])
+      if (p['skill_dir'] != null) rpArgs.skillDir = String(p['skill_dir'])
+      if (p['skill_named_args'] != null && typeof p['skill_named_args'] === 'object' && !Array.isArray(p['skill_named_args'])) {
+        rpArgs.skillNamedArgs = Object.fromEntries(Object.entries(p['skill_named_args']).map(([k, v]) => [k, String(v)]))
+      }
+      respondTool(id, resolvePhase(rpArgs, cwd)); break
     }
     case 'next_phase': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'current_phase', value: p['current_phase'] }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, nextPhase(String(p['file'] ?? ''), String(p['current_phase'] ?? ''), cwd)); break
+      const npArgs: Parameters<typeof nextPhase>[0] = { filePath: String(p['file'] ?? ''), currentPhase: String(p['current_phase'] ?? '') }
+      if (p['skill_args'] != null) npArgs.skillArgs = String(p['skill_args'])
+      if (p['skill_session_id'] != null) npArgs.skillSessionId = String(p['skill_session_id'])
+      if (p['skill_effort'] != null) npArgs.skillEffort = String(p['skill_effort'])
+      if (p['skill_dir'] != null) npArgs.skillDir = String(p['skill_dir'])
+      if (p['skill_named_args'] != null && typeof p['skill_named_args'] === 'object' && !Array.isArray(p['skill_named_args'])) {
+        npArgs.skillNamedArgs = Object.fromEntries(Object.entries(p['skill_named_args']).map(([k, v]) => [k, String(v)]))
+      }
+      respondTool(id, nextPhase(npArgs, cwd)); break
     }
     case 'call_macro': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }, { field: 'macro', value: p['macro'] }])
@@ -93,28 +140,28 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
       const macroArgs: Record<string, string> = (typeof rawArgs === 'object' && rawArgs !== null && !Array.isArray(rawArgs))
         ? Object.fromEntries(Object.entries(rawArgs).map(([k, v]) => [k, String(v)]))
         : {}
-      respond(id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), macroArgs, cwd))
+      respondTool(id, callMacro(String(p['file'] ?? ''), String(p['macro'] ?? ''), macroArgs, cwd))
       break
     }
     case 'get_env': {
       const v = validateMcpInput([{ field: 'key', value: p['key'], isEnvKey: true }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, getEnv(String(p['key'] ?? ''), p['fallback'] != null ? String(p['fallback']) : undefined)); break
+      respondTool(id, getEnv(String(p['key'] ?? ''), p['fallback'] != null ? String(p['fallback']) : undefined)); break
     }
     case 'execute_directive': {
       const v = validateMcpInput([{ field: 'directive', value: p['directive'] }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, executeDirective(String(p['directive'] ?? ''), cwd)); break
+      respondTool(id, executeDirective(String(p['directive'] ?? ''), cwd)); break
     }
-    case 'invalidate_cache': respond(id, invalidateCache(p['directive'] != null ? String(p['directive']) : undefined)); break
+    case 'invalidate_cache': respondTool(id, invalidateCache(p['directive'] != null ? String(p['directive']) : undefined)); break
     case 'get_constraints': {
       const v = validateMcpInput([{ field: 'file', value: p['file'], noPathInjection: true }])
       if (!v.ok) { respondError(id, -32602, `Invalid params: ${v.errors.map(e => `${e.field}: ${e.reason}`).join('; ')}`); return }
-      respond(id, getConstraints(String(p['file'] ?? ''), cwd)); break
+      respondTool(id, getConstraints(String(p['file'] ?? ''), cwd)); break
     }
     case 'available_directives': {
       const include = p['include_plugin_directives']
-      respond(id, availableDirectives({ include_plugin_directives: include !== false })); break
+      respondTool(id, availableDirectives({ include_plugin_directives: include !== false })); break
     }
     default: respondError(id, -32601, `Unknown tool: "${method}"`)
   }
@@ -122,6 +169,7 @@ function dispatchTool(method: string, p: Record<string, unknown>, id: string | n
 
 function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean): void {
   const p = req.params ?? {}
+  mcpLog({ level: 'info', event: 'request', id: req.id ?? undefined, method: req.method })
   try {
     switch (req.method) {
       case 'initialize':
@@ -137,9 +185,10 @@ function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean):
         respond(req.id, {
           tools: [
             { name: 'read_file', description: 'Read and render a MarkdownAI document. Returns ai-format (token-efficient) by default. Pass format="standard" to override. When reading a skill/command file, pass skill_args and skill_* fields to enable @if conditions on $ARGUMENTS, $CLAUDE_EFFORT, etc.', inputSchema: { type: 'object', properties: { path: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' }, passthrough: { type: 'boolean', description: 'Pass plain markdown files through the engine unchanged instead of returning raw source' }, skill_args: { type: 'string', description: 'Raw $ARGUMENTS string from the Claude Code slash command invocation' }, skill_named_args: { type: 'object', description: 'Named arguments from the skill frontmatter arguments: list', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string', description: '${CLAUDE_SESSION_ID} from Claude Code' }, skill_effort: { type: 'string', description: '${CLAUDE_EFFORT} from Claude Code (low/medium/high/xhigh/max)' }, skill_dir: { type: 'string', description: '${CLAUDE_SKILL_DIR} — directory containing the skill file' } }, required: ['path'] } },
+            { name: 'render', description: 'Render a MarkdownAI document. Alias for read_file with the `file` parameter (consistent with list_phases / resolve_phase / call_macro / get_constraints). Returns ai-format by default. Pass format="standard" to override. Used by slash-command flows that need to render an entire flow file in one call.', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' }, format: { type: 'string', enum: ['ai', 'standard'] }, consumer: { type: 'string' }, budget: { type: 'number' }, passthrough: { type: 'boolean' }, skill_args: { type: 'string' }, skill_named_args: { type: 'object', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string' }, skill_effort: { type: 'string' }, skill_dir: { type: 'string' } }, required: ['file'] } },
             { name: 'list_phases', description: 'List all phases in a MarkdownAI document', inputSchema: { type: 'object', properties: { file: { type: 'string' } }, required: ['file'] } },
-            { name: 'resolve_phase', description: 'Resolve a named phase in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' } }, required: ['file', 'phase'] } },
-            { name: 'next_phase', description: 'Get the next phase after current_phase', inputSchema: { type: 'object', properties: { file: { type: 'string' }, current_phase: { type: 'string' } }, required: ['file', 'current_phase'] } },
+            { name: 'resolve_phase', description: 'Render a named phase. Returns rendered content plus `nextPhase` advising which phase fired in @on complete (honors @if/@switch). Pass skill_args (etc.) so the engine binds $ARGUMENTS / argsList — required when a phase reads positional skill args.', inputSchema: { type: 'object', properties: { file: { type: 'string' }, phase: { type: 'string' }, consumer: { type: 'string' }, skill_args: { type: 'string', description: 'Raw $ARGUMENTS string from the slash command' }, skill_named_args: { type: 'object', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string' }, skill_effort: { type: 'string' }, skill_dir: { type: 'string' } }, required: ['file', 'phase'] } },
+            { name: 'next_phase', description: 'Get the next phase after current_phase. Renders the phase with skill context to honor conditional @on complete inside @if/@switch; falls back to the first static transition when no conditional fires.', inputSchema: { type: 'object', properties: { file: { type: 'string' }, current_phase: { type: 'string' }, skill_args: { type: 'string' }, skill_named_args: { type: 'object', additionalProperties: { type: 'string' } }, skill_session_id: { type: 'string' }, skill_effort: { type: 'string' }, skill_dir: { type: 'string' } }, required: ['file', 'current_phase'] } },
             { name: 'call_macro', description: 'Call a named macro in a document', inputSchema: { type: 'object', properties: { file: { type: 'string' }, macro: { type: 'string' }, args: { type: 'object' } }, required: ['file', 'macro'] } },
             { name: 'get_env', description: 'Get an environment variable value', inputSchema: { type: 'object', properties: { key: { type: 'string' }, fallback: { type: 'string' } }, required: ['key'] } },
             { name: 'execute_directive', description: 'Execute a MarkdownAI directive string', inputSchema: { type: 'object', properties: { directive: { type: 'string' } }, required: ['directive'] } },
@@ -158,11 +207,22 @@ function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean):
           respondError(req.id, -32602, 'Invalid params: "arguments" must be an object'); break
         }
         const toolName = String(nameVal)
-        if (!TOOL_ALLOWLIST.has(toolName)) { respondError(req.id, -32601, `Unknown tool: "${toolName}"`); break }
+        if (!TOOL_ALLOWLIST.has(toolName)) {
+          mcpLog({ level: 'warn', event: 'tool-call-unknown', id: req.id ?? undefined, tool: toolName })
+          respondError(req.id, -32601, `Unknown tool: "${toolName}"`); break
+        }
         const toolArgs = (typeof argsVal === 'object' && argsVal !== null && !Array.isArray(argsVal))
           ? argsVal as Record<string, unknown>
           : {}
-        dispatchTool(toolName, toolArgs, req.id, cwd, passthrough)
+        const t0 = Date.now()
+        mcpLog({ level: 'info', event: 'tool-call', id: req.id ?? undefined, tool: toolName, args_summary: summarizeArgs(toolArgs) })
+        try {
+          dispatchTool(toolName, toolArgs, req.id, cwd, passthrough)
+          mcpLog({ level: 'info', event: 'tool-result', id: req.id ?? undefined, tool: toolName, duration_ms: Date.now() - t0 })
+        } catch (err) {
+          mcpLog({ level: 'error', event: 'tool-error', id: req.id ?? undefined, tool: toolName, duration_ms: Date.now() - t0, error: err instanceof Error ? err.message : String(err) })
+          throw err
+        }
         break
       }
       default:
@@ -176,6 +236,7 @@ function handleRequest(req: JsonRpcRequest, cwd: string, passthrough?: boolean):
 export function startServer(options: ServerOptions = {}): void {
   const cwd = options.cwd ?? process.cwd()
   const passthrough = options.passthrough ?? false
+  mcpLog({ level: 'info', event: 'server-start', detail: { cwd, passthrough, logPath: mcpLogPath() } })
   const rl = createInterface({ input: process.stdin, crlfDelay: Infinity })
   rl.on('line', (line) => {
     const trimmed = line.trim()
@@ -187,7 +248,10 @@ export function startServer(options: ServerOptions = {}): void {
       respondError(null, -32700, 'Parse error')
     }
   })
-  rl.on('close', () => process.exit(0))
+  rl.on('close', () => {
+    mcpLog({ level: 'info', event: 'server-shutdown' })
+    process.exit(0)
+  })
 }
 
 const _thisFile = fileURLToPath(import.meta.url)

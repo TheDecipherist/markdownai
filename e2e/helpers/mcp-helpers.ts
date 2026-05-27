@@ -60,12 +60,38 @@ export async function spawnMcpServer(cwd?: string): Promise<McpClient> {
 
     call(method: string, params: Record<string, unknown> = {}): Promise<RpcResponse> {
       const id = idCounter++
-      return new Promise((resolve, reject) => {
+      return new Promise<RpcResponse>((resolveOuter, reject) => {
         const timeout = setTimeout(() => {
           pending.delete(id)
           reject(new Error(`MCP server did not respond to "${method}" within 5s`))
         }, 5000)
-        pending.set(id, { resolve, reject, timeout })
+        const wrapped = {
+          resolve: (resp: RpcResponse) => {
+            // MCP-spec compliance (2026-05-25): tool-call responses now wrap
+            // the tool's structured output as `{ content: [{ type: "text",
+            // text: JSON.stringify(...) }] }`. Tests written against the old
+            // "result IS the tool output" shape continue to work by
+            // auto-unwrapping here. Non-tools/call methods (initialize,
+            // tools/list, etc.) are returned untouched.
+            if (method === 'tools/call' && resp.result && !resp.error) {
+              const r = resp.result as { content?: Array<{ type: string; text: string }> }
+              const block = r.content?.[0]
+              if (block && block.type === 'text' && typeof block.text === 'string') {
+                try {
+                  const unwrapped = JSON.parse(block.text)
+                  resp = { ...resp, result: unwrapped }
+                } catch {
+                  // If it isn't JSON, just leave the text as the result.
+                  resp = { ...resp, result: block.text }
+                }
+              }
+            }
+            resolveOuter(resp)
+          },
+          reject,
+          timeout,
+        }
+        pending.set(id, wrapped)
         proc.stdin!.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n')
       })
     },

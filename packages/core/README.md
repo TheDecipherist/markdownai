@@ -1,575 +1,83 @@
 # @markdownai/core
 
-<p align="center">
-  <a href="https://markdownai.dev">
-    <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-0891b2?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />
-  </a>
-  &nbsp;
-  <a href="https://markdownai.dev/user-guide.html">
-    <img src="https://img.shields.io/badge/📚_User_Guide-Full_Reference-059669?style=for-the-badge&labelColor=08090f" alt="User Guide" />
-  </a>
-</p>
+The `mai` CLI. Render, validate, strip, and serve MarkdownAI documents from the terminal.
 
-The `mai` CLI. Everything you need to render, validate, strip, serve, and inspect MarkdownAI live documents from the terminal.
+[Root README](../../README.md) · [Engine](../engine/README.md) · [MCP](../mcp/README.md) · [GitHub](https://github.com/TheDecipherist/markdownai)
 
-**All packages:**
-[@markdownai/core](https://www.npmjs.com/package/@markdownai/core) &nbsp;·&nbsp;
-[@markdownai/engine](https://www.npmjs.com/package/@markdownai/engine) &nbsp;·&nbsp;
-[@markdownai/parser](https://www.npmjs.com/package/@markdownai/parser) &nbsp;·&nbsp;
-[@markdownai/renderer](https://www.npmjs.com/package/@markdownai/renderer) &nbsp;·&nbsp;
-[@markdownai/mcp](https://www.npmjs.com/package/@markdownai/mcp) &nbsp;·&nbsp;
-[@markdownai](https://www.npmjs.com/package/@markdownai/markdownai)
-
-**Links:** [GitHub](https://github.com/TheDecipherist/markdownai) &nbsp;·&nbsp; [npm org](https://www.npmjs.com/package/@markdownai/markdownai)
-
----
-
-## What it does
-
-`@markdownai/core` is the user-facing layer of MarkdownAI. It provides the `mai` binary with a full command set for working with live documents: rendering them, validating them, stripping directives, building output files, watching for changes, managing the cache, configuring security, and inspecting document structure.
-
-It's also importable as a library if you want to embed `mai` commands in your own tooling.
-
-## Installation
+## Install
 
 ```bash
 npm install -g @markdownai/core
-```
-
-Verify:
-```bash
 mai --version
 ```
 
-Requires Node.js >= 18.
+Node 18+.
 
-## Quick Start
-
-```bash
-# Create a live document
-cat > status.md << 'EOF'
-@markdownai
-
-# Project Status
-
-Branch: @query "git branch --show-current" label="branch"
-{{ branch }}
-
-TypeScript files: @count ./src/ match="**/*.ts"
-
-Last commit: @query "git log --oneline -1"
-EOF
-
-# Render it
-mai render status.md
-```
-
-## Universal flags
-
-Every `mai` command accepts these flags:
-
-| Flag | Description |
-|------|-------------|
-| `--env <file>` | Load a `.env` file for environment variable resolution |
-| `--cwd <path>` | Run as if you were in a different directory |
-| `--verbose` | Show warnings and security events in terminal output |
-| `--strict` | Treat warnings as errors, stop on any blocked directive |
-| `--silent` | Suppress all output except `SECURITY_ALERT` and fatal errors |
-
----
-
-## Commands
+## Subcommands
 
 ### `mai render <file>`
 
-Executes the document and prints fully rendered Markdown to stdout.
+Render a document to stdout (or `-o <path>`).
 
 ```bash
-mai render report.md
-mai render report.md -o dist/report.md          # write to file
-mai render report.md --env .env.production      # use production env
-mai render report.md --consumer ai              # AI-optimized output
-mai render report.md --strict                   # fail on any warning
-mai render report.md --passthrough              # pass plain .md files through unchanged
-mai render skill.md --skill-args "audit auth"   # render as a Claude Code skill (v1.0+)
+mai render docs/status.md
+mai render docs/status.md --format ai --budget 4000
+mai render skill.md --skill-args "audit auth" --skill-dir ~/.claude/commands
 ```
 
-**Flags:**
-- `-o, --output <path>` - write output to a file instead of stdout
-- `--consumer <human|ai>` - target audience for consumer-conditional sections
-- `--budget <N>` - token budget for AI-format output (drops low-priority sections to fit)
-- `--phase <name>` - render only a specific named phase
-- `--passthrough` - pass plain (non-MarkdownAI) files through unchanged instead of erroring; useful when looping over directories with mixed files
+Flags: `-o`, `--consumer`, `--format`, `--budget`, `--phase`, `--passthrough`, plus the skill-render flags (`--skill-args`, `--skill-dir`, `--skill-effort`, `--skill-session-id`).
 
-**Skill rendering (v1.0+):** four flags let you render a document as a Claude Code slash command locally, with the same context the MCP `read_file` tool would supply. Useful for testing skill files without going through the MCP server.
+### `mai migrate-v2 <file> [--in-place]`
 
-| Flag | Effect |
-|------|--------|
-| `--skill-args "<args>"` | Sets `ARGUMENTS`, parses `argsList`, populates `arg0` / `arg1` / `arg2` / `arg3`. When set, the CLI defaults `filesystem.data_root` to `"cwd"` (skill mode). Without `--skill-args`, the default stays `"auto"` for backward compatibility. |
-| `--skill-dir <path>` | Sets `CLAUDE_SKILL_DIR`. Reference it from `@include ${CLAUDE_SKILL_DIR}/templates/...` and `allowed_source_paths` patterns. |
-| `--skill-effort <low\|medium\|high>` | Sets `EFFORT`. Read with `{{ EFFORT }}` or branch on it with `@if {{ EFFORT }} == "high"`. |
-| `--skill-session-id <uuid>` | Sets `CLAUDE_SESSION_ID`. Useful when a skill needs to scope cache or output paths per session. |
+Rewrite v1 directive syntax to v2. Delegates to `packages/parser/scripts/migrate-v1-to-v2.mjs`. Idempotent - re-running on a v2 file is a no-op.
 
 ```bash
-# Render a skill the same way the MCP server would
-mai render ~/.claude/commands/mdd.md \
-  --skill-args "audit user-auth" \
-  --skill-dir ~/.claude/commands \
-  --skill-effort high \
-  --skill-session-id 11111111-2222-3333-4444-555555555555
+mai migrate-v2 docs/old.md            # print diff to stdout
+mai migrate-v2 docs/old.md --in-place # rewrite the file
 ```
 
----
-
-### `mai validate <file>`
-
-Checks the document for errors and warnings without producing output. Exits with code 1 if errors are found.
-
-```bash
-mai validate report.md
-mai validate report.md --strict    # treat warnings as errors too
-mai validate report.md --env .env.production
-```
-
-Validation catches:
-- Unclosed block directives
-- Unset environment variables with no fallback
-- Circular `@include`/`@import` references
-- Blocked directives that would be stripped at render time
-- Platform-incompatible pipe commands (shell-only on Unix)
-
----
-
-### `mai parse <file>`
-
-Parses the document and outputs its internal AST as JSON. Useful for debugging directive structure.
-
-```bash
-mai parse report.md
-mai parse report.md --pretty              # formatted JSON
-mai parse report.md --node EnvNode        # filter to specific node type
-```
-
----
-
-### `mai eval "<expression>"`
-
-Evaluates a single MarkdownAI expression against your current environment and prints the result. Good for testing expressions before putting them in a document.
-
-```bash
-mai eval "file.exists './src/enterprise/'"
-mai eval "date format='YYYY-MM-DD'"
-mai eval "env.APP_ENV ?? 'development'"
-mai eval --env .env.staging "env.DATABASE_URL"
-```
-
----
-
-### `mai strip <file>`
-
-Removes all MarkdownAI directives from a document, producing clean static Markdown. Conditional blocks are resolved against your environment - the right branch is kept, the rest is discarded.
-
-```bash
-mai strip report.md                                    # print to stdout
-mai strip report.md -o dist/report.md                  # write to file
-mai strip report.md --env .env.production -o dist/     # env-aware, write to dir
-mai strip ./docs/ --env .env.production -o ./dist/     # strip entire directory
-```
-
----
-
-### `mai build <file>`
-
-Render a document and write the output to disk. Equivalent to `mai render -o`, but designed as a build step.
-
-```bash
-mai build report.md --output dist/report.md
-mai build report.md --output dist/report.md --watch    # rebuild on file changes
-```
-
-**Flags:**
-- `-o, --output <path>` - output file path (required)
-- `--watch` - rebuild whenever the source document or any included file changes
-
----
-
-### `mai watch <file>`
-
-Watch a document for changes and re-render automatically whenever the source or any dependency changes.
-
-```bash
-mai watch report.md --output dist/report.md
-mai watch report.md -o dist/ --verbose
-```
-
----
+> Note: at the time of writing this subcommand may not yet be wired into the CLI. Until then, invoke the script directly:
+> `node packages/parser/scripts/migrate-v1-to-v2.mjs <file> --in-place`
 
 ### `mai serve`
 
-Start the MarkdownAI MCP server. Use this to connect Claude Code or other MCP-compatible AI tools to your live documents.
+Start the MCP server (stdio JSON-RPC). Used by Claude Code via `mai init`.
 
 ```bash
 mai serve
-mai serve --cwd /path/to/project
-mai serve --port 3000
-mai serve --passthrough              # pass plain .md files through the engine unchanged
+mai serve --cwd /path/to/project --passthrough
 ```
 
-After starting, configure your AI client to connect. See [`@markdownai/mcp`](https://www.npmjs.com/package/@markdownai/mcp) for Claude Code setup instructions.
+See [`@markdownai/mcp`](../mcp/README.md) for the 11 tools the server exposes and the multi-phase walk pattern.
 
----
+### `mai validate <file>`
 
-### `mai init`
-
-Auto-detect your AI client and install both MarkdownAI hooks. Idempotent - safe to re-run.
+Parse-only check. Exits 1 on errors. No directive execution, no IO.
 
 ```bash
-mai init                           # auto-detect client
-mai init --client claude-code      # explicit Claude Code
-mai init --client cursor           # explicit Cursor
-mai init --global-claude-md        # append MarkdownAI guidance to ~/.claude/CLAUDE.md
+mai validate docs/status.md
+mai validate docs/status.md --strict   # warnings count as errors
 ```
 
-Two hooks are installed:
+## Other commands
 
-- **PreToolUse hook** - intercepts `Read` of any MarkdownAI document (bare `@markdownai` or YAML frontmatter then `@markdownai`) and returns a redirect message with the full MCP tool catalogue. The AI fetches rendered content through the MCP server instead of reading directive syntax directly.
-- **SessionStart hook (v1.0+)** - if your project has a `CLAUDE-MarkdownAI.md` file at the project root, the hook renders it on every session start and injects the rendered output into the AI's session context. Your `CLAUDE.md` is never touched. The render lives only in conversation context for that session.
+`mai parse`, `mai eval`, `mai strip`, `mai build`, `mai watch`, `mai init`, `mai cache (show|clear)`, `mai security (shell|http|db|filesystem|audit ...)`, `mai list-phases`, `mai list-macros`, `mai list-imports`. Run `mai <command> --help` for flags.
 
-Both hooks are installed at `~/.markdownai/hooks/` and registered in `~/.claude/settings.json` (or `~/.cursor/settings.json`). The registration matches existing entries by command substring before adding, so re-running `mai init` doesn't duplicate entries.
+Universal flags on every command: `--env <file>`, `--cwd <path>`, `--verbose`, `--strict`, `--silent`.
 
-`--global-claude-md` appends a section to your global `~/.claude/CLAUDE.md` that teaches Claude to prefer MarkdownAI syntax when writing new `.md` files and to use the CLI when no MCP server is running. Safe to run multiple times - idempotent.
+## Library usage
 
----
-
-## Cache Commands
-
-### `mai cache show [file]`
-
-Show cached data for a document (or all documents if no file given).
-
-```bash
-mai cache show
-mai cache show report.md
-mai cache show report.md --session    # only in-memory entries
-mai cache show report.md --persist    # only disk entries
-mai cache show --expired              # include expired entries
-```
-
-### `mai cache clear [file]`
-
-Clear cached data.
-
-```bash
-mai cache clear                         # clear everything
-mai cache clear report.md               # clear for one document
-mai cache clear --session               # only in-memory cache
-mai cache clear --persist               # only disk cache
-mai cache clear --directive db          # only @db results
-```
-
-### `mai cache seed <file>`
-
-Pre-populate the persistent cache by running all fetches in a document. Run this once before going offline so subsequent renders use cached data.
-
-```bash
-mai cache seed report.md
-mai cache seed report.md --env .env.production
-mai cache seed report.md --directive db          # seed only @db results
-```
-
----
-
-## Security Commands
-
-### `mai security show`
-
-Display the active security policy.
-
-```bash
-mai security show
-```
-
-### `mai security init`
-
-Create or import a security policy file at `~/.markdownai/security.json`.
-
-```bash
-mai security init
-mai security init --from .markdownai.json   # import from local file
-```
-
-### Shell jail - `mai security shell`
-
-```bash
-mai security shell enable                    # turn on shell execution
-mai security shell disable                   # turn off
-mai security shell add "git log *"           # add to allowlist
-mai security shell remove "git log *"        # remove from allowlist
-mai security shell list                      # show all patterns
-mai security shell test "git log --oneline"  # test a specific command
-```
-
-### HTTP jail - `mai security http`
-
-```bash
-mai security http enable                        # enable outbound HTTP
-mai security http disable                       # disable
-mai security http add-domain api.github.com     # add to allowlist
-mai security http remove-domain api.github.com  # remove
-mai security http test "https://api.github.com" # test a URL
-```
-
-### Database jail - `mai security db`
-
-```bash
-mai security db add reports                     # add a connection to config
-mai security db set reports.readonly true       # enforce read-only
-mai security db allow-collection reports users  # restrict to this collection
-mai security db deny-keyword reports DROP       # block a keyword
-mai security db test reports "db.users.find()"  # test a query
-mai security db disable reports                  # disable a connection
-```
-
-### Filesystem - `mai security filesystem`
-
-```bash
-mai security filesystem show
-mai security filesystem add-block-path /etc
-mai security filesystem test ./docs/report.md
-mai security filesystem test-mask ./config/.env
-```
-
-### Audit log - `mai security audit`
-
-```bash
-mai security audit show                   # show all events
-mai security audit show --blocked         # show only blocked events
-mai security audit clear                  # clear the log
-```
-
----
-
-## Inspection Commands
-
-### `mai list-phases <file>`
-
-List all phases in a document and their `@on complete` transitions.
-
-```bash
-mai list-phases runbook.md
-```
-
-### `mai list-macros <file>`
-
-List all macros defined or used in a document, with their source file.
-
-```bash
-mai list-macros report.md
-```
-
-### `mai list-imports <file>`
-
-Show the full dependency tree - every `@include` and `@import` chain the document pulls in.
-
-```bash
-mai list-imports report.md
-```
-
----
-
-## Library Usage
-
-All commands are exported as functions for use in your own tools:
+Every subcommand is also exported as a function:
 
 ```ts
-import {
-  runRender,
-  runValidate,
-  runParse,
-  runEval,
-  runStrip,
-  runBuild,
-  runServe,
-  runWatch,
-  runInit,
-  runCacheShow,
-  runCacheClear,
-  runListPhases,
-  runListMacros,
-  runListImports,
-  shouldRoute,
-  isMarkdownAIFile,
-} from '@markdownai/core'
+import { runRender, runValidate, runServe, runStrip, runBuild, runInit } from '@markdownai/core'
+
+const result = runRender('./docs/status.md', { format: 'ai', budget: 4000 })
+console.log(result.output, result.exitCode)
 ```
 
-### `runRender(filePath, options?): RenderResult`
-
-```ts
-import { runRender } from '@markdownai/core'
-import type { RenderOptions } from '@markdownai/core'
-
-const result = runRender('./docs/status.md', {
-  env: '.env.production',
-  consumer: 'ai',
-  silent: false,
-  verbose: true,
-})
-
-console.log(result.output)
-console.log(result.exitCode)   // 0 = success, 1 = errors
-```
-
-### `runValidate(filePath, options?): ValidateResult`
-
-```ts
-const result = runValidate('./docs/status.md', { strict: true })
-// result.valid, result.errors, result.warnings
-```
-
-### `shouldRoute(filePath): boolean`
-
-Returns `true` if a file should be routed through the MarkdownAI engine (has the `@markdownai` header).
-
-```ts
-import { shouldRoute, isMarkdownAIFile } from '@markdownai/core'
-
-if (shouldRoute('/path/to/doc.md')) {
-  // render it
-}
-```
-
-### `isMarkdownAIFile(filePath): boolean`
-
-Reads the first line of a file and returns `true` if it starts with `@markdownai`.
-
----
-
-## The `@markdownai` header
-
-Every live document starts with `@markdownai` on line 1:
-
-```markdown
-@markdownai
-
-# Your Document Title
-```
-
-Optionally pin a version:
-
-```markdown
-@markdownai v1.0
-```
-
-If the header is missing, `mai` treats the file as plain Markdown and skips all directive processing.
-
----
-
-## @event - Event Broadcast
-
-Fire a named signal with a payload to one or more transports during document rendering. Use it for progress indicators, live status updates, and debugging document execution.
-
-```markdown
-@markdownai v1.0
-
-@event name='phase-start' data='setup' transport='log'
-@event name='progress' data='{"step": 2, "total": 5}' transport='vscode,log'
-@event name='build-done' data='{"status": "ok"}' transport='mcp' visible
-```
-
-**Parameters:**
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `name` | yes | Event name identifying what happened (e.g. `phase-complete`, `progress`) |
-| `data` | yes | Payload as a plain string or JSON object string |
-| `transport` | no | Comma-separated transport names. Defaults to `log` if omitted. |
-| `visible` | no | Flag (no value). Renders a blockquote in document output alongside dispatching. |
-
-**Built-in transports:**
-
-| Transport | Delivery | What it does |
-|-----------|----------|--------------|
-| `mcp` | Synchronous | Pushed to `EngineResult.events[]` before `execute()` returns |
-| `log` | Fire-and-forget | Structured line to stderr |
-| `vscode` | Fire-and-forget | JSON-Lines to a temp file - VS Code extension reads this for status bar |
-| `websocket` | Fire-and-forget | JSON payload to connected WebSocket clients |
-| `file` | Fire-and-forget | JSON-Lines appended to a configured file |
-| `http` | Fire-and-forget | JSON POST to a configured URL (domain jailed) |
-| `db` | Fire-and-forget | Insert into a configured collection (security jailed) |
-
-All non-`mcp` transports run in a worker thread so rendering speed is unaffected.
-
-**All transports are blocked by default.** Enable them in `.markdownai/security.json`:
-
-```json
-{
-  "events": {
-    "allowed_transports": ["mcp", "log"],
-    "allow_env_interpolation": false,
-    "max_value_length": 500,
-    "onError": "silence"
-  }
-}
-```
-
-Masking runs unconditionally on `data` before any dispatch. `{{ expression }}` in `data` is only evaluated when `allow_env_interpolation: true` (off by default).
-
-See the [full @event reference](https://markdownai.dev/user-guide.html#event) for transport config, the automatic `EventMeta` debug object, and consuming events from `EngineResult`.
-
----
-
-## Security model
-
-By default, all operations that could have side effects are blocked:
-
-- `@query` (shell execution) - blocked unless `mai security shell enable`
-- `@http` (HTTP requests) - blocked unless `mai security http enable`
-- `@db` (database queries) - blocked unless a connection is configured
-
-Blocked directives are silently removed from output (with a warning when `--verbose`). Use `--strict` to treat them as errors.
-
-Certain operations are permanently blocked and cannot be enabled regardless of configuration:
-- Cloud metadata endpoints (`169.254.169.254`, `metadata.google.internal`)
-- Pipe-to-shell patterns (`curl ... | bash`)
-- Filesystem access outside the document root
-
----
-
-## TypeScript
-
-All exported types:
-
-```ts
-import type {
-  RenderOptions,
-  RenderResult,
-  ValidateOptions,
-  ValidateResult,
-  ParseCmdOptions,
-  ParseCmdResult,
-  EvalOptions,
-  EvalResult,
-  StripCmdOptions,
-  StripCmdResult,
-  BuildOptions,
-  BuildResult,
-  InitOptions,
-  InitResult,
-  ServeOptions,
-  ServeResult,
-  WatchOptions,
-  WatchHandle,
-  HookDecision,
-} from '@markdownai/core'
-```
-
-## Part of the MarkdownAI toolchain
-
-- **Parse documents** - use [`@markdownai/parser`](https://www.npmjs.com/package/@markdownai/parser)
-- **Execute directives** - use [`@markdownai/engine`](https://www.npmjs.com/package/@markdownai/engine)
-- **Format output** - use [`@markdownai/renderer`](https://www.npmjs.com/package/@markdownai/renderer)
-- **Serve to AI tools** - use [`@markdownai/mcp`](https://www.npmjs.com/package/@markdownai/mcp)
+Types: `RenderOptions`, `RenderResult`, `ValidateOptions`, `ValidateResult`, `ParseCmdOptions`, `EvalOptions`, `StripCmdOptions`, `BuildOptions`, `InitOptions`, `ServeOptions`, `WatchOptions`, `HookDecision`.
 
 ## License
 
-MIT - [GitHub](https://github.com/TheDecipherist/markdownai)
+MIT.

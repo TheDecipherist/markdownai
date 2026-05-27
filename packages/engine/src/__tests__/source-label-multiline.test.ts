@@ -45,7 +45,7 @@ describe('source directive label= captures multi-line output', () => {
     writeFileSync(join(projectDir, 'words.txt'), 'alpha\nbeta\ngamma\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@read ./words.txt label=w
+@read ./words.txt label=w /
 captured: {{ w }}
 `,
     )
@@ -59,7 +59,7 @@ captured: {{ w }}
     writeFileSync(join(projectDir, 'docs/c.md'), '', 'utf8')
     const result = render(
       `@markdownai v1.0
-@list ./docs/ match="*.md" label=files
+@list ./docs/ match="*.md" label=files /
 list: {{ files }}
 `,
     )
@@ -74,7 +74,7 @@ list: {{ files }}
     writeFileSync(join(projectDir, 'docs/b.md'), '', 'utf8')
     const result = render(
       `@markdownai v1.0
-@count ./docs/ match="*.md" label=n
+@count ./docs/ match="*.md" label=n /
 n is {{ n }}
 `,
     )
@@ -84,7 +84,7 @@ n is {{ n }}
   it('@date keeps single-line scalar semantic', () => {
     const result = render(
       `@markdownai v1.0
-@date format="YYYY-MM-DD" label=today
+@date format="YYYY-MM-DD" label=today /
 today is {{ today }}
 `,
     )
@@ -100,12 +100,12 @@ today is {{ today }}
       'utf8')
     const result = render(
       `@markdownai v1.0
-@read ./package.json path="devDependencies" label=devdeps
+@read ./package.json path="devDependencies" label=devdeps /
 @if devdeps.includes("typescript")
 project uses typescript
 @else
 project does not use typescript
-@endif
+@if-end
 `,
     )
     expect(result.output).toContain('project uses typescript')
@@ -115,10 +115,10 @@ project does not use typescript
     writeFileSync(join(projectDir, 'list.txt'), 'apple\nbanana\ncherry\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@read ./list.txt label=fruits
+@read ./list.txt label=fruits /
 @foreach f in {{ fruits }}
 - {{ f }}
-@end
+@foreach-end
 `,
     )
     expect(result.output).toContain('- apple')

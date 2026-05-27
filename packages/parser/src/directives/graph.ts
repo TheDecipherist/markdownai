@@ -1,11 +1,12 @@
-import type { ParseModule, ParseContext, ASTNode, GraphNode } from '../types.js'
+import type { ParseModule, ParseContext, DirectiveInput, ASTNode, GraphNode } from '../types.js'
 
-// Handles ```mai-graph fenced blocks; the parser passes the raw body content.
+// Handles ```mai-graph fenced blocks; the parser passes the raw body content
+// in input.rawArgs (and input.positional).
 const graph: ParseModule = {
   name: 'graph',
-  block: false,
-  parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
-    const node: GraphNode = { type: 'graph', line: ctx.line, raw: args }
+  parse(input: DirectiveInput, ctx: ParseContext): ASTNode {
+    const raw = input.rawArgs || input.positional || ''
+    const node: GraphNode = { type: 'graph', line: ctx.line, raw }
     return node
   },
 }

@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
-import { resolve, join, isAbsolute } from 'node:path'
-import { execSync } from 'node:child_process'
+import { resolve, join, isAbsolute, dirname } from 'node:path'
+import { execSync, spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import type { ListNode, ReadNode, CountNode, DateNode, TreeNode, DbNode, HttpNode, QueryNode } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
 import { parseQuery, DbParseError } from './db/query.js'
@@ -8,6 +9,8 @@ import { checkHttpUrl } from './security/http.js'
 import { checkDataPath } from './security/filesystem.js'
 import { checkDbOperation } from './security/database.js'
 import { checkShellCommand } from './security/shell.js'
+import { expandPattern } from './security/path-expand.js'
+import { interpolatePathSoft } from './engine-include.js'
 import type { HttpSecurityConfig } from './security/config.js'
 import { globToRegex, walkDir, listJson, listCsv, readEnvFile } from './sources-file-utils.js'
 
@@ -61,6 +64,109 @@ export function executeRead(node: ReadNode, ctx: EngineContext): string[] {
   try {
     return readFileSync(full, 'utf8').split('\n').filter(l => l !== '')
   } catch { return [] }
+}
+
+/**
+ * Parse a wave/feature brief into labeled fields. A brief is a markdown
+ * block whose paragraphs start with a bold label like `**Purpose.**` or
+ * `**Definition of Done.**`. Each label opens a section; the next bold
+ * label closes it.
+ *
+ * Returns a struct keyed by snake_case label name. The label "Definition
+ * of Done" becomes `definition_of_done`. Trailing periods, leading/trailing
+ * whitespace, and the original `**...**` markers are stripped from values.
+ *
+ * Used by Phase 3 of build flows to seed the feature-doc template's intent
+ * fields (purpose, business_rules, definition_of_done) from the wave brief
+ * the engine extracted via read_section — so the first draft is structured
+ * rather than dumping the whole brief into a single field.
+ */
+export function parseFeatureBrief(text: string): Record<string, string> {
+  const result: Record<string, string> = {}
+  const src = String(text ?? '')
+  if (!src) return result
+  // Match `**Label.**` (or `**Label (qualifier).**`) at line start. Capture
+  // the label text inside the bold markers, strip trailing period before
+  // snake_case-ing. Allow any non-bold content between matches.
+  const LABEL_RE = /^\*\*([^*]+?)\*\*\s*/gm
+  type Match = { label: string; start: number; bodyStart: number }
+  const matches: Match[] = []
+  let m: RegExpExecArray | null
+  while ((m = LABEL_RE.exec(src)) !== null) {
+    matches.push({ label: m[1] ?? '', start: m.index, bodyStart: m.index + m[0].length })
+  }
+  if (matches.length === 0) return result
+  for (let i = 0; i < matches.length; i++) {
+    const cur = matches[i]!
+    const next = matches[i + 1]
+    const end = next ? next.start : src.length
+    const rawLabel = cur.label.trim().replace(/\.$/, '')
+    const key = rawLabel
+      .toLowerCase()
+      .replace(/\s*\([^)]*\)\s*$/, '')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '')
+    if (!key) continue
+    const body = src.slice(cur.bodyStart, end).trim()
+    result[key] = body
+  }
+  return result
+}
+
+/**
+ * Pull backtick-wrapped file paths out of a markdown string. Used by build
+ * Phase 3b to extract `src/foo.ts`-style paths from a wave brief's
+ * **Source files.** paragraph (e.g. "`src/rules/parser.ts`,
+ * `src/rules/loader.ts`, ..."). Only matches strings inside single backticks
+ * that contain a dot followed by a 1-6 char alphabetic extension — avoids
+ * picking up unrelated backtick spans like `@constraint id`. Returns each
+ * matched path in source order.
+ */
+export function extractFilePaths(text: string): string[] {
+  const src = String(text ?? '')
+  if (!src) return []
+  const matches = Array.from(src.matchAll(/`([^`\s]+\.[A-Za-z]{1,6})`/g))
+  return matches.map(m => m[1] ?? '').filter(p => p.length > 0)
+}
+
+/**
+ * Extract a markdown section by heading substring match. Given an absolute
+ * file path and a needle, finds the first ATX heading whose text contains
+ * the needle (case-insensitive) and returns that heading line plus body
+ * up to the next heading at the same level or higher. Returns '' on miss.
+ *
+ * Used by the `read_section(path, heading_contains)` sandbox builtin so
+ * flows can inline a single section of a wave/feature doc without Claude
+ * touching the raw file. Matches headings #1 through #6.
+ */
+export function readMarkdownSection(absPath: string, headingContains: string): string {
+  const needle = String(headingContains ?? '').trim().toLowerCase()
+  if (!needle) return ''
+  let content: string
+  try { content = readFileSync(absPath, 'utf8') } catch { return '' }
+  const lines = content.split('\n')
+  let startIdx = -1
+  let startLevel = 0
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(#{1,6})\s+(.*)$/.exec(lines[i] ?? '')
+    if (!m) continue
+    const headingText = (m[2] ?? '').trim()
+    if (headingText.toLowerCase().includes(needle)) {
+      startIdx = i
+      startLevel = (m[1] ?? '').length
+      break
+    }
+  }
+  if (startIdx === -1) return ''
+  let endIdx = lines.length
+  for (let i = startIdx + 1; i < lines.length; i++) {
+    const m = /^(#{1,6})\s/.exec(lines[i] ?? '')
+    if (m && (m[1] ?? '').length <= startLevel) {
+      endIdx = i
+      break
+    }
+  }
+  return lines.slice(startIdx, endIdx).join('\n').trim()
 }
 
 export function formatDate(date: Date, fmt: string): string {
@@ -200,14 +306,69 @@ export function executeDb(node: DbNode, ctx: EngineContext): string[] {
     }
   }
 
-  // Async DB execution is not available in the synchronous render path — use @cache mock= for development
   if (parsed.kind === 'raw') {
-    ctx.warnings.push('@db: raw query requires async execution — use @cache mock= for development or call via MCP')
+    ctx.warnings.push('@db: raw query is read-only and not supported via the sync worker yet — use a structured `find=`/`one=`/`count=` query instead')
     return []
   }
 
-  ctx.warnings.push('@db: database query requires async execution — use @cache mock= for development or call via MCP')
-  return []
+  // Resolve the URI. Connection args take precedence over inline uri=. The
+  // `env.VARNAME` form reads from process.env; literal strings pass through.
+  const rawUri = (connection?.args['uri'] ?? uriArg ?? '').trim()
+  if (!rawUri) {
+    ctx.warnings.push('@db: connection has no uri= configured')
+    return []
+  }
+  const uri = rawUri.startsWith('env.') ? (process.env[rawUri.slice(4)] ?? '') : rawUri
+  if (!uri) {
+    ctx.warnings.push(`@db: environment variable "${rawUri.slice(4)}" is empty or unset`)
+    return []
+  }
+
+  const connType = connection?.type ?? 'mongodb'
+  if (connType !== 'mongodb') {
+    ctx.warnings.push(`@db: only mongodb is wired today (got "${connType}") — other adapters require finishing the sync worker`)
+    return []
+  }
+
+  // Spawn the sync worker. The worker reads JSON from stdin, executes the
+  // plan against MongoDB, and writes a JSON result envelope to stdout.
+  const workerPath = join(dirname(fileURLToPath(import.meta.url)), 'db', 'sync-worker.js')
+  const payload = JSON.stringify({ type: connType, uri, plan: parsed.plan, timeoutMs: 5000 })
+  const result = spawnSync(process.execPath, [workerPath], {
+    input: payload,
+    encoding: 'utf8',
+    timeout: 10_000,  // outer timeout: worker's own 5s + slack for spawn + connect
+  })
+  if (result.status !== 0) {
+    const stderr = (result.stderr ?? '').trim()
+    const stdout = (result.stdout ?? '').trim()
+    let workerMsg = ''
+    try {
+      const parsed = JSON.parse(stdout) as { ok?: boolean; error?: string }
+      if (parsed.error) workerMsg = parsed.error
+    } catch { /* stdout not JSON; fall back to stderr */ }
+    ctx.warnings.push(`@db: worker failed (exit ${result.status}) — ${workerMsg || stderr || 'no diagnostic output'}`)
+    return []
+  }
+  let envelope: { ok: boolean; rows?: unknown[]; error?: string }
+  try {
+    envelope = JSON.parse((result.stdout ?? '').trim())
+  } catch (err) {
+    ctx.warnings.push(`@db: worker output not parseable as JSON — ${String(err)}`)
+    return []
+  }
+  if (!envelope.ok) {
+    ctx.warnings.push(`@db: worker error — ${envelope.error ?? 'unknown'}`)
+    return []
+  }
+  const rows = Array.isArray(envelope.rows) ? envelope.rows : []
+  // Stash the parsed rows on the node for the engine's label-capture path to
+  // pick up (so as=row / as=json land as real objects in ctx.data, not just
+  // JSON strings in ctx.envFiles). The engine reads node.__dbRows after
+  // executeSource returns to do struct-capture.
+  ;(node as DbNode & { __dbRows?: unknown[] }).__dbRows = rows
+  // Return one line per row's JSON for the existing line-based label/path.
+  return rows.map(r => JSON.stringify(r))
 }
 
 // Permissive fallback used when no httpConfig is loaded — only immutable rules apply
@@ -260,20 +421,33 @@ export function executeQuery(node: QueryNode, ctx: EngineContext): string[] {
 
   if (!node.command) { ctx.warnings.push('@query: empty command — skipped'); return [] }
 
+  // Resolve {{ expr }} interpolations and ${VAR} expansions in the command
+  // string before checking security + executing. Without this, flows that
+  // use `@query "ls *{{ feature_slug }}*"` would run literal "{{ }}" text
+  // as a shell glob (no match, silent miss). interpolatePathSoft handles
+  // the {{ }}; expandPattern handles ${CWD}/${HOME}/${VAR}.
+  const interpolated = interpolatePathSoft(node.command, ctx)
+  const command = expandPattern(interpolated, {
+    env: { ...ctx.env, ...ctx.envFiles },
+    skillDir: ctx.skillContext?.skillDir ?? '',
+    sessionId: ctx.skillContext?.sessionId ?? '',
+  })
+
   if (ctx.security.shellConfig) {
-    const shellCheck = checkShellCommand(node.command, ctx.security.shellConfig)
+    const shellCheck = checkShellCommand(command, ctx.security.shellConfig)
     if (!shellCheck.allowed) {
       const prefix = shellCheck.tier === 'always_block' ? 'SECURITY_ALERT' : 'WARN'
-      ctx.warnings.push(`${prefix}: @query command blocked [${shellCheck.tier}] — ${shellCheck.reason}`)
+      const cmdPreview = command.length > 80 ? command.slice(0, 77) + '...' : command
+      ctx.warnings.push(`${prefix}: @query command blocked [${shellCheck.tier}] — ${shellCheck.reason}: \`${cmdPreview}\``)
       return []
     }
   }
 
   try {
-    const out = execSync(node.command, { cwd: ctx.cwd, encoding: 'utf8', timeout: 10_000 })
+    const out = execSync(command, { cwd: ctx.cwd, encoding: 'utf8', timeout: 10_000 })
     return out.split('\n').filter(l => l !== '')
   } catch {
-    ctx.warnings.push(`@query: command failed — "${node.command}"`)
+    ctx.warnings.push(`@query: command failed — "${command}"`)
     return []
   }
 }

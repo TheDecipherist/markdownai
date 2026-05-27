@@ -1,38 +1,62 @@
-import type { ParseModule, ParseContext, ASTNode, RenderTemplateNode } from '../types.js'
-import { parseArgs } from '../args.js'
+import type { ParseModule, ParseContext, DirectiveInput, ASTNode, RenderTemplateNode } from '../types.js'
 
-// @render-template from="<template>" to="<dest>" [force]
-//   key1=value1
-//   key2=value2
-// @end
+// v2 syntax:
+//   @render-template
+//     from="..."
+//     to="..."
+//     [force]
+//   >
+//     key1=value1
+//     key2=value2
+//   @render-template-end
 //
-// Block directive. Renders a MarkdownAI template document (loaded via the
-// data jail) with the provided key=value parameters as the macro substitution
-// context, then writes the rendered output (sans the `@markdownai` header
-// line) to the destination via the write jail.
-//
-// Idempotent by default: if `to` already exists, the directive is a no-op
-// with a warning. Pass the bare flag `force` to overwrite.
+// The body lines (after the `>` separator) are key=value pairs. We parse them
+// here into the params map.
 const renderTemplate: ParseModule = {
   name: 'render-template',
-  block: true,
-  closeTag: 'end',
-  parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
-    const parsed = parseArgs(args)
-    const from = parsed.named['from'] ?? ''
-    const to = parsed.named['to'] ?? ''
-    const named: Record<string, string> = { ...parsed.named }
-    for (const pos of parsed.positional) {
-      if (pos === 'force' || pos === 'if-missing') named[pos] = 'true'
+  parse(input: DirectiveInput, ctx: ParseContext): ASTNode {
+    const from = input.attrs['from'] ?? ''
+    const to = input.attrs['to'] ?? ''
+    const named: Record<string, string> = { ...input.attrs }
+    for (const tok of input.flags) {
+      if (tok === 'force' || tok === 'if-missing') named[tok] = 'true'
     }
+    // The v2 tokenizer may park a bare `force`/`if-missing` token in
+    // `positional` if no other positional was set. Handle that.
+    if (input.positional === 'force' || input.positional === 'if-missing') {
+      named[input.positional] = 'true'
+    }
+
+    // Non-reserved attrs become template params. This handles the common
+    // Form 2 syntax where params live on attr-lines (no `>` separator).
+    const RESERVED_ATTRS = new Set(['from', 'to', 'force', 'if-missing', 'path'])
+    const params: Record<string, string> = {}
+    for (const [k, v] of Object.entries(input.attrs)) {
+      if (!RESERVED_ATTRS.has(k)) params[k] = v
+    }
+    // Walk body lines, parsing key=value into params. Ignore blank/comment lines.
+    for (const raw of input.body) {
+      const trimmed = raw.trim()
+      if (trimmed === '' || trimmed.startsWith('#')) continue
+      const eq = trimmed.indexOf('=')
+      if (eq <= 0) continue
+      const key = trimmed.slice(0, eq).trim()
+      let val = trimmed.slice(eq + 1).trim()
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1)
+      }
+      params[key] = val
+    }
+
     const node: RenderTemplateNode = {
       type: 'render-template',
       line: ctx.line,
       from,
       to,
-      params: {},
+      params,
       args: named,
     }
+    void ctx
     return node
   },
 }

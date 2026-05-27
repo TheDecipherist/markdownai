@@ -41,13 +41,13 @@ describe('MCP phase rendering invariants', () => {
         '@markdownai v1.0',
         '@phase 0-intro',
         'Intro body.',
-        '@end',
+        '@phase-end',
         '@phase 1-questions',
         'Questions body.',
-        '@end',
+        '@phase-end',
         '@phase 2-final',
         'Final body.',
-        '@end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
       const r = listPhases('doc.md', tmp)
@@ -60,11 +60,11 @@ describe('MCP phase rendering invariants', () => {
         '@markdownai v1.0',
         '@phase a',
         'Body.',
-        '@on complete -> @phase b',
-        '@end',
+        '@on-complete @phase b /',
+        '@phase-end',
         '@phase b',
         'Body.',
-        '@end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
       const r = listPhases('doc.md', tmp)
@@ -74,23 +74,23 @@ describe('MCP phase rendering invariants', () => {
   })
 
   describe('resolve_phase fires directives and substitutes results', () => {
-    it('@date fires and {{ label }} substitutes the result inline', () => {
+    it('@date fires and {{ label }} substitutes the result inline /', () => {
       writeFileSync(join(tmp, 'doc.md'), [
         '@markdownai v1.0',
         '@phase show-date',
-        '@date format="YYYY-MM-DD" label=today',
+        '@date format="YYYY-MM-DD" label=today /',
         'Today is {{ today }}.',
-        '@end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'show-date', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'show-date' }, tmp)
       expect(r.found).toBe(true)
       expect(r.content).toMatch(/Today is 20\d\d-\d\d-\d\d\./)
       expect(r.content).not.toContain('@date')
       expect(r.content).not.toContain('{{ today }}')
     })
 
-    it('@count fires and interpolates the count', () => {
+    it('@count fires and interpolates the count /', () => {
       mkdirSync(join(tmp, 'data'), { recursive: true })
       writeFileSync(join(tmp, 'data/a.md'), 'x', 'utf8')
       writeFileSync(join(tmp, 'data/b.md'), 'x', 'utf8')
@@ -98,27 +98,27 @@ describe('MCP phase rendering invariants', () => {
       writeFileSync(join(tmp, 'doc.md'), [
         '@markdownai v1.0',
         '@phase count-files',
-        '@count ./data/ match="*.md" type=files label=n',
+        '@count ./data/ match="*.md" type=files label=n /',
         'There are {{ n }} docs.',
-        '@end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'count-files', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'count-files' }, tmp)
       expect(r.content).toContain('There are 3 docs.')
       expect(r.content).not.toContain('@count')
     })
 
-    it('@read-frontmatter fires and the field value substitutes', () => {
+    it('@read-frontmatter fires and the field value substitutes /', () => {
       writeFileSync(join(tmp, 'target.md'), '---\nstatus: complete\n---\nbody\n', 'utf8')
       writeFileSync(join(tmp, 'doc.md'), [
         '@markdownai v1.0',
         '@phase show-status',
-        '@read-frontmatter path="target.md" field="status" label=s',
+        '@read-frontmatter path="target.md" field="status" label=s /',
         'Status: {{ s }}',
-        '@end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'show-status', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'show-status' }, tmp)
       expect(r.content).toContain('Status: complete')
       expect(r.content).not.toContain('@read-frontmatter')
     })
@@ -132,16 +132,16 @@ describe('MCP phase rendering invariants', () => {
         'TRUE_BRANCH',
         '@else',
         'FALSE_BRANCH',
-        '@endif',
-        '@end',
+        '@if-end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'branch', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'branch' }, tmp)
       expect(r.content).toContain('TRUE_BRANCH')
       expect(r.content).not.toContain('FALSE_BRANCH')
       expect(r.content).not.toContain('@if')
       expect(r.content).not.toContain('@else')
-      expect(r.content).not.toContain('@endif')
+      expect(r.content).not.toContain('@if-end')
     })
 
     it('@foreach unrolls the body per item with no @foreach syntax in the output', () => {
@@ -153,44 +153,44 @@ describe('MCP phase rendering invariants', () => {
         '@phase loop',
         '@foreach f in @list ./docs/ match="*.md"',
         '- {{ f }}',
-        '@end',
-        '@end',
+        '@foreach-end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'loop', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'loop' }, tmp)
       expect(r.content).toContain('docs/01.md')
       expect(r.content).toContain('docs/02.md')
       expect(r.content).not.toContain('@foreach')
       expect(r.content).not.toContain('{{ f }}')
     })
 
-    it('@set binds a value and {{ var }} interpolates it', () => {
+    it('@set binds a value and {{ var }} interpolates it /', () => {
       writeFileSync(join(tmp, 'doc.md'), [
         '@markdownai v1.0',
         '@phase set-demo',
-        '@set name = "Alice"',
+        '@set name = "Alice" /',
         'Hello, {{ name }}.',
-        '@end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'set-demo', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'set-demo' }, tmp)
       expect(r.content).toContain('Hello, Alice.')
       expect(r.content).not.toContain('@set')
       expect(r.content).not.toContain('{{ name }}')
     })
 
-    it('@call fires a macro defined in the same document', () => {
+    it('@call fires a macro defined in the same document /', () => {
       writeFileSync(join(tmp, 'doc.md'), [
         '@markdownai v1.0',
         '@define greet',
         'Hi from the macro.',
-        '@end',
+        '@define-end',
         '@phase use-macro',
-        '@call greet',
-        '@end',
+        '@call greet /',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'use-macro', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'use-macro' }, tmp)
       expect(r.content).toContain('Hi from the macro.')
       expect(r.content).not.toContain('@call')
       expect(r.content).not.toContain('@define')
@@ -204,13 +204,13 @@ describe('MCP phase rendering invariants', () => {
       writeFileSync(join(tmp, 'doc.md'), [
         '@markdownai v1.0',
         '@phase mixed',
-        '@count ./src/ match="*.ts" label=n',
-        '@read-frontmatter path="target.md" field="feat" label=f',
+        '@count ./src/ match="*.ts" label=n /',
+        '@read-frontmatter path="target.md" field="feat" label=f /',
         'Feature {{ f }} has {{ n }} source files.',
-        '@end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'mixed', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'mixed' }, tmp)
       expect(r.content).toContain('Feature foo has 2 source files.')
       expect(r.content).not.toContain('@count')
       expect(r.content).not.toContain('@read-frontmatter')
@@ -225,24 +225,24 @@ describe('MCP phase rendering invariants', () => {
         '@markdownai v1.0',
         '@phase one',
         'CONTENT_OF_ONE',
-        '@end',
+        '@phase-end',
         '@phase two',
         'CONTENT_OF_TWO',
-        '@end',
+        '@phase-end',
         '@phase three',
         'CONTENT_OF_THREE',
-        '@end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'two', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'two' }, tmp)
       expect(r.content).toContain('CONTENT_OF_TWO')
       expect(r.content).not.toContain('CONTENT_OF_ONE')
       expect(r.content).not.toContain('CONTENT_OF_THREE')
     })
 
     it('found=false for a non-existent phase', () => {
-      writeFileSync(join(tmp, 'doc.md'), '@markdownai v1.0\n@phase a\nx\n@end\n', 'utf8')
-      const r = resolvePhase('doc.md', 'nonexistent', tmp)
+      writeFileSync(join(tmp, 'doc.md'), '@markdownai v1.0\n@phase a\nx\n@phase-end\n', 'utf8')
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'nonexistent' }, tmp)
       expect(r.found).toBe(false)
     })
   })
@@ -256,21 +256,21 @@ describe('MCP phase rendering invariants', () => {
       writeFileSync(join(tmp, 'doc.md'), [
         '@markdownai v1.0',
         '@phase max',
-        '@date format="YYYY-MM-DD" label=today',
-        '@count ./docs/ match="*.md" label=n',
-        '@set greeting = "hello"',
+        '@date format="YYYY-MM-DD" label=today /',
+        '@count ./docs/ match="*.md" label=n /',
+        '@set greeting = "hello" /',
         '@if {{ n }} > "0"',
         '@foreach f in @list ./docs/ match="*.md"',
-        '@read-frontmatter path="{{ f }}" field="status" label=s',
+        '@read-frontmatter path="{{ f }}" field="status" label=s /',
         '- {{ f }} ({{ s }})',
-        '@end',
-        '@endif',
-        '@end',
+        '@foreach-end',
+        '@if-end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = resolvePhase('doc.md', 'max', tmp)
+      const r = resolvePhase({ filePath: 'doc.md', phase: 'max' }, tmp)
       const directiveTokens = [
-        '@date', '@count', '@set', '@if', '@else', '@elseif', '@endif',
+        '@date', '@count', '@set', '@if', '@else', '@elseif', '@if-end',
         '@foreach', '@read-frontmatter', '@list',
       ]
       for (const tok of directiveTokens) {
@@ -287,14 +287,14 @@ describe('MCP phase rendering invariants', () => {
         '@markdownai v1.0',
         '@phase a',
         'A body.',
-        '@on complete -> @phase b',
-        '@end',
+        '@on-complete @phase b /',
+        '@phase-end',
         '@phase b',
         'B body.',
-        '@end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = nextPhase('doc.md', 'a', tmp)
+      const r = nextPhase({ filePath: 'doc.md', currentPhase: 'a' }, tmp)
       expect(r.found).toBe(true)
       expect(r.phase).toBe('b')
     })
@@ -304,10 +304,10 @@ describe('MCP phase rendering invariants', () => {
         '@markdownai v1.0',
         '@phase a',
         'A body.',
-        '@end',
+        '@phase-end',
       ].join('\n'), 'utf8')
 
-      const r = nextPhase('doc.md', 'a', tmp)
+      const r = nextPhase({ filePath: 'doc.md', currentPhase: 'a' }, tmp)
       expect(r.phase).toBeNull()
     })
   })

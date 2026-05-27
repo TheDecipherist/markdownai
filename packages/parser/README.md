@@ -1,268 +1,88 @@
 # @markdownai/parser
 
-Pure AST production for MarkdownAI documents. No execution, no IO - just parsing.
+Pure AST production for MarkdownAI documents. Reads `.md` source, returns a typed tree. No execution, no IO.
 
-<p align="center">
-  <a href="https://markdownai.dev">
-    <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-0891b2?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />
-  </a>
-  &nbsp;
-  <a href="https://markdownai.dev/user-guide.html">
-    <img src="https://img.shields.io/badge/📚_User_Guide-Full_Reference-059669?style=for-the-badge&labelColor=08090f" alt="User Guide" />
-  </a>
-</p>
+[Root README](../../README.md) · [Spec v2.0](../../MDs/markdownai-spec-v2.0.md) · [Engine](../engine/README.md) · [GitHub](https://github.com/TheDecipherist/markdownai)
 
-Pure AST parser for MarkdownAI documents. Reads `.md` source and returns a typed AST with no side effects - no execution, no IO, no filesystem access.
-
-**All packages:**
-[@markdownai/core](https://www.npmjs.com/package/@markdownai/core) &nbsp;·&nbsp;
-[@markdownai/engine](https://www.npmjs.com/package/@markdownai/engine) &nbsp;·&nbsp;
-[@markdownai/parser](https://www.npmjs.com/package/@markdownai/parser) &nbsp;·&nbsp;
-[@markdownai/renderer](https://www.npmjs.com/package/@markdownai/renderer) &nbsp;·&nbsp;
-[@markdownai/mcp](https://www.npmjs.com/package/@markdownai/mcp) &nbsp;·&nbsp;
-[@markdownai](https://www.npmjs.com/package/@markdownai/markdownai)
-
-**Links:** [GitHub](https://github.com/TheDecipherist/markdownai) &nbsp;·&nbsp; [npm org](https://www.npmjs.com/package/@markdownai/markdownai)
-
----
-
-## What it does
-
-`@markdownai/parser` is the first stage of the MarkdownAI toolchain. It reads a MarkdownAI document line by line and produces a complete, typed AST (abstract syntax tree) describing every directive, block, inline expression, and plain markdown node in the file.
-
-It is completely inert. Parsing a document has no side effects - nothing is fetched, no files are read, no environment variables are touched. This makes it safe to use in any context, including editors, linters, and static analysis tools.
-
-Every `mai` command uses this parser internally. You'd reach for it directly if you need to analyze or transform MarkdownAI source without running it.
-
-## Installation
+## Install
 
 ```bash
 npm install @markdownai/parser
 ```
 
-Requires Node.js >= 18.
+## What changed in v2
 
-## Usage
+- **Three directive forms** unified under one grammar: self-closing (`@name ... /`), block-with-attrs (`@name` + indented attrs + `@name-end`), block-with-attrs+body (same, with body after a blank line or `>`). Full grammar in the [spec](../../MDs/markdownai-spec-v2.0.md#grammar-three-forms).
+- **Close tags carry the directive name.** `@phase-end`, `@if-end`, `@foreach-end`. Bare `@end`, `@endif`, `@endswitch` are no longer accepted.
+- **`@on-complete <phase> /`** replaces v1's `@on complete -> X` arrow transitions.
+- **Nested same-name blocks** are supported. The parser depth-tracks `@if` inside `@if`, etc.
+- **`block: bool` on `ParseModule` is gone.** Every directive uses the same shape; the parser figures out form 1 vs 2 vs 3 from the opener line.
+- **`DirectiveInput`** is the new input record passed to each directive's `parse()`:
+
+```ts
+interface DirectiveInput {
+  positional: string         // first token after the directive name
+  attrs: Record<string, string>
+  flags: string[]            // bare-name tokens (no `=`)
+  body: string[]             // raw body lines, empty for forms 1/2
+  isSelfClosed: boolean      // true when opener ended with ` /`
+  line: number               // 1-based opener line
+  rawArgs: string            // verbatim opener text after the name
+}
+```
+
+## Worked example
 
 ```ts
 import { parse } from '@markdownai/parser'
 
-const source = `@markdownai
+const ast = parse(`@markdownai v2.0
 
-@env DATABASE_URL fallback="postgres://localhost:5432/mydb"
-
-# Status Report
-
-Files in src: @count ./src/ match="**/*.ts"
-`
-
-const ast = parse(source)
-
-// ast.header - the @markdownai declaration node
-// ast.nodes  - array of typed directive and markdown nodes
-```
-
-## The @markdownai Header
-
-A MarkdownAI document must start with `@markdownai` on line 1. If the header is missing, the file is treated as plain Markdown - the parser returns a plain AST with no directive nodes.
-
-You can pin a version: `@markdownai v1.0`. The parser records the version in the header node.
-
-```ts
-const ast = parse('@markdownai v1.0\n\n# My Doc\n')
-console.log(ast.header.version) // "1.0"
-```
-
-## Node Types
-
-The parser produces a flat array of typed nodes. Every node has a `type` field as a discriminant.
-
-### Directive nodes
-
-| Type | Directive | Description |
-|------|-----------|-------------|
-| `EnvNode` | `@env` | Environment variable declaration with optional fallback |
-| `QueryNode` | `@query` | Shell command execution |
-| `HttpNode` | `@http` | HTTP request |
-| `DbNode` | `@db` | Database query block |
-| `ConnectNode` | `@connect` | Database connection registration |
-| `ListNode` | `@list` | Filesystem or structured data listing |
-| `ReadNode` | `@read` | Structured file read |
-| `TreeNode` | `@tree` | Directory tree rendering |
-| `DateNode` | `@date` | Date/timestamp injection |
-| `CountNode` | `@count` | File count |
-| `IncludeNode` | `@include` | Content inclusion |
-| `ImportNode` | `@import` | Definition import |
-| `DefineNode` | `@define` | Macro definition block |
-| `CallNode` | `@call` | Macro invocation |
-| `ConditionalNode` | `@if / @elseif / @else / @endif` | Conditional block with branches |
-| `SwitchNode` | `@switch / @case / @default / @endswitch` | Multi-branch conditional - first matching case wins |
-| `PhaseNode` | `@phase` | Phase block with `@on complete` transitions |
-| `EventNode` | `@event` | Named signal dispatch with data payload and transport list |
-| `PipeNode` | `source | transform | @render` | Pipe chain |
-| `RenderNode` | `@render` | Render sink with format type |
-| `PromptNode` | `@prompt` | AI instruction block |
-| `NoteNode` | `@note` | Human-readable source comment (stripped by default) |
-| `SectionNode` | `@section` | Context budget priority section |
-| `MarkdownNode` | (plain text) | Non-directive markdown content |
-| `InterpolationNode` | `{{ expression }}` | Inline expression |
-| `ShellInlineNode` | `` !`command` `` | Shell inline (Claude Code syntax) |
-| `ForeachNode` | `@foreach var in <source>` ... `@end` | Iteration block. Source is a nested node (directive / list-typed read-frontmatter / interpolation / literal CSV). Body is a list of child nodes that re-evaluate per iteration. (v1.0+) |
-| `SetNode` | `@set name = ...` | Bind a variable to a literal, a directive's rendered output, or an interpolated string. (v1.0+) |
-| `ReadFrontmatterNode` | `@read-frontmatter path field` | Targeted YAML-field read. Captures `path`, `field`, optional `label`. (v1.0+) |
-| `HashNode` | `@hash path algo length exclude-line` | Content hash. Captures `path`, `algo`, optional `length`, optional `exclude-line` regex, optional `label`. (v1.0+) |
-| `TestNode` | `@test command label budget` | Test runner invocation. Captures `command` (optional, auto-detects from `package.json` `scripts.test`), `label`, optional `budget`. (v1.0+) |
-| `CheckNode` | `@check command label` | Typecheck / lint / build runner. Same shape as `TestNode` but auto-detects from `typecheck` / `check` / `lint` / `build` scripts. (v1.0+) |
-| `MkdirNode` | `@mkdir path recursive` | Directory creation. Recursive flag defaults true. (v1.0+) |
-| `CopyNode` | `@copy from to if-missing` | File copy. `if-missing` flag makes it idempotent. (v1.0+) |
-| `AppendIfMissingNode` | `@append-if-missing path text` | Idempotent line append. (v1.0+) |
-| `UpdateFrontmatterNode` | `@update-frontmatter path field value` | YAML field set. Supports `field[append]`, `field[N]`, nested `field[N].sub` addressing parsed into the node. (v1.0+) |
-| `RenderTemplateNode` | `@render-template from to ...` ... `@end` | Block directive. Captures `from`, `to`, optional `force`, and a body of key=value lines that become template parameters. (v1.0+) |
-| `PluginMetaNode` | `@plugin-meta` ... `@end` | Plugin identity block inside `*.plugin.md` files. Captures `name`, `version`, `description`, `author`. (v1.2+) |
-| `PluginDetectNode` | `@plugin-detect` ... `@end` | Detection signals block inside `*.plugin.md` files. Captures `required_dirs`, `required_files`, `required_marker`, `version_signal`. (v1.2+) |
-| `PluginLayoutNode` | `@plugin-layout` ... `@end` | Directory layout descriptor block inside `*.plugin.md` files. (v1.2+) |
-| `PluginConventionsNode` | `@plugin-conventions` ... `@end` | Conventions block inside `*.plugin.md` files. (v1.2+) |
-| `MarkdownaiDetectNode` | `@markdownai-detect` | Detect which loaded plugins match the current project. Captures `format` (`text`/`info`), `include` list, optional `label`, optional `project` root override. (v1.2+) |
-| `PluginDataNode` | `@plugin-data name="..."` | Return a named plugin's full descriptor. Captures `name`, `include` list, optional `label`, optional `project` root override. (v1.2+) |
-
-### Block structure
-
-Block directives (`@define`, `@phase`, `@if`, `@prompt`, `@note`, `@section`) open with the directive and close with `@end` or `@endif`. The `@switch` block opens with `@switch {{expr}}` and closes with `@endswitch`; `@case` and `@default` mark its branches. The parser tracks nesting and returns each block as a single node with its children.
-
-```ts
-const ast = parse(`@markdownai
-
-@define greeting(name)
-Hello, {{ name }}!
-@end
+@phase setup
+  required=true
+>
+  @touch path="src/foo.ts" /
+  @on-complete build /
+@phase-end
 `)
 
-const defineNode = ast.nodes.find(n => n.type === 'DefineNode')
-// defineNode.name     - "greeting"
-// defineNode.params   - ["name"]
-// defineNode.body     - array of child nodes
-```
-
-### Pipe chains
-
-Pipe expressions are parsed as a single `PipeNode` containing the source, transform steps, and optional render sink:
-
-```ts
-// @list ./src/ | grep \.ts$ | sort | @render type="numbered"
-// PipeNode {
-//   source: ListNode { path: './src/' },
-//   steps:  ['grep \\.ts$', 'sort'],
-//   sink:   RenderNode { type: 'numbered' }
+// ast.header.version === "2.0"
+// ast.nodes[0] === {
+//   type: 'PhaseNode',
+//   name: 'setup',
+//   attrs: { required: 'true' },
+//   body: [
+//     { type: 'TouchNode', path: 'src/foo.ts', ... },
+//     { type: 'OnCompleteNode', target: 'build', ... },
+//   ],
+//   line: 3,
 // }
 ```
 
-## API Reference
+## API
 
-### `parse(source: string): MarkdownAIDocument`
+- `parse(source: string, options?: ParseOptions): ParseResult` - returns `{ header, nodes }` or throws `ParseError`.
+- `ParseError` - has `message`, `sourceLine`, `filePath`.
+- `scanInterpolations(source)` - returns `{{ }}` expressions without a full parse.
+- `scanShellInlines(source)` - returns `` !`...` `` expressions.
+- `getAvailableDirectives()` - registry of every registered directive.
 
-Parses a MarkdownAI document string and returns the AST.
+All AST node types are exported under `MarkdownAIDocument`, `PhaseNode`, `DefineNode`, `ConditionalNode`, etc. The full set lives in `src/types.ts`.
 
-- `source` - the full document text
-- Returns a `MarkdownAIDocument` with `header` and `nodes` fields
-- Throws `ParseError` if a block directive is unclosed or the structure is invalid
+## Migration from v1
 
-### `ParseError`
+Mechanical rewrite via the bundled script:
 
-Thrown when the document has a structural error (unclosed `@define`, nested `@phase` in an import, etc.). Has `message`, `line`, and `directive` fields.
-
-```ts
-import { parse, ParseError } from '@markdownai/parser'
-
-try {
-  parse('@markdownai\n@define foo\n# unclosed')
-} catch (e) {
-  if (e instanceof ParseError) {
-    console.error(`Parse error at line ${e.line}: ${e.message}`)
-  }
-}
+```bash
+node packages/parser/scripts/migrate-v1-to-v2.mjs <file> --in-place
 ```
 
-### `scanInterpolations(source: string): string[]`
+The script is idempotent. Re-running on a v2 file is a no-op. It handles bare `@end` rewrites, arrow-transition rewrites, multi-line attrs for inline directives, and the `as=row` shorthand. Run `--dry-run` first if you want to see the diff.
 
-Returns all `{{ expression }}` expressions found in a source string. Useful for static analysis without a full parse.
+## What this package does not do
 
-```ts
-import { scanInterpolations } from '@markdownai/parser'
-
-const exprs = scanInterpolations('Hello {{ name }}, today is {{ date format="YYYY-MM-DD" }}')
-// ["name", 'date format="YYYY-MM-DD"']
-```
-
-### `scanShellInlines(source: string): string[]`
-
-Returns all `` !`command` `` shell inline expressions found in a source string.
-
-```ts
-import { scanShellInlines } from '@markdownai/parser'
-
-const cmds = scanShellInlines('Branch: !`git branch --show-current`')
-// ["git branch --show-current"]
-```
-
-### `getAvailableDirectives(): DirectiveInfo[]`
-
-Returns the full catalog of registered directives - name, whether it is a block directive, and optional close-tag. Useful for building tooling that needs to enumerate what the parser supports.
-
-```ts
-import { getAvailableDirectives } from '@markdownai/parser'
-import type { DirectiveInfo } from '@markdownai/parser'
-
-const directives = getAvailableDirectives()
-// [{ name: 'append-if-missing', block: false }, { name: 'call', block: false }, ...]
-
-const blockDirectives = directives.filter(d => d.block)
-// directives that need an @end or @endif to close
-```
-
-`DirectiveInfo`:
-```ts
-interface DirectiveInfo {
-  name: string
-  block: boolean
-  closeTag?: string  // e.g. 'endif' for @if, 'endswitch' for @switch
-}
-```
-
-## What the parser does NOT do
-
-- Execute any directive
-- Read any file
-- Make any network request
-- Access environment variables
-- Resolve macros or evaluate expressions
-
-All of that happens in `@markdownai/engine`.
-
-## TypeScript
-
-The parser is written in strict TypeScript and ships with full type declarations. All AST node types are exported and usable directly:
-
-```ts
-import type { MarkdownAIDocument, DefineNode, ConditionalNode, PipeNode, EventNode } from '@markdownai/parser'
-
-function findMacros(doc: MarkdownAIDocument): DefineNode[] {
-  return doc.nodes.filter((n): n is DefineNode => n.type === 'DefineNode')
-}
-
-function findEvents(doc: MarkdownAIDocument): EventNode[] {
-  return doc.nodes.filter((n): n is EventNode => n.type === 'event')
-}
-```
-
-## Part of the MarkdownAI toolchain
-
-The parser is the first step in the pipeline. To go further:
-
-- **Execute directives** - use [`@markdownai/engine`](https://www.npmjs.com/package/@markdownai/engine)
-- **Format output** - use [`@markdownai/renderer`](https://www.npmjs.com/package/@markdownai/renderer)
-- **Run from the CLI** - install [`@markdownai/core`](https://www.npmjs.com/package/@markdownai/core) globally
-- **Serve to AI tools** - use [`@markdownai/mcp`](https://www.npmjs.com/package/@markdownai/mcp)
+Execute directives. Read files. Make HTTP requests. Resolve macros. All of that lives in [`@markdownai/engine`](../engine/README.md).
 
 ## License
 
-MIT - [GitHub](https://github.com/TheDecipherist/markdownai)
+MIT.

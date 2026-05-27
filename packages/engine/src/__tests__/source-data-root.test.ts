@@ -43,7 +43,7 @@ describe('source vs data root split (v2.0)', () => {
     writeFileSync(join(projectDir, '.mdd/docs/test.md'), 'project content', 'utf8')
 
     const result = render(
-      `@markdownai v1.0\n@list ./.mdd/docs/ match="*.md" type=files\n`,
+      `@markdownai v1.0\n@list ./.mdd/docs/ match="*.md" type=files /\n`,
       { cwd: projectDir },
     )
     expect(result.output).toContain('test.md')
@@ -51,10 +51,10 @@ describe('source vs data root split (v2.0)', () => {
 
   it('source ops still resolve relative to document directory', () => {
     // skill_dir has a sibling lib file; @import should find it
-    writeFileSync(join(skillDir, 'lib.md'), '@markdownai v1.0\n@define hello\nlibrary loaded\n@end\n', 'utf8')
+    writeFileSync(join(skillDir, 'lib.md'), '@markdownai v1.0\n@define hello\nlibrary loaded\n@define-end\n', 'utf8')
 
     const result = render(
-      `@markdownai v1.0\n@import ./lib.md\n@call hello\n`,
+      `@markdownai v1.0\n@import ./lib.md /\n@call hello /\n`,
       { cwd: projectDir },
     )
     expect(result.output).toContain('library loaded')
@@ -64,7 +64,7 @@ describe('source vs data root split (v2.0)', () => {
     writeFileSync(join(projectDir, 'marker.txt'), 'present', 'utf8')
 
     const result = render(
-      `@markdownai v1.0\n@if file.isFile("marker.txt")\nFOUND\n@endif\n`,
+      `@markdownai v1.0\n@if file.isFile("marker.txt")\nFOUND\n@if-end\n`,
       { cwd: projectDir },
     )
     expect(result.output).toContain('FOUND')
@@ -74,7 +74,7 @@ describe('source vs data root split (v2.0)', () => {
     mkdirSync(join(projectDir, '.mdd/docs'), { recursive: true })
 
     const result = render(
-      `@markdownai v1.0\n@if file.isDir(".mdd/docs")\nDIR EXISTS\n@endif\n`,
+      `@markdownai v1.0\n@if file.isDir(".mdd/docs")\nDIR EXISTS\n@if-end\n`,
       { cwd: projectDir },
     )
     expect(result.output).toContain('DIR EXISTS')
@@ -84,17 +84,17 @@ describe('source vs data root split (v2.0)', () => {
     writeFileSync(join(projectDir, 'thing.json'), '{}', 'utf8')
 
     const result = render(
-      `@markdownai v1.0\n@if file.exists("thing.json")\nEXISTS\n@endif\n`,
+      `@markdownai v1.0\n@if file.exists("thing.json")\nEXISTS\n@if-end\n`,
       { cwd: projectDir },
     )
     expect(result.output).toContain('EXISTS')
   })
 
-  it('@read accesses files relative to cwd by default', () => {
+  it('@read accesses files relative to cwd by default /', () => {
     writeFileSync(join(projectDir, 'data.json'), JSON.stringify({ version: '2.0.0' }), 'utf8')
 
     const result = render(
-      `@markdownai v1.0\n@read ./data.json path="version"\n`,
+      `@markdownai v1.0\n@read ./data.json path="version" /\n`,
       { cwd: projectDir },
     )
     expect(result.output).toContain('2.0.0')
@@ -102,7 +102,7 @@ describe('source vs data root split (v2.0)', () => {
 
   it('paths above data root are blocked (path traversal)', () => {
     const result = render(
-      `@markdownai v1.0\n@read ../../../etc/passwd\n`,
+      `@markdownai v1.0\n@read ../../../etc/passwd /\n`,
       { cwd: projectDir },
     )
     expect(result.output).not.toContain('root:')
@@ -113,7 +113,7 @@ describe('source vs data root split (v2.0)', () => {
     writeFileSync(join(projectDir, '.env'), 'SECRET=abc', 'utf8')
 
     const result = render(
-      `@markdownai v1.0\n@read ./.env key="SECRET"\n`,
+      `@markdownai v1.0\n@read ./.env key="SECRET" /\n`,
       { cwd: projectDir },
     )
     expect(result.output).not.toContain('abc')
@@ -155,7 +155,7 @@ describe('allowed_data_paths and allowed_source_paths', () => {
   it('allowed_data_paths lets @read reach files outside cwd', () => {
     writeFileSync(join(extraDir, 'shared.txt'), 'extra content', 'utf8')
     const filePath = join(skillDir, 'doc.md')
-    const content = `@markdownai v1.0\n@read ${join(extraDir, 'shared.txt')}\n`
+    const content = `@markdownai v1.0\n@read ${join(extraDir, 'shared.txt')} /\n`
     writeFileSync(filePath, content, 'utf8')
     const ast = parse(content, { filePath })
 
@@ -178,7 +178,7 @@ describe('allowed_data_paths and allowed_source_paths', () => {
   it('${VAR} expansion in allowed_data_paths uses env at check time', () => {
     writeFileSync(join(extraDir, 'shared.txt'), 'env-resolved', 'utf8')
     const filePath = join(skillDir, 'doc.md')
-    const content = `@markdownai v1.0\n@read ${join(extraDir, 'shared.txt')}\n`
+    const content = `@markdownai v1.0\n@read ${join(extraDir, 'shared.txt')} /\n`
     writeFileSync(filePath, content, 'utf8')
     const ast = parse(content, { filePath })
 
@@ -202,7 +202,7 @@ describe('allowed_data_paths and allowed_source_paths', () => {
   it('paths outside cwd are blocked when no allowlist matches', () => {
     writeFileSync(join(extraDir, 'shared.txt'), 'should not appear', 'utf8')
     const filePath = join(skillDir, 'doc.md')
-    const content = `@markdownai v1.0\n@read ${join(extraDir, 'shared.txt')}\n`
+    const content = `@markdownai v1.0\n@read ${join(extraDir, 'shared.txt')} /\n`
     writeFileSync(filePath, content, 'utf8')
     const ast = parse(content, { filePath })
 
@@ -251,11 +251,11 @@ describe('absolute paths in @import / @include via allowed_source_paths (Wave 2)
     }
   }
 
-  it('@import accepts an absolute path matching allowed_source_paths', () => {
+  it('@import accepts an absolute path matching allowed_source_paths /', () => {
     writeFileSync(join(libDir, 'shared.md'),
-      '@markdownai v1.0\n@define hello\nfrom-lib\n@end\n', 'utf8')
+      '@markdownai v1.0\n@define hello\nfrom-lib\n@define-end\n', 'utf8')
     const docPath = join(projectDir, 'doc.md')
-    const content = `@markdownai v1.0\n@import ${join(libDir, 'shared.md')}\n@call hello\n`
+    const content = `@markdownai v1.0\n@import ${join(libDir, 'shared.md')} /\n@call hello /\n`
     writeFileSync(docPath, content, 'utf8')
     const ast = parse(content, { filePath: docPath })
 
@@ -273,11 +273,11 @@ describe('absolute paths in @import / @include via allowed_source_paths (Wave 2)
     expect(result.output).toContain('from-lib')
   })
 
-  it('@import blocks an absolute path not in allowed_source_paths', () => {
+  it('@import blocks an absolute path not in allowed_source_paths /', () => {
     writeFileSync(join(libDir, 'shared.md'),
-      '@markdownai v1.0\n@define hello\nfrom-lib\n@end\n', 'utf8')
+      '@markdownai v1.0\n@define hello\nfrom-lib\n@define-end\n', 'utf8')
     const docPath = join(projectDir, 'doc.md')
-    const content = `@markdownai v1.0\n@import ${join(libDir, 'shared.md')}\n@call hello\n`
+    const content = `@markdownai v1.0\n@import ${join(libDir, 'shared.md')} /\n@call hello /\n`
     writeFileSync(docPath, content, 'utf8')
     const ast = parse(content, { filePath: docPath })
 
@@ -298,9 +298,9 @@ describe('absolute paths in @import / @include via allowed_source_paths (Wave 2)
 
   it('${CLAUDE_SKILL_DIR} expands in allowed_source_paths', () => {
     writeFileSync(join(libDir, 'shared.md'),
-      '@markdownai v1.0\n@define hello\nfrom-skill-dir\n@end\n', 'utf8')
+      '@markdownai v1.0\n@define hello\nfrom-skill-dir\n@define-end\n', 'utf8')
     const docPath = join(projectDir, 'doc.md')
-    const content = `@markdownai v1.0\n@import ${join(libDir, 'shared.md')}\n@call hello\n`
+    const content = `@markdownai v1.0\n@import ${join(libDir, 'shared.md')} /\n@call hello /\n`
     writeFileSync(docPath, content, 'utf8')
     const ast = parse(content, { filePath: docPath })
 
@@ -326,7 +326,7 @@ describe('absolute paths in @import / @include via allowed_source_paths (Wave 2)
     writeFileSync(join(libDir, '.env'),
       '@markdownai v1.0\nSECRET=abc\n', 'utf8')
     const docPath = join(projectDir, 'doc.md')
-    const content = `@markdownai v1.0\n@import ${join(libDir, '.env')}\n`
+    const content = `@markdownai v1.0\n@import ${join(libDir, '.env')} /\n`
     writeFileSync(docPath, content, 'utf8')
     const ast = parse(content, { filePath: docPath })
 
@@ -365,7 +365,7 @@ describe('data_root = "auto" preserves v1.x behavior', () => {
     writeFileSync(join(docDir, 'mine.txt'), 'from doc dir', 'utf8')
     writeFileSync(join(cwd, 'mine.txt'), 'from cwd', 'utf8')
     const filePath = join(docDir, 'doc.md')
-    const content = `@markdownai v1.0\n@read ./mine.txt\n`
+    const content = `@markdownai v1.0\n@read ./mine.txt /\n`
     writeFileSync(filePath, content, 'utf8')
     const ast = parse(content, { filePath })
 

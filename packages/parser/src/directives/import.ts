@@ -1,19 +1,18 @@
-import type { ParseModule, ParseContext, ASTNode, ImportNode } from '../types.js'
-import { parseArgs } from '../args.js'
+import type { ParseModule, ParseContext, DirectiveInput, ASTNode, ImportNode } from '../types.js'
 
 const importDirective: ParseModule = {
   name: 'import',
-  block: false,
-  parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
-    const parsed = parseArgs(args)
-    const path = parsed.positional[0] ?? ''
+  parse(input: DirectiveInput, ctx: ParseContext): ASTNode {
+    const path = input.positional || input.attrs['path'] || ''
+    const local = input.flags.includes('local') || input.attrs['local'] === 'true'
+    const condition = input.attrs['if'] ?? null
     const node: ImportNode = {
       type: 'import',
       line: ctx.line,
       path,
-      condition: parsed.condition,
-      local: parsed.local,
-      cache: parsed.cache,
+      condition,
+      local,
+      cache: null,
     }
     return node
   },

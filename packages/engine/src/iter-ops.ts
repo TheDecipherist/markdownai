@@ -14,6 +14,7 @@ import type { ASTNode, ForeachNode, SetNode, InterpolationSpan, ShellInlineSpan 
 import { parse as parserParse, scanInterpolations } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
 import { substituteParams } from './macros.js'
+import { evalExpressionTyped } from './conditions.js'
 
 type WalkFn = (nodes: ASTNode[], ctx: EngineContext) => string[]
 type ResolveInterpFn = (text: string, spans: InterpolationSpan[], ctx: EngineContext, shellInlines?: ShellInlineSpan[]) => string
@@ -30,17 +31,26 @@ export function setIterEngine(walk: WalkFn, resolveInterp: ResolveInterpFn): voi
 function splitItems(raw: string): string[] {
   const trimmed = (raw ?? '').trim()
   if (trimmed === '') return []
-  // Prefer newline-separated (the natural output of @list, @read, @query).
-  if (trimmed.includes('\n')) {
-    return trimmed.split('\n').map(s => s.trim()).filter(s => s !== '')
-  }
-  // Inline YAML list: `[a, b, c]` — strip brackets, split on comma.
+  // JSON array shape FIRST — `[a, b, c]` or pretty-printed
+  // `[\n  "a",\n  "b"\n]`. The interpolation sandbox JSON.stringify's arrays
+  // with indent=2 so they reach here with newlines; without this branch
+  // running first, the newline-split below treats `[`, `"a",`, `]` as
+  // separate items. Try real JSON.parse before the fallback bracket-strip
+  // so quoted strings round-trip cleanly even when they contain commas.
   if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) return parsed.map(v => String(v)).filter(s => s !== '')
+    } catch { /* fall through to manual bracket strip */ }
     return trimmed
       .slice(1, -1)
       .split(',')
       .map(s => s.trim().replace(/^["']|["']$/g, ''))
       .filter(s => s !== '')
+  }
+  // Newline-separated (the natural output of @list, @read, @query).
+  if (trimmed.includes('\n')) {
+    return trimmed.split('\n').map(s => s.trim()).filter(s => s !== '')
   }
   // Comma-separated list (e.g. @read-frontmatter list field).
   if (trimmed.includes(',')) {
@@ -56,7 +66,12 @@ function evaluateSource(literal: string, ctx: EngineContext): string {
   if (trimmed === '') return ''
   // If the literal starts with `@`, parse and execute it as a sub-directive.
   if (trimmed.startsWith('@')) {
-    const wrapper = `@markdownai v1.0\n${trimmed}\n`
+    // v2 inline directives need a trailing ` /` self-close. The literal here
+    // is a single-line directive expression (e.g. `@list ./docs/ match="*.md"`)
+    // — add ` /` if not already present.
+    const needsSlash = !/\s\/\s*$/.test(trimmed)
+    const dir = needsSlash ? `${trimmed} /` : trimmed
+    const wrapper = `@markdownai v1.0\n${dir}\n`
     const ast = parserParse(wrapper)
     const bodyNodes = ast.nodes.filter(n => n.type !== 'header' && n.type !== 'markdown')
     if (bodyNodes.length === 0) return ''
@@ -102,10 +117,29 @@ export function executeSet(node: SetNode, ctx: EngineContext): string {
     ctx.warnings.push('@set: missing variable name')
     return ''
   }
-  const literal = node.literalExpr ?? ''
+  const literal = (node.literalExpr ?? '').trim()
+  // Fast path: literal is a single `{{ expr }}` with nothing else around it.
+  // Evaluate the expression with type preserved (boolean / number / object
+  // stay typed) and store under ctx.data so @if/@switch downstream see the
+  // real type. Without this, `@set t = {{ false }}` stored "false" as a
+  // string, and `@if {{ t }}` then took the truthy branch (non-empty string).
+  const singleInterp = literal.match(/^\{\{\s*([\s\S]*?)\s*\}\}$/)
+  if (singleInterp) {
+    const typed = evalExpressionTyped(singleInterp[1]!.trim(), ctx)
+    if (typed !== undefined && typed !== null) {
+      ctx.data[node.varName] = typed
+      // Stringified fallback for callers that read via ctx.envFiles
+      // (interpolation in text contexts, legacy code paths).
+      ctx.envFiles[node.varName] = typeof typed === 'object'
+        ? JSON.stringify(typed)
+        : String(typed)
+    } else {
+      ctx.envFiles[node.varName] = ''
+    }
+    return ''
+  }
+  // Mixed text+interpolation or @directive RHS: fall back to string eval.
   let value = evaluateSource(literal, ctx)
-  // Unquote a single-pair surrounding quote so `@set x = "outer"` binds the
-  // bare string `outer`, matching the @set directive's natural ergonomics.
   if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
     value = value.slice(1, -1)
   }

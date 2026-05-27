@@ -1,5 +1,4 @@
-import type { ParseModule, ParseContext, ASTNode, CallNode } from '../types.js'
-import { parseArgs } from '../args.js'
+import type { ParseModule, ParseContext, DirectiveInput, ASTNode, CallNode } from '../types.js'
 import { ParseError } from '../types.js'
 
 function unquote(s: string): string {
@@ -30,12 +29,15 @@ function splitCommaArgs(s: string): string[] {
 
 const call: ParseModule = {
   name: 'call',
-  block: false,
-  parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
-    const raw = args.trim()
+  parse(input: DirectiveInput, ctx: ParseContext): ASTNode {
+    // Positional carries the macro name (possibly with paren-args).
+    // For paren form: `@call name(a, b)`, the parser tokenizer will keep
+    // `name(a, b)` as a single token only if there's no whitespace. To be
+    // robust, fall back to rawArgs for paren detection.
+    const raw = input.rawArgs.trim()
     if (!raw) throw new ParseError('@call requires a macro name', ctx.line, ctx.filePath)
 
-    // Detect name(arg1, arg2) or name(key=value) paren syntax — [\w-]+ matches hyphens like @define
+    // Detect name(arg1, arg2) or name(key=value) paren syntax.
     const parenMatch = raw.match(/^([\w-]+)\(([^)]*)\)$/)
     if (parenMatch) {
       const name = parenMatch[1] ?? ''
@@ -59,11 +61,10 @@ const call: ParseModule = {
       return { type: 'call', line: ctx.line, name, args: {}, positionalArgs: items.map(unquote) }
     }
 
-    // Space-separated syntax: @call name key=value
-    const parsed = parseArgs(raw)
-    const name = parsed.positional[0] ?? ''
+    // Space-separated form: @call name key=value
+    const name = input.positional
     if (!name) throw new ParseError('@call requires a macro name', ctx.line, ctx.filePath)
-    return { type: 'call', line: ctx.line, name, args: parsed.named, positionalArgs: parsed.positional.slice(1) }
+    return { type: 'call', line: ctx.line, name, args: { ...input.attrs }, positionalArgs: input.flags.slice() }
   },
 }
 

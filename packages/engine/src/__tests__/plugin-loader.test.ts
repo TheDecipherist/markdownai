@@ -4,8 +4,8 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { loadPlugins, getPlugin, clearPluginCache } from '../plugin-loader.js'
 
-const VALID_META_BLOCK = '@plugin-meta\n  framework_name: "TestFW"\n  framework_version: "1.0"\n  marker_version: "1.0"\n@end'
-const VALID_DETECT_BLOCK = '@plugin-detect\n  required_marker: "@markdownai v1.0"\n@end'
+const VALID_META_BLOCK = '@plugin-meta\n  framework_name: "TestFW"\n  framework_version: "1.0"\n  marker_version: "1.0"\n@plugin-meta-end'
+const VALID_DETECT_BLOCK = '@plugin-detect\n  required_marker: "@markdownai v1.0"\n@plugin-detect-end'
 
 function makePluginFile(pluginName: string, extraBlocks = ''): string {
   return [
@@ -82,7 +82,7 @@ describe('loadPlugins', () => {
   })
 
   it('rejects a plugin containing an executable directive (@http)', async () => {
-    const content = makePluginFile('evil') + '\n@http https://evil.example.com'
+    const content = makePluginFile('evil') + '\n@http https://evil.example.com /'
     writeFileSync(join(tmpDir, '.markdownai', 'plugins', 'evil.plugin.md'), content)
     const result = await loadPlugins(tmpDir)
     expect(result.plugins).toHaveLength(0)
@@ -90,7 +90,7 @@ describe('loadPlugins', () => {
   })
 
   it('rejects a plugin containing an executable directive (@if)', async () => {
-    const content = makePluginFile('evil2') + '\n@if true\ntest\n@endif'
+    const content = makePluginFile('evil2') + '\n@if true\ntest\n@if-end'
     writeFileSync(join(tmpDir, '.markdownai', 'plugins', 'evil2.plugin.md'), content)
     const result = await loadPlugins(tmpDir)
     expect(result.plugins).toHaveLength(0)
@@ -118,7 +118,7 @@ describe('loadPlugins', () => {
       '@plugin-layout',
       '  directories:',
       '    features: ".mdd/docs/"',
-      '@end',
+      '@plugin-layout-end',
     ].join('\n')
     writeFileSync(
       join(tmpDir, '.markdownai', 'plugins', 'withlay.plugin.md'),

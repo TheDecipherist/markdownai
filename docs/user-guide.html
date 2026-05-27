@@ -101,6 +101,7 @@
   <div class="mobile-toc">
     <div class="toc-header">User Guide</div>
     <a href="#overview">Overview</a>
+    <a href="#migrating">Migrating from v1</a>
     <a href="#getting-started">Getting Started</a>
     <div class="toc-group">Language</div>
     <a href="#header">@markdownai Header</a>
@@ -166,7 +167,7 @@
 <section class="hero">
   <div class="hero-glow"></div>
   <div class="container hero-content">
-    <div class="hero-badge">User Guide - v1.0</div>
+    <div class="hero-badge">User Guide - v2.0</div>
     <h1>MarkdownAI User Guide</h1>
     <p class="hero-subtitle">
       documentation that cannot lie. - complete reference for every directive, security model, and CLI command.
@@ -185,6 +186,7 @@ mai init</code></pre>
       <div class="toc-header">On this page</div>
       <nav id="toc" aria-label="Table of contents">
         <a href="#overview">Overview</a>
+        <a href="#migrating">Migrating from v1</a>
         <a href="#getting-started">Getting Started</a>
         <span class="toc-group">Language</span>
         <a href="#header">@markdownai Header</a>
@@ -276,19 +278,13 @@ mai init</code></pre>
 
         <div class="callout">
           <p>
-            <strong>v1.0 highlights.</strong> Iteration with <code>@foreach</code> and value binding with <code>@set</code>. Filesystem writes (<code>@mkdir</code>, <code>@copy</code>, <code>@append-if-missing</code>, <code>@update-frontmatter</code>, <code>@render-template</code>) behind a security gate. Execution directives <code>@test</code> and <code>@check</code> that inline full runner output. Targeted reads with <code>@read-frontmatter</code> and content hashing via <code>@hash</code>. The <code>@if</code> sandbox grew three new helpers: <code>file.containsLine</code>, <code>file.containsSection</code>, <code>file.frontmatterField</code>. The path jail split into three independent boundaries (source / data / write). A <code>SessionStart</code> hook renders <code>CLAUDE-MarkdownAI.md</code> into every Claude Code session as live context.
-          </p>
-        </div>
-
-        <div class="callout">
-          <p>
-            <strong>v1.2 highlights.</strong> Plugin system for framework authors. Write a <code>*.plugin.md</code> file to register your framework - declare detection signals, directory layout, and conventions in a structured format. <code>@markdownai-detect</code> matches loaded plugins against a project and returns their metadata. <code>@plugin-data</code> returns a named plugin's descriptor directly. The new <code>available_directives</code> MCP tool returns the full directive catalog so AI tools can answer "what can I use here?" without hallucinating.
+            <strong>v2.0 highlights.</strong> Unified directive grammar - one parser shape for every directive. Close tags carry the directive name (<code>@phase-end</code>, <code>@if-end</code>, <code>@foreach-end</code>), self-closing form with trailing <code>/</code> for atomic directives, JSX-style <code>&gt;</code> body separator. <code>@on-complete X /</code> replaces the v1 arrow transition. Synchronous MongoDB worker so <code>@db</code> actually queries Mongo. Struct labels (<code>as=row</code>) for dot-access on results. New sandbox builtins: <code>parse_brief</code>, <code>read_section</code>, <code>extract_paths</code>, <code>now_iso</code>, <code>to_json</code>, <code>truncate</code>, <code>uuid_v4</code>, <code>allowed</code>, and more. Cross-call session state via <code>skill_session_id</code> in the MCP server. Plugin loader and <code>@markdownai-detect</code>. New <code>@touch</code> directive for idempotent file scaffolding.
           </p>
         </div>
 
         <div class="callout amber">
           <p>
-            <strong>Breaking change in v1.0.</strong> Data ops (<code>@list</code>, <code>@read</code>, <code>@tree</code>, <code>@count</code>, <code>@date file=</code>, <code>file.*</code> helpers) now resolve against <code>data_root</code> (default: process working directory) instead of the document's directory. To restore the 0.x behavior, set <code>filesystem.data_root = "auto"</code> in your security config. See <a href="#filesystem-security">Filesystem Confinement</a> for the full breakdown.
+            <strong>Breaking syntax change in v2.0.</strong> Bare <code>@end</code>, <code>@endif</code>, <code>@endswitch</code>, and <code>@on complete -&gt; X</code> are no longer accepted. Pin to <code>^2.0.0</code> and run the migration tool once over each v1 file. See <a href="#migrating">Migrating from v1</a> below for the five transformation classes and a worked example.
           </p>
         </div>
 
@@ -307,7 +303,7 @@ mai init</code></pre>
           </div>
           <div class="concept-card">
             <h3>mcp</h3>
-            <p>MCP server with 9 tools for AI assistants. Lazy phase loading.</p>
+            <p>MCP server with 11 tools for AI assistants. Lazy phase loading.</p>
           </div>
           <div class="concept-card">
             <h3>core</h3>
@@ -322,6 +318,118 @@ mai init</code></pre>
         <p>
           Security is enforced at every layer. Jailed directives - database queries, HTTP calls, shell commands - are blocked by default and must be explicitly allowed. File access is confined to the document root. Content masking prevents credentials from appearing in rendered output. And a set of immutable rules block the most dangerous operations regardless of configuration.
         </p>
+      </section>
+
+      <!-- ===== MIGRATING FROM V1 ===== -->
+      <section id="migrating">
+        <h2>Migrating from v1</h2>
+
+        <p>
+          v2 is a breaking syntax change. v1 documents do not parse under <code>@markdownai/parser ^2.0.0</code>. v1 stays on <code>^1.x</code> and keeps working, so the safe path is to pin to <code>^2.0.0</code> in <code>package.json</code> and run the migration tool once over each v1 file.
+        </p>
+
+        <h3>Run the migration tool</h3>
+        <pre><code class="language-bash">node ~/projects/markdownai/packages/parser/scripts/migrate-v1-to-v2.mjs &lt;file&gt; --in-place</code></pre>
+
+        <p>
+          The script is idempotent - re-running on a v2 file is a no-op. It works on <code>.md</code> files. HTML and other source files with embedded MarkdownAI snippets need hand-editing.
+        </p>
+
+        <h3>The five transformation classes</h3>
+
+        <table>
+          <thead><tr><th>Class</th><th>v1</th><th>v2</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Close tags carry the directive name</td>
+              <td><code>@end</code></td>
+              <td><code>@&lt;name&gt;-end</code> matching the opener (<code>@phase-end</code>, <code>@foreach-end</code>, <code>@define-end</code>, ...)</td>
+            </tr>
+            <tr>
+              <td>Conditional and switch aliases</td>
+              <td><code>@endif</code>, <code>@endswitch</code></td>
+              <td><code>@if-end</code>, <code>@switch-end</code></td>
+            </tr>
+            <tr>
+              <td>Phase transitions</td>
+              <td><code>@on complete -&gt; target</code></td>
+              <td><code>@on-complete target /</code></td>
+            </tr>
+            <tr>
+              <td>Self-close on atomic directives</td>
+              <td><code>@import path</code>, <code>@touch path="X"</code>, <code>@call name</code></td>
+              <td><code>@import path /</code>, <code>@touch path="X" /</code>, <code>@call name /</code></td>
+            </tr>
+            <tr>
+              <td>Multi-line directives normalize to block form</td>
+              <td>Continuation lines on a single-line directive (silently dropped in v1)</td>
+              <td><code>@&lt;name&gt;</code> opener, attribute lines, <code>@&lt;name&gt;-end</code> close tag</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Worked example</h3>
+
+        <p><strong>v1:</strong></p>
+        <pre><code class="language-markdown">@phase 0_branch_check
+  Run the branch guard before anything else.
+  @call branch-guard
+  @on complete -&gt; 0_5_repo_version_check
+@end
+
+@if env.NODE_ENV == "production"
+  @foreach feature in @list ./.mdd/docs/ match="*.md"
+    - {{ feature }}
+  @end
+@endif
+
+@switch {{ arg0 }}
+  @case "audit"
+    @include ./audit-mode.md
+  @case "build"
+    @include ./build-mode.md
+@endswitch
+
+@import ~/.claude/mdd/macros.md
+@touch path="src/rules/parser.ts"</code></pre>
+
+        <p><strong>v2:</strong></p>
+        <pre><code class="language-markdown">@phase 0_branch_check
+  Run the branch guard before anything else.
+  @call branch-guard /
+  @on-complete 0_5_repo_version_check /
+@phase-end
+
+@if {{ env.NODE_ENV == "production" }}
+  @foreach feature in {{ @list ./.mdd/docs/ match="*.md" }}
+    - {{ feature }}
+  @foreach-end
+@if-end
+
+@switch {{ arg0 }}
+  @case "audit"
+    @include ./audit-mode.md /
+  @case "build"
+    @include ./build-mode.md /
+@switch-end
+
+@import ~/.claude/mdd/macros.md /
+@touch path="src/rules/parser.ts" /</code></pre>
+
+        <h3>What does not change</h3>
+        <ul>
+          <li><code>&#123;&#123; &#125;&#125;</code> interpolation syntax stays the same.</li>
+          <li>AST node shapes stay the same - only source-form parsing changes.</li>
+          <li>Engine execution semantics stay the same.</li>
+          <li>Security model - allowlists, jails, sandbox - stays the same.</li>
+          <li>Directive registry stays the same set of names.</li>
+        </ul>
+
+        <div class="callout">
+          <p>
+            <strong>Use a dedicated migration commit.</strong> Run the migration script over every <code>.md</code> file in the repo in one pass, commit with a clear message, then upgrade <code>@markdownai/*</code> to <code>^2.0.0</code> and update CI. This makes the syntax change reviewable in isolation.
+          </p>
+        </div>
       </section>
 
       <!-- ===== GETTING STARTED ===== -->
@@ -347,16 +455,16 @@ mai init</code></pre>
           <div class="step-content">
             <h3>Create your first document</h3>
             <p>The <code>@markdownai</code> header on line 1 is all it takes to make a file live.</p>
-            <pre><code class="language-markdown">@markdownai v1.0
+            <pre><code class="language-markdown">@markdownai v2.0
 
 # Project Status
 
-Generated: {{ date format="YYYY-MM-DD" }}
+Generated: {{ now_iso() }}
 Version: {{ read ./package.json path="version" }}
 
 ## Source Files
 
-@list ./src/ match="**/*.ts" type="files" as="list"
+@list ./src/ match="**/*.ts" type="files" as="list" /
 
 ## Environment
 
@@ -432,7 +540,7 @@ API URL: {{ env.API_URL ?? "http://localhost:3000" }}</code></pre>
 @markdownai
 
 # Version pin - warns if installed version is older
-@markdownai v1.0
+@markdownai v2.0
 
 # Opt out of shell-inline interception (see Shell Inline section)
 @markdownai shell-inline="passthrough"</code></pre>
@@ -443,15 +551,15 @@ API URL: {{ env.API_URL ?? "http://localhost:3000" }}</code></pre>
 title: My Document
 description: Project status report
 ---
-@markdownai v1.0
+@markdownai v2.0
 
 # My Document
 
-Built on {{ date format="YYYY-MM-DD" }}.</code></pre>
+Built on {{ now_iso() }}.</code></pre>
 
         <div class="callout">
           <p>
-            <strong>Version pins are optional but recommended.</strong> Pinning to <code>v1.0</code> means your document declares exactly which MarkdownAI features it expects. If your installed version is older, <code>mai</code> warns you but continues running.
+            <strong>Version pins are optional but recommended.</strong> Pinning to <code>v2.0</code> means your document declares exactly which MarkdownAI features it expects. If your installed version is older, <code>mai</code> warns you but continues running.
           </p>
         </div>
       </section>
@@ -480,9 +588,9 @@ Built on {{ date format="YYYY-MM-DD" }}.</code></pre>
         </table>
 
         <h3>Examples</h3>
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
-# Report - {{ date format="YYYY-MM-DD" }}
+# Report - {{ now_iso() }}
 
 Version: {{ read ./package.json path="version" }}
 
@@ -508,19 +616,19 @@ Source files: {{ count ./src/ match="**/*.ts" }}</code></pre>
         </p>
 
         <h3>Syntax</h3>
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 # Variable as a standalone paragraph (renders the value)
-@env API_BASE_URL
+@env API_BASE_URL /
 
 # Variable with a fallback - renders "https://api.example.com" when unset
-@env API_BASE_URL fallback="https://api.example.com"
+@env API_BASE_URL fallback="https://api.example.com" /
 
 # Required - mai validate fails if unset
-@env DATABASE_URL required
+@env DATABASE_URL required /
 
 # Required and masked - never appears in rendered output
-@env SECRET_KEY required masked
+@env SECRET_KEY required masked /
 
 # Inline usage anywhere in prose
 The API is at {{ env.API_BASE_URL ?? "http://localhost:3000" }}.</code></pre>
@@ -579,33 +687,37 @@ The API is at {{ env.API_BASE_URL ?? "http://localhost:3000" }}.</code></pre>
 
         <h3>Basic Macro</h3>
         <pre><code class="language-markdown">@define disclaimer
-This report is generated automatically and may contain estimates.
-@end
+  This report is generated automatically and may contain estimates.
+@define-end
 
 # Section One
 
-@call disclaimer
+@call disclaimer /
 
 # Section Two
 
-@call disclaimer</code></pre>
+@call disclaimer /</code></pre>
 
         <h3>Macro with Parameters</h3>
         <p>Use <code>{{ param || "default" }}</code> inside the body to accept values at call time with an optional fallback:</p>
-        <pre><code class="language-markdown">@define greeting(name, role)
-Hello, {{ name || "reader" }}. Your role is {{ role || "viewer" }}.
-@end
+        <pre><code class="language-markdown">@define greeting
+  params=name,role
+&gt;
+  Hello, {{ name || "reader" }}. Your role is {{ role || "viewer" }}.
+@define-end
 
-@call greeting(name=Alice, role=Admin)
-@call greeting(name=Bob)</code></pre>
+@call greeting name=Alice role=Admin /
+@call greeting name=Bob /</code></pre>
 
         <h3>Local Scope</h3>
-        <p>Add <code>@local</code> after the macro name to keep it scoped to the current file - it won't bubble up to parent documents that include this file:</p>
-        <pre><code class="language-markdown">@define internal-note @local
-For internal review only - do not distribute.
-@end
+        <p>Add <code>local=true</code> as an attribute to keep the macro scoped to the current file - it won't bubble up to parent documents that include this file:</p>
+        <pre><code class="language-markdown">@define internal-note
+  local=true
+&gt;
+  For internal review only - do not distribute.
+@define-end
 
-@call internal-note</code></pre>
+@call internal-note /</code></pre>
 
         <h3>Macros Can Contain Any Directive</h3>
         <p>Macros can include data fetches, conditionals, other <code>@call</code> directives - anything that is valid in a document body.</p>
@@ -625,28 +737,28 @@ For internal review only - do not distribute.
           The <code>@include</code> directive pulls another Markdown file's content directly into your document at that point - as if you had written it there yourself. Any macros, connections, or environment fallbacks defined in the included file automatically become available to the rest of your parent document.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 # Full Report
 
-@include ./sections/header.md
+@include ./sections/header.md /
 
-@include ./data/metrics.md @cache session
+@include ./data/metrics.md @cache session /
 
-@if env.TIER == "enterprise"
-  @include ./sections/enterprise-features.md
-@endif
+@if {{ env.TIER == "enterprise" }}
+  @include ./sections/enterprise-features.md /
+@if-end
 
-@include ./sections/footer.md</code></pre>
+@include ./sections/footer.md /</code></pre>
 
         <h3>Rules</h3>
         <ul>
           <li>Paths are relative to the file containing the directive.</li>
           <li>Absolute paths and paths navigating above the document root are always blocked.</li>
-          <li>To include specific line ranges from a source file: <code>@include ./src/auth.ts lines=10-45</code></li>
+          <li>To include specific line ranges from a source file: <code>@include ./src/auth.ts lines=10-45 /</code></li>
           <li>Circular reference detection is automatic - an error halts rendering and shows the full chain.</li>
           <li>Including a file multiple times is valid and intentional repetition is supported.</li>
-          <li>Mark definitions as <code>@local</code> inside included files to prevent them bubbling up to the parent.</li>
+          <li>Mark definitions with <code>local=true</code> inside included files to prevent them bubbling up to the parent.</li>
         </ul>
 
         <h3>Dynamic Paths</h3>
@@ -656,21 +768,21 @@ For internal review only - do not distribute.
         <p>
           This turns a five-branch <code>@if</code>/<code>@elseif</code> chain into one line:
         </p>
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
-@include ./{{arg0}}-mode.md</code></pre>
+@include ./{{arg0}}-mode.md /</code></pre>
 
         <p>
           Add a JS <code>||</code> default for when no argument is passed:
         </p>
-        <pre><code class="language-markdown">@include ./{{arg0 || 'audit'}}-mode.md</code></pre>
+        <pre><code class="language-markdown">@include ./{{arg0 || 'audit'}}-mode.md /</code></pre>
 
         <p>
           Inside a <code>@foreach</code> loop the loop variable works directly in the path:
         </p>
         <pre><code class="language-markdown">@foreach section in intro,body,appendix
-  @include ./{{section}}.md
-@end</code></pre>
+  @include ./{{section}}.md /
+@foreach-end</code></pre>
 
         <p>
           The expanded path goes through the same jail check as a static include. Dynamic traversal (e.g. a caller passing <code>../../etc/shadow</code> as an argument) is caught and blocked.
@@ -685,18 +797,22 @@ For internal review only - do not distribute.
           <code>@import</code> brings in macros, database connections, and environment variable defaults from another file - without rendering any of that file's content. This is how you maintain a central "definitions library" shared across many documents.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
-@import ./shared/connections.md
-@import ./shared/macros.md @cache session
+@import ./shared/connections.md /
+@import ./shared/macros.md @cache session /
 
 # My Document
 
-@call header-block
+@call header-block /
 
-@db using="reports"
-  find="orders" where="status==pending"
-@end</code></pre>
+@db
+  using="reports"
+  find="orders"
+  where='status == "pending"'
+@db-end</code></pre>
+
+        <p>Note the v2 attribute style: each attribute on its own indented line, ending with <code>@db-end</code>.</p>
 
         <h3>What @import Brings In</h3>
         <ul>
@@ -725,25 +841,25 @@ For internal review only - do not distribute.
           Show or hide sections based on conditions - environment, file existence, or data values. The same expression system works inside <code>@if</code> conditions, <code>where</code> filters on data queries, and <code>&#123;&#123; &#125;&#125;</code> interpolations. Learn the operators once and they work throughout.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
-@if env.APP_ENV == "production"
-This section only appears in production builds.
+@if {{ env.APP_ENV == "production" }}
+  This section only appears in production builds.
 @else
-You are viewing a non-production build.
-@endif
+  You are viewing a non-production build.
+@if-end
 
-@if file.exists "./config/custom.json"
-Custom configuration detected.
-@elseif file.isDir "./config"
-Config directory found but no custom.json.
+@if {{ file.exists("./config/custom.json") }}
+  Custom configuration detected.
+@elseif {{ file.isDir("./config") }}
+  Config directory found but no custom.json.
 @else
-No configuration found.
-@endif
+  No configuration found.
+@if-end
 
-@if env.ROLE == "admin" && env.REGION == "us-east"
-Admin dashboard - US East region.
-@endif</code></pre>
+@if {{ env.ROLE == "admin" &amp;&amp; env.REGION == "us-east" }}
+  Admin dashboard - US East region.
+@if-end</code></pre>
 
         <h3>Expression Operators</h3>
         <table>
@@ -754,9 +870,9 @@ Admin dashboard - US East region.
             <tr><td><code>&amp;&amp;</code> / <code>||</code> / <code>!</code></td><td>Logical AND, OR, NOT</td></tr>
             <tr><td><code>.startsWith()</code> / <code>.endsWith()</code> / <code>.includes()</code></td><td>String methods</td></tr>
             <tr><td><code>file.exists</code> / <code>file.isFile</code> / <code>file.isDir</code></td><td>Filesystem checks</td></tr>
-            <tr><td><code>file.containsLine(path, regex)</code></td><td>Multiline regex test against a file's content (v1.0+)</td></tr>
-            <tr><td><code>file.containsSection(path, heading)</code></td><td>True if the file has an ATX heading matching <code>heading</code>. Pass with <code>#</code>s to match a specific level (v1.0+)</td></tr>
-            <tr><td><code>file.frontmatterField(path, field)</code></td><td>Returns a YAML frontmatter scalar from <code>path</code>. Empty string if missing (v1.0+)</td></tr>
+            <tr><td><code>file.containsLine(path, regex)</code></td><td>Multiline regex test against a file's content.</td></tr>
+            <tr><td><code>file.containsSection(path, heading)</code></td><td>True if the file has an ATX heading matching <code>heading</code>. Pass with <code>#</code>s to match a specific level.</td></tr>
+            <tr><td><code>file.frontmatterField(path, field)</code></td><td>Returns a YAML frontmatter scalar from <code>path</code>. Empty string if missing.</td></tr>
             <tr><td><code>match "pattern"</code></td><td>Regex match (see match operator section)</td></tr>
             <tr><td><code>allowed(value, list, opts?)</code></td><td>Returns <code>value</code> if it is in <code>list</code> (array or single string), <code>false</code> otherwise. Combine with <code>||</code> to provide a safe default: <code>&#123;&#123; allowed(arg0, ["a","b"]) || "a" &#125;&#125;</code>. Pass <code>&#123;ignoreCase: true&#125;</code> for case-insensitive matching.</td></tr>
           </tbody>
@@ -767,19 +883,19 @@ Admin dashboard - US East region.
           Three filesystem helpers run inside the same sandbox as <code>file.exists</code>. They let you branch on the actual content of a file without using a separate <code>@read</code> beforehand.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
-@if file.containsLine "./README.md" ".*\[CRITICAL\].*"
-Critical items exist - block the release.
-@endif
+@if {{ file.containsLine("./README.md", ".*\\[CRITICAL\\].*") }}
+  Critical items exist - block the release.
+@if-end
 
-@if file.containsSection "./doc.md" "## Bugs"
-Known bugs section is present.
-@endif
+@if {{ file.containsSection("./doc.md", "## Bugs") }}
+  Known bugs section is present.
+@if-end
 
-@if file.frontmatterField ".mdd/docs/01-mdd.md" "status" == "complete"
-This doc is shipped.
-@endif</code></pre>
+@if {{ file.frontmatterField(".mdd/docs/01-mdd.md", "status") == "complete" }}
+  This doc is shipped.
+@if-end</code></pre>
 
         <p>
           <code>containsLine</code> takes a regex and tests it against the whole file content (multiline). <code>containsSection</code> matches an ATX heading on its own line; pass with <code>#</code>s to require a specific level. <code>frontmatterField</code> returns the scalar value of a YAML key in the frontmatter, or an empty string if the key or file is missing.
@@ -800,7 +916,7 @@ This doc is shipped.
           When you have more than a couple of branches, <code>@switch</code> is cleaner than a chain of <code>@if</code>/<code>@elseif</code>. It evaluates one expression and renders the first <code>@case</code> whose value matches.
         </p>
 
-        <pre><code class="language-markdown">@switch {{argsList[0]}}
+        <pre><code class="language-markdown">@switch {{ argsList[0] }}
   @case "build"
     Running build mode...
   @case "audit"
@@ -809,20 +925,20 @@ This doc is shipped.
     Running status check...
   @default
     Unknown command. Try: build, audit, status.
-@endswitch</code></pre>
+@switch-end</code></pre>
 
         <p>
           Both the switch expression and each <code>@case</code> value support <code>&#123;&#123; &#125;&#125;</code> dynamic expressions - the same sandbox as <code>@if</code>, so <code>env.*</code>, <code>argsList</code>, <code>arg0</code>, <code>@foreach</code> loop variables, and all other context values work.
         </p>
 
-        <pre><code class="language-markdown">@switch {{env.APP_ENV}}
+        <pre><code class="language-markdown">@switch {{ env.APP_ENV }}
   @case "production"
     Live data - changes are permanent.
-  @case {{env.STAGING_LABEL}}
+  @case {{ env.STAGING_LABEL }}
     Staging environment.
   @default
     Development mode.
-@endswitch</code></pre>
+@switch-end</code></pre>
 
         <h3>Restricting Values with allowed()</h3>
         <p>
@@ -836,7 +952,7 @@ This doc is shipped.
     Running audit mode...
   @case "op"
     Running op mode...
-@endswitch</code></pre>
+@switch-end</code></pre>
 
         <p>
           This also works in <code>@if</code> conditions and <code>&#123;&#123; &#125;&#125;</code> interpolations. The second argument can be an array or a single string. Pass <code>&#123;ignoreCase: true&#125;</code> as a third argument for case-insensitive matching.
@@ -849,7 +965,7 @@ This doc is shipped.
             <li><code>@default</code> is optional; if absent and nothing matches, the block produces empty output.</li>
             <li><code>@case "default"</code> matches the string <code>"default"</code> - it does <em>not</em> trigger the <code>@default</code> block.</li>
             <li>Nesting works: <code>@switch</code> inside <code>@foreach</code>, <code>@if</code>, or another <code>@switch</code>.</li>
-            <li>Closes with <code>@endswitch</code>.</li>
+            <li>Closes with <code>@switch-end</code>.</li>
           </ul>
         </div>
       </section>
@@ -862,23 +978,28 @@ This doc is shipped.
           The pipe operator <code>|</code> connects a data source through one or more transform steps to a final <code>@render</code> sink - all on a single line. This brings Unix-style composability to your documents.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 # TypeScript Files
 
-@list ./src/ | grep \.ts$ | sort | @render type="numbered"
+@list ./src/ | grep \.ts$ | sort | @render type="numbered" /
 
 # Active Users
 
-@db using="primary" find="users" where="active==true" | @render type="table"
+@db
+  using="primary"
+  find="users"
+  where='active == true'
+@db-end
+| @render type="table" /
 
 # File Count
 
-There are @list ./src/ | wc -l TypeScript files in this project.
+There are {{ @list ./src/ | wc -l }} TypeScript files in this project.
 
 # Shorthand with "as"
 
-@list ./data/users.json path="users" as="table"</code></pre>
+@list ./data/users.json path="users" as="table" /</code></pre>
 
         <h3>Built-in Transforms (Cross-Platform)</h3>
         <p>These run as pure Node.js code - no shell required, works on Windows, macOS, and Linux:</p>
@@ -945,23 +1066,23 @@ There are @list ./src/ | wc -l TypeScript files in this project.
         </table>
 
         <h3>Examples</h3>
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 # TypeScript Source Files
 
-@list ./src/ match="**/*.ts" type="files"
+@list ./src/ match="**/*.ts" type="files" /
 
 # Active Users from JSON
 
-@list ./data/users.json path="users" where="status:active" as="table"
+@list ./data/users.json path="users" where="status:active" as="table" /
 
 # npm Dependencies
 
-@list ./package.json path="dependencies" mode="entries" columns="key:Package,value:Version"
+@list ./package.json path="dependencies" mode="entries" columns="key:Package,value:Version" /
 
 # CSV Product Catalog
 
-@list ./data/products.csv columns="sku:SKU,name:Product,price:Price" where="inStock:true"</code></pre>
+@list ./data/products.csv columns="sku:SKU,name:Product,price:Price" where="inStock:true" /</code></pre>
       </section>
 
       <!-- ===== READ ===== -->
@@ -972,16 +1093,16 @@ There are @list ./src/ | wc -l TypeScript files in this project.
           <code>@read</code> pulls a specific value or slice of data from a structured file into your document. Supports JSON, YAML, TOML, CSV, and <code>.env</code> files.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 # Configuration
 
-Database host: @read config.json path="database.host"
-Server port: @read config.yaml path="$.server.port"
+Database host: @read config.json path="database.host" /
+Server port: @read config.yaml path="$.server.port" /
 
 # Active Users
 
-@read users.csv where="status='active'" columns="name:Name,email:Email"
+@read users.csv where="status=='active'" columns="name:Name,email:Email" /
 
 # Version
 
@@ -1018,16 +1139,19 @@ Package version: {{ read ./package.json path="version" }}</code></pre>
         </p>
 
         <h3>@tree - Directory Listing</h3>
-        <pre><code class="language-markdown">@tree ./packages/ depth=2
-@tree ./src/ depth=3 type=dirs
-@tree ./src/ match="*.ts" depth=2</code></pre>
+        <pre><code class="language-markdown">@tree ./packages/ depth=2 /
+@tree ./src/ depth=3 type=dirs /
+@tree ./src/ match="*.ts" depth=2 /</code></pre>
 
         <h3>@date - Dates and Timestamps</h3>
-        <pre><code class="language-markdown">Generated: @date format="YYYY-MM-DD"
-Full timestamp: @date format="YYYY-MM-DD HH:mm:ss"
-File modified: @date file="./CHANGELOG.md" type="modified"
+        <pre><code class="language-markdown">Generated: @date format="YYYY-MM-DD" /
+Full timestamp: @date format="YYYY-MM-DD HH:mm:ss" /
+File modified: @date file="./CHANGELOG.md" type="modified" /
 
-Inline: Last updated {{ date format="MMMM D, YYYY" }}.</code></pre>
+Inline: Last updated {{ date format="MMMM D, YYYY" }}.
+
+# v2 sandbox builtin equivalent
+Generated: {{ now_iso() }}</code></pre>
 
         <h3>Date Format Tokens</h3>
         <table>
@@ -1050,9 +1174,9 @@ Inline: Last updated {{ date format="MMMM D, YYYY" }}.</code></pre>
         <h3>@count - File Counter</h3>
         <pre><code class="language-markdown"># Source Statistics
 
-TypeScript files: @count ./src/ match="**/*.ts" type=files
-Test files: @count ./src/ match="**/*.test.ts" type=files
-Directories: @count ./src/ type=dirs
+TypeScript files: @count ./src/ match="**/*.ts" type=files /
+Test files: @count ./src/ match="**/*.test.ts" type=files /
+Directories: @count ./src/ type=dirs /
 
 Inline: This package has {{ count ./src/ match="**/*.ts" }} source files.</code></pre>
       </section>
@@ -1066,11 +1190,11 @@ Inline: This package has {{ count ./src/ match="**/*.ts" }} source files.</code>
         </p>
 
         <h3>@connect - Connection Registry</h3>
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
-@connect reports type="mongodb" uri=env.MONGODB_URI
-@connect analytics type="postgres" uri=env.ANALYTICS_PG_URI
-@connect local type="sqlite" uri=env.SQLITE_PATH @local</code></pre>
+@connect reports type="mongodb" uri=env.MONGODB_URI /
+@connect analytics type="postgres" uri=env.ANALYTICS_PG_URI /
+@connect local type="sqlite" uri=env.SQLITE_PATH local=true /</code></pre>
 
         <p><strong>Supported types:</strong> <code>mongodb</code>, <code>postgres</code>, <code>mysql</code>, <code>mssql</code>, <code>sqlite</code>, <code>redis</code>, <code>elasticsearch</code></p>
 
@@ -1089,19 +1213,42 @@ Inline: This package has {{ count ./src/ match="**/*.ts" }} source files.</code>
 
         <pre><code class="language-markdown"># Active Users
 
-@db using="reports" find="users" where="active==true" | @render type="table"
+@db
+  using="reports"
+  find="users"
+  where='active == true'
+@db-end
+| @render type="table" /
 
 # Orders by Status (bar chart)
 
-@db using="reports" aggregate="orders" group="status" count=true | @render type="bar"
+@db
+  using="reports"
+  aggregate="orders"
+  group="status"
+  count=true
+@db-end
+| @render type="bar" /
 
-# Single Record
+# Single Record - struct label for dot-access
 
-@db using="reports" one="users" where="email==env.ADMIN_EMAIL"
+@db
+  using="reports"
+  one="users"
+  where='email == env.ADMIN_EMAIL'
+  as=row
+  label=admin
+@db-end
 
-# Count Pending
+Admin name: {{ admin.name }}
 
-Pending orders: @db using="reports" count="orders" where="status==pending"</code></pre>
+# Count Pending - inline
+
+Pending orders: {{ @db using="reports" count="orders" where='status == "pending"' / }}</code></pre>
+
+        <p>
+          The <code>as=row label=feature</code> pair is new in v2. It captures the result into <code>ctx.data[label]</code> as a structured value, so <code>&#123;&#123; feature.field &#125;&#125;</code> dot-access works on real arrays and nested objects.
+        </p>
 
         <h3>Common @db Options</h3>
         <table>
@@ -1133,23 +1280,38 @@ Pending orders: @db using="reports" count="orders" where="status==pending"</code
           <code>@http</code> lets you embed live data from any web API directly in your document. By default it produces no output - the target domain must be on your allowlist before any request is made.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 # API Version
 
-@http url="https://api.example.com/status" path="version"
+@http
+  url="https://api.example.com/status"
+  path="version"
+@http-end
 
 # Authenticated Request
 
-@http url=env.API_URL headers="Authorization=env.API_TOKEN" path="data.summary"
+@http
+  url=env.API_URL
+  headers="Authorization=env.API_TOKEN"
+  path="data.summary"
+@http-end
 
 # JSON Array Filtered and Rendered
 
-@http url="https://api.example.com/deployments" columns="env:Environment,status:Status" where="status == 'failed'" as="table"
+@http
+  url="https://api.example.com/deployments"
+  columns="env:Environment,status:Status"
+  where="status == 'failed'"
+  as="table"
+@http-end
 
 # With Caching
 
-@http url="https://api.example.com/metrics" @cache persist ttl=3600</code></pre>
+@http
+  url="https://api.example.com/metrics"
+  @cache persist ttl=3600
+@http-end</code></pre>
 
         <h3>Options</h3>
         <table>
@@ -1174,26 +1336,26 @@ Pending orders: @db using="reports" count="orders" where="status==pending"</code
           <code>@query</code> runs a shell command and injects its output into the document. Every command must be on your allowlist - commands not on the list are silently stripped. Shell execution is disabled by default.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 # Repository Status
 
-Current branch: @query "git branch --show-current"
+Current branch: @query "git branch --show-current" /
 
 Recent commits:
-@query "git log --oneline -5"
+@query "git log --oneline -5" /
 
 # Dependency Audit
 
-@query "npm audit --json" @cache session
+@query "npm audit --json" @cache session /
 
 # Named Output for Reuse
 
-@query git branch --show-current label=branch
+@query "git branch --show-current" label=branch /
 
-@if {{ branch }} match "^feat"
-On a feature branch: {{ branch }}
-@endif</code></pre>
+@if {{ branch.match("^feat") }}
+  On a feature branch: {{ branch }}
+@if-end</code></pre>
 
         <h3>Key Points</h3>
         <ul>
@@ -1207,69 +1369,82 @@ On a feature branch: {{ branch }}
 
       <!-- ===== PHASES ===== -->
       <section id="phases">
-        <h2>@phase, @on complete, @graph</h2>
+        <h2>@phase, @on-complete, @graph</h2>
 
         <p>
           <code>@phase</code> divides a document into named workflow stages. Only the active phase loads into AI context at a time, keeping large multi-step documents focused. <code>@graph</code> draws a Mermaid diagram of your workflow for human readers.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 @phase intake
+&gt;
   Gather open support tickets.
-  @http url=env.TICKET_API path="tickets.open" as="table"
-  @on complete -> triage
-@end
+  @http
+    url=env.TICKET_API
+    path="tickets.open"
+    as="table"
+  @http-end
+  @on-complete triage /
+@phase-end
 
 @phase triage
+&gt;
   Review tickets and assign priority.
-  @call load-assignment-rules
-  @on complete -> archive
-  @on complete -> @call notify_team
-@end
+  @call load-assignment-rules /
+  @on-complete archive /
+  @on-complete @notify_team /
+@phase-end
 
 @phase archive
+&gt;
   Move resolved tickets to long-term storage.
-  @db using="primary" find="tickets" where="status==resolved" | @render type="table"
-@end</code></pre>
+  @db
+    using="primary"
+    find="tickets"
+    where='status == "resolved"'
+  @db-end
+  | @render type="table" /
+@phase-end</code></pre>
 
         <h3>Workflow Diagram (documentation only)</h3>
         <pre><code class="language-markdown">```mai-graph
 graph LR
-  intake --> triage --> archive
+  intake --&gt; triage --&gt; archive
 ```</code></pre>
 
         <h3>Rules</h3>
         <ul>
           <li><code>@phase</code> blocks are only valid in the root document. Using them in an <code>@import</code>-ed file is a parse error.</li>
-          <li><code>@on complete</code> is only valid inside a <code>@phase ... @end</code> block.</li>
-          <li>Multiple <code>@on complete</code> lines execute sequentially, top to bottom.</li>
+          <li><code>@on-complete</code> is only valid inside a <code>@phase ... @phase-end</code> block.</li>
+          <li>Multiple <code>@on-complete</code> lines execute sequentially, top to bottom.</li>
           <li>Run a specific phase with: <code>mai render doc.md --phase phasename</code></li>
           <li>The MCP server automatically loads only the active phase, not the whole document.</li>
+          <li>v2 adds <code>skill_session_id</code> for cross-phase state - <code>@set</code> values persist across <code>resolve_phase</code> calls so a skill can collect data in phase 1 and read it back in phase 5.</li>
         </ul>
       </section>
 
       <!-- ===== ITERATION ===== -->
       <section id="iteration">
-        <h2>@foreach and @set (v1.0+)</h2>
+        <h2>@foreach and @set</h2>
 
         <p>
           Two directives that turn linear documents into actual programs. <code>@foreach</code> walks a list source and renders its body once per item. <code>@set</code> binds a value to a variable so you can reuse a directive's result several times without re-running it.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 # Per-feature status
 
-@foreach doc in @list ./.mdd/docs/ match="*.md"
-  @read-frontmatter path="{{ doc }}" field="status" label=status
+@foreach doc in {{ @list ./.mdd/docs/ match="*.md" }}
+  @read-frontmatter path="{{ doc }}" field="status" label=status /
   - {{ doc }}: {{ status }}
-@end
+@foreach-end
 
 # Bind once, use many times
 
-@set today = @date format="YYYY-MM-DD"
-@set release_branch = "release/{{ today }}"
+@set today = {{ now_iso() }} /
+@set release_branch = "release/{{ today }}" /
 
 Cutting branch {{ release_branch }} for the {{ today }} release.</code></pre>
 
@@ -1288,9 +1463,9 @@ Cutting branch {{ release_branch }} for the {{ today }} release.</code></pre>
 
         <h3>@set Right-hand Sides</h3>
         <ul>
-          <li><strong>Literal:</strong> <code>@set status = "active"</code>. Quotes around strings; numbers and booleans literal.</li>
-          <li><strong>Directive result:</strong> <code>@set today = @date format="YYYY-MM-DD"</code>. The directive runs once and its rendered output becomes the value.</li>
-          <li><strong>Interpolation:</strong> <code>@set greeting = "Hello {{ name }}"</code>. Resolves <code>&#123;&#123; &#125;&#125;</code> placeholders against existing bindings.</li>
+          <li><strong>Literal:</strong> <code>@set status = "active" /</code>. Quotes around strings; numbers and booleans literal.</li>
+          <li><strong>Builtin call:</strong> <code>@set today = {{ now_iso() }} /</code>. The sandbox builtin runs once and its return value becomes the binding.</li>
+          <li><strong>Interpolation:</strong> <code>@set greeting = "Hello {{ name }}" /</code>. Resolves <code>&#123;&#123; &#125;&#125;</code> placeholders against existing bindings.</li>
         </ul>
 
         <p>
@@ -1301,11 +1476,11 @@ Cutting branch {{ release_branch }} for the {{ today }} release.</code></pre>
         <p>
           The loop variable is available in <code>&#123;&#123; &#125;&#125;</code> path expressions on <code>@include</code>, so you can include a different file per iteration without any conditional logic:
         </p>
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 @foreach section in intro,features,pricing,faq
-  @include ./sections/{{section}}.md
-@end</code></pre>
+  @include ./sections/{{section}}.md /
+@foreach-end</code></pre>
 
         <p>
           Each iteration includes a different file. If a file is missing, a warning is emitted and that iteration produces no output - the loop continues.
@@ -1314,21 +1489,21 @@ Cutting branch {{ release_branch }} for the {{ today }} release.</code></pre>
 
       <!-- ===== READ HELPERS ===== -->
       <section id="read-helpers">
-        <h2>@read-frontmatter and @hash (v1.0+)</h2>
+        <h2>@read-frontmatter and @hash</h2>
 
         <p>
           Two targeted read directives for the cases where <code>@read</code> by itself returns too much. <code>@read-frontmatter</code> pulls a single YAML field out of a document's frontmatter without parsing the body. <code>@hash</code> produces a content hash for change detection or doc-integrity checks.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
-@read-frontmatter path=".mdd/docs/01-mdd.md" field="status" label=mdd_status
+@read-frontmatter path=".mdd/docs/01-mdd.md" field="status" label=mdd_status /
 The mdd doc is currently: {{ mdd_status }}.
 
-@hash path=".mdd/docs/01-mdd.md" algo=sha256 length=8 label=mdd_hash
+@hash path=".mdd/docs/01-mdd.md" algo=sha256 length=8 label=mdd_hash /
 Content hash: {{ mdd_hash }}.
 
-@hash path="CHANGELOG.md" algo=sha256 exclude-line="^date:" label=changelog_hash</code></pre>
+@hash path="CHANGELOG.md" algo=sha256 exclude-line="^date:" label=changelog_hash /</code></pre>
 
         <h3>@read-frontmatter Behavior</h3>
         <ul>
@@ -1353,28 +1528,32 @@ Content hash: {{ mdd_hash }}.
 
       <!-- ===== EXEC ===== -->
       <section id="exec">
-        <h2>@test and @check (v1.0+)</h2>
+        <h2>@test and @check</h2>
 
         <p>
           <code>@test</code> runs the project test suite. <code>@check</code> runs typecheck, lint, or build. Both inline the runner's full combined output where the directive sits and expose three labels: <code>label</code> (full text), <code>label_exit</code> (numeric exit code), and <code>label_summary</code> (optional one-line summary detected from known runners).
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 # Test suite
 
-@test command="pnpm test" label=test_results
+@test command="pnpm test" label=test_results /
 
-@if {{ test_results_exit }} == "0"
-All tests pass.
+@if {{ test_results_exit == "0" }}
+  All tests pass.
 @else
-Failures detected. See output above.
-@endif
+  Failures detected. See output above.
+@if-end
 
 # Typecheck + lint
 
-@check command="tsc --noEmit" label=typecheck
-@check command="eslint ." label=lint</code></pre>
+@check command="tsc --noEmit" label=typecheck /
+@check command="eslint ." label=lint /</code></pre>
+
+        <p>
+          v2 adds <code>npx vitest</code>, <code>npx playwright</code>, <code>pnpm test</code>, <code>tsc</code>, and other common test runners to the default allowlist - they work without manual <code>~/.markdownai/security.json</code> edits.
+        </p>
 
         <h3>Auto-detection</h3>
         <p>Both directives auto-detect when <code>command=</code> is omitted:</p>
@@ -1397,45 +1576,58 @@ Failures detected. See output above.
           Both directives have a 5-minute timeout. The shell allowlist applies - configure permitted commands under <code>shell.allow_patterns</code> in your security config.
         </p>
 
-        <div class="callout amber">
-          <p>
-            <strong>Breaking change from earlier 0.x betas:</strong> <code>@test</code> and <code>@check</code> previously truncated output to a tail-N or a one-line summary. They now return the complete runner output. The old <code>label_output</code> variable is removed; <code>label</code> now holds the full text.
-          </p>
-        </div>
       </section>
 
       <!-- ===== WRITE DIRECTIVES ===== -->
       <section id="write-directives">
-        <h2>Write Directives (v1.0+)</h2>
+        <h2>Write Directives</h2>
 
         <p>
-          Five directives that mutate the filesystem from inside a document. <code>@mkdir</code>, <code>@copy</code>, and <code>@append-if-missing</code> handle bootstrap scaffolding. <code>@update-frontmatter</code> mutates a single YAML field. <code>@render-template</code> generates a file from a template with injected variables.
+          Six directives that mutate the filesystem from inside a document. <code>@touch</code>, <code>@mkdir</code>, <code>@copy</code>, and <code>@append-if-missing</code> handle bootstrap scaffolding. <code>@update-frontmatter</code> mutates a single YAML field. <code>@render-template</code> generates a file from a template with injected variables.
         </p>
 
         <p>
-          All five obey the same gate: writes are off by default. Turn them on by setting <code>filesystem.write_enabled = true</code> in your security config. The <code>write_root</code> and <code>allowed_write_paths</code> rules then determine where writes are allowed.
+          All obey the same gate: writes are off by default. Turn them on by setting <code>filesystem.write_enabled = true</code> in your security config. The <code>write_root</code> and <code>allowed_write_paths</code> rules then determine where writes are allowed.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 # Scaffold a project area
 
-@mkdir .mdd
-@mkdir .mdd/docs recursive=true
-@copy from="./templates/mdd.md" to=".mdd/mdd.md" if-missing
-@append-if-missing path=".gitignore" text=".mdd/audits/"
+@touch path="src/rules/parser.ts" /
+@mkdir .mdd /
+@mkdir .mdd/docs recursive=true /
+@copy from="./templates/mdd.md" to=".mdd/mdd.md" if-missing /
+@append-if-missing path=".gitignore" text=".mdd/audits/" /
 
 # Update a single field in a doc
 
-@update-frontmatter path=".mdd/docs/01-mdd.md" field="status" value="complete"
-@update-frontmatter path=".mdd/docs/01-mdd.md" field="tags[append]" value="shipped"
+@update-frontmatter
+  path=".mdd/docs/01-mdd.md"
+  field="status"
+  value="complete"
+@update-frontmatter-end
+
+@update-frontmatter
+  path=".mdd/docs/01-mdd.md"
+  field="tags[append]"
+  value="shipped"
+@update-frontmatter-end
 
 # Generate a test file from a template
 
-@render-template from="./templates/unit.test.ts.template" to="tests/unit/auth.test.ts"
+@render-template
+  from="./templates/unit.test.ts.template"
+  to="tests/unit/auth.test.ts"
+&gt;
   feature_name=auth
   has_endpoints=true
-@end</code></pre>
+@render-template-end</code></pre>
+
+        <h3>@touch</h3>
+        <p>
+          New in v2. Idempotent empty-file creation. Creates the file if it does not exist, leaves it alone if it does. Useful for scaffolding before another step writes content into the file.
+        </p>
 
         <h3>@mkdir</h3>
         <p>Creates a directory. Recursive by default - intermediate directories are created in the same call. Pass <code>recursive=false</code> to require the parent to already exist.</p>
@@ -1469,7 +1661,7 @@ Failures detected. See output above.
 
         <h3>@render-template</h3>
         <p>
-          A block directive. Reads a template file, substitutes <code>&#123;&#123; key &#125;&#125;</code> placeholders with the parameters you supply between <code>@render-template</code> and <code>@end</code>, and writes the result to <code>to=</code>. Idempotent by default - skips if the destination exists; pass <code>force</code> to overwrite.
+          A block directive. Reads a template file, substitutes <code>&#123;&#123; key &#125;&#125;</code> placeholders with the parameters you supply between the <code>&gt;</code> body separator and <code>@render-template-end</code>, and writes the result to <code>to=</code>. Idempotent by default - skips if the destination exists; pass <code>force</code> to overwrite.
         </p>
         <p>
           The template can be plain text with <code>&#123;&#123; &#125;&#125;</code> placeholders, or a full MarkdownAI document with its own directives. In the latter case directives execute in the template's context with the supplied parameters in scope. The template path resolves against <code>data_root</code>; the output path against <code>write_root</code>.
@@ -1490,16 +1682,26 @@ Failures detected. See output above.
           Fire a named signal with a payload to one or more transports while a document renders. Use it for progress indicators, live status updates, structured logging, and debugging document execution.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 // Plain string - fine for simple status
-@event name='phase-start' data='setup' transport='log'
+@event phase-start
+  data='setup'
+  transport='log'
+@event-end
 
 // JSON payload - use when you need multiple fields
-@event name='progress' data='{"step": 2, "total": 5, "label": "Loading config"}' transport='vscode,log'
+@event progress
+  data='{"step": 2, "total": 5, "label": "Loading config"}'
+  transport='vscode,log'
+@event-end
 
 // Render inline in the document output as well
-@event name='build-complete' data='{"status": "ok"}' transport='mcp' visible</code></pre>
+@event build-complete
+  data='{"status": "ok"}'
+  transport='mcp'
+  visible
+@event-end</code></pre>
 
         <h3>Parameters</h3>
         <table>
@@ -1605,21 +1807,21 @@ for (const event of result.events) {
           The standard library ships 32 built-in macros for common tasks. They auto-load when the engine starts - no setup required. Call any of them in any document marked <code>@markdownai</code>.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
-@call git-branch
-@call project-manager
-@call code-any-types
+@call git-branch /
+@call project-manager /
+@call code-any-types /
 
 Working on: {{ current_branch }}
 Package manager: {{ pkg_manager }}
 TypeScript `any` count: {{ any_count }}
 
-@call git-modified
+@call git-modified /
 
-@if {{ modified_files }} != ""
-> Warning: you have uncommitted changes.
-@endif</code></pre>
+@if {{ modified_files != "" }}
+  &gt; Warning: you have uncommitted changes.
+@if-end</code></pre>
 
         <h3>Macro Groups</h3>
         <div class="feature-grid">
@@ -1646,10 +1848,10 @@ TypeScript `any` count: {{ any_count }}
         </div>
 
         <h3>Parameterized Macros</h3>
-        <pre><code class="language-markdown">@call fs-find(*.ts)        # find TypeScript files
-@call env-port(3000)        # check if port 3000 is available
-@call fs-count(ts)          # count files by extension
-@call code-grep(TODO)       # grep for pattern</code></pre>
+        <pre><code class="language-markdown">@call fs-find pattern="*.ts" /        # find TypeScript files
+@call env-port port=3000 /             # check if port 3000 is available
+@call fs-count ext="ts" /              # count files by extension
+@call code-grep pattern="TODO" /       # grep for pattern</code></pre>
 
         <p>If you define a macro with the same name as a stdlib macro, your definition wins.</p>
       </section>
@@ -1726,9 +1928,9 @@ mai render report.md --allow-traversal ../shared-data/
           </tbody>
         </table>
 
-        <h3>Source vs Data vs Write Roots (v1.0+)</h3>
+        <h3>Source vs Data vs Write Roots</h3>
         <p>
-          v1.0 splits the single path jail into three. Each directive type uses its own jail boundary so that a skill file installed at <code>~/.claude/commands/mdd.md</code> can read its sibling templates (source ops) while still reaching into the user's project (data ops). Before v1.0 these were one jail rooted at the document directory, which made skill-file workflows impossible.
+          The path jail splits into three boundaries. Each directive type uses its own boundary so that a skill file installed at <code>~/.claude/commands/mdd.md</code> can read its sibling templates (source ops) while still reaching into the user's project (data ops).
         </p>
 
         <table>
@@ -1763,14 +1965,14 @@ mai render report.md --allow-traversal ../shared-data/
   }
 }</code></pre>
 
-        <h3>Write Gate (v1.0+)</h3>
+        <h3>Write Gate</h3>
         <p>
           Write directives (<code>@mkdir</code>, <code>@copy</code>, <code>@append-if-missing</code>, <code>@update-frontmatter</code>, <code>@render-template</code>) are gated behind <code>filesystem.write_enabled</code>. The default is <code>false</code> - rendering a document that uses write directives without the gate enabled produces a clear error and skips the write. Turn the gate on explicitly only when you trust the document and want it to mutate the filesystem.
         </p>
 
-        <div class="callout amber">
+        <div class="callout">
           <p>
-            <strong>Migrating from 0.x.</strong> The pre-1.0 behavior was a single path jail rooted at the document directory. To restore the old behavior, set <code>filesystem.data_root = "auto"</code> in your security config. Most users will prefer the new default (<code>"cwd"</code>), which makes <code>@list ./src</code> and similar paths resolve against the project root regardless of where the document lives.
+            The <code>"cwd"</code> default for <code>data_root</code> makes <code>@list ./src</code> and similar paths resolve against the project root regardless of where the document lives. To switch to a document-rooted jail, set <code>filesystem.data_root = "auto"</code> in your security config.
           </p>
         </div>
       </section>
@@ -1996,20 +2198,21 @@ mai strip ./docs/ --env .env.production -o ./dist/</code></pre>
 mai serve --cwd ~/projects/my-docs
 mai serve --port 3000</code></pre>
 
-        <h3>10 MCP Tools</h3>
+        <h3>11 MCP Tools</h3>
         <table>
           <thead><tr><th>Tool</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>read_file</code></td><td>Read and execute a MarkdownAI document. Returns rendered live output. Accepts an optional token budget.</td></tr>
-            <tr><td><code>list_phases</code></td><td>List all <code>@phase</code> blocks in a document with their transitions</td></tr>
-            <tr><td><code>resolve_phase</code></td><td>Render the content of a specific named phase</td></tr>
-            <tr><td><code>next_phase</code></td><td>Return the phase that follows the current one</td></tr>
-            <tr><td><code>call_macro</code></td><td>Execute a named <code>@define</code> macro, optionally passing parameters</td></tr>
-            <tr><td><code>get_env</code></td><td>Retrieve a resolved environment variable by name</td></tr>
-            <tr><td><code>get_constraints</code></td><td>Return all <code>@constraint</code> blocks sorted by severity</td></tr>
-            <tr><td><code>execute_directive</code></td><td>Run a single MarkdownAI directive and return its output</td></tr>
-            <tr><td><code>invalidate_cache</code></td><td>Clear cached rendered output for a file or all files</td></tr>
-            <tr><td><code>available_directives</code></td><td>Return the full directive catalog with name, block/inline, and close-tag info. Pass <code>include_plugin_directives=false</code> to exclude plugin-file-only directives.</td></tr>
+            <tr><td><code>list_phases</code></td><td>List all <code>@phase</code> blocks in a document with their transitions.</td></tr>
+            <tr><td><code>resolve_phase</code></td><td>Render the content of a specific named phase. Persists <code>@set</code> values into the session state.</td></tr>
+            <tr><td><code>next_phase</code></td><td>Return the phase that follows the current one.</td></tr>
+            <tr><td><code>call_macro</code></td><td>Execute a named <code>@define</code> macro, optionally passing parameters.</td></tr>
+            <tr><td><code>get_env</code></td><td>Retrieve a resolved environment variable by name.</td></tr>
+            <tr><td><code>get_constraints</code></td><td>Return all <code>@constraint</code> blocks sorted by severity.</td></tr>
+            <tr><td><code>execute_directive</code></td><td>Run a single MarkdownAI directive and return its output.</td></tr>
+            <tr><td><code>invalidate_cache</code></td><td>Clear cached rendered output for a file or all files.</td></tr>
+            <tr><td><code>available_directives</code></td><td>Return the full directive catalog with name, form (self-closing / block), and close-tag info. Pass <code>include_plugin_directives=false</code> to exclude plugin-file-only directives.</td></tr>
+            <tr><td><code>get_session_state</code></td><td>Return <code>@set</code> values stashed during prior <code>resolve_phase</code> calls in the same <code>skill_session_id</code>. New in v2.</td></tr>
           </tbody>
         </table>
 
@@ -2051,7 +2254,7 @@ mai init --client cursor</code></pre>
           <li>The hook fires, opens the file, and runs the MarkdownAI-document check.</li>
           <li>If the file is plain markdown, the hook exits 0 and the read proceeds untouched.</li>
           <li>If the file is a MarkdownAI document, the hook exits 2 with a redirect message on stderr. Claude Code surfaces the message to the AI and skips the read.</li>
-          <li>The redirect message catalogues every MarkdownAI MCP tool (<code>list_phases</code>, <code>resolve_phase</code>, <code>next_phase</code>, <code>read_file</code>, <code>execute_directive</code>, <code>call_macro</code>, <code>get_constraints</code>, <code>get_env</code>, <code>invalidate_cache</code>, <code>available_directives</code>) with arg shapes, return shapes, and "use this when" guidance plus a five-step workflow. The AI has no ambiguity about how to proceed.</li>
+          <li>The redirect message catalogues every MarkdownAI MCP tool (<code>list_phases</code>, <code>resolve_phase</code>, <code>next_phase</code>, <code>read_file</code>, <code>execute_directive</code>, <code>call_macro</code>, <code>get_constraints</code>, <code>get_env</code>, <code>invalidate_cache</code>, <code>available_directives</code>, <code>get_session_state</code>) with arg shapes, return shapes, and "use this when" guidance plus a five-step workflow. The AI has no ambiguity about how to proceed.</li>
         </ol>
 
         <p>
@@ -2061,7 +2264,7 @@ mai init --client cursor</code></pre>
 
       <!-- ===== SESSIONSTART ===== -->
       <section id="session-start-hook">
-        <h2>SessionStart Hook and CLAUDE-MarkdownAI.md (v1.0+)</h2>
+        <h2>SessionStart Hook and CLAUDE-MarkdownAI.md</h2>
 
         <p>
           Alongside the PreToolUse hook, <code>mai init</code> installs a <code>SessionStart</code> hook that runs each time Claude Code begins a session (or resumes / clears / compacts one). If your project has a file named <code>CLAUDE-MarkdownAI.md</code> at the project root, the hook renders it via <code>mai render</code> and injects the rendered output into the AI's session context. Your regular <code>CLAUDE.md</code> is never touched.
@@ -2072,19 +2275,19 @@ mai init --client cursor</code></pre>
         </p>
 
         <pre><code class="language-markdown"># CLAUDE-MarkdownAI.md
-@markdownai v1.0
+@markdownai v2.0
 
-@date format="YYYY-MM-DD" label=today
-@count ./.mdd/docs/ match="*.md" label=doc_count
+@date format="YYYY-MM-DD" label=today /
+@count ./.mdd/docs/ match="*.md" label=doc_count /
 
 ## Session brief
 
 Today is {{ today }}. The project has {{ doc_count }} feature docs.
 
-@foreach doc in @list ./.mdd/docs/ match="*.md"
-  @read-frontmatter path="{{ doc }}" field="status" label=status
+@foreach doc in {{ @list ./.mdd/docs/ match="*.md" }}
+  @read-frontmatter path="{{ doc }}" field="status" label=status /
   - {{ doc }} ({{ status }})
-@end</code></pre>
+@foreach-end</code></pre>
 
         <h3>How the Injection Works</h3>
         <p>
@@ -2105,7 +2308,7 @@ Today is {{ today }}. The project has {{ doc_count }} feature docs.
         <p>The render happens once at session start. Use flat, fast directives:</p>
         <ul>
           <li><strong>Recommended:</strong> <code>@date</code>, <code>@count</code>, <code>@list</code>, <code>@read</code>, <code>@read-frontmatter</code>, <code>@hash</code>, <code>@tree</code>, <code>@if</code> / <code>@elseif</code> / <code>@else</code>, <code>@foreach</code>, <code>@set</code>, <code>@env</code>, <code>@call</code>, <code>@import</code>, <code>@include</code>.</li>
-          <li><strong>Avoid:</strong> <code>@phase</code> / <code>@on complete</code> - phase semantics are MCP-driven; in one-shot render mode every phase fires at once, defeating the lazy-load purpose.</li>
+          <li><strong>Avoid:</strong> <code>@phase</code> / <code>@on-complete</code> - phase semantics are MCP-driven; in one-shot render mode every phase fires at once, defeating the lazy-load purpose.</li>
           <li><strong>Use with care:</strong> <code>@http</code>, <code>@test</code>, <code>@check</code>, <code>@query</code>, <code>@db</code>. They run on every session start and delay the session by however long they take.</li>
         </ul>
 
@@ -2136,41 +2339,42 @@ Today is {{ today }}. The project has {{ doc_count }} feature docs.
         </p>
 
         <h3>@consumer - Audience-Targeted Rendering</h3>
-        <pre><code class="language-markdown">@if consumer="ai"
-**Status:** operational | uptime: 99.97% | last_incident: none
-@endif
+        <pre><code class="language-markdown">@if {{ consumer == "ai" }}
+  **Status:** operational | uptime: 99.97% | last_incident: none
+@if-end
 
-@if consumer="human"
-## Service Status
+@if {{ consumer == "human" }}
+  ## Service Status
 
-Everything is running smoothly. No incidents in the past 30 days.
-@endif</code></pre>
+  Everything is running smoothly. No incidents in the past 30 days.
+@if-end</code></pre>
 
         <pre><code class="language-bash">mai render status.md --consumer=ai
 mai render status.md --consumer=human</code></pre>
 
         <h3>@prompt - Embedded AI Instructions</h3>
         <p>Carries instructions for AI readers. Invisible to humans (or shown as a callout with the <code>visible</code> flag):</p>
-        <pre><code class="language-markdown">@prompt role="context"
-All API endpoints in this document require an Authorization header
-unless explicitly marked as public.
-@end
+        <pre><code class="language-markdown">@prompt context
+&gt;
+  All API endpoints in this document require an Authorization header
+  unless explicitly marked as public.
+@prompt-end
 
-@prompt role="constraint"
-Treat all code samples as pseudocode unless the block is marked "production."
-@end</code></pre>
+@prompt constraint
+&gt;
+  Treat all code samples as pseudocode unless the block is marked "production."
+@prompt-end</code></pre>
 
         <p>Valid roles: <code>context</code>, <code>constraint</code>, <code>calibration</code>, <code>instruction</code></p>
 
         <h3>@constraint - Machine-Readable Rules</h3>
         <p>Rules written as <code>@constraint</code> blocks are surfaced in a structured table when an AI reads the document. They cannot be missed the way prose rules can:</p>
-        <pre><code class="language-markdown">@constraint id="no-raw-sql" severity="critical"
-NEVER pass user input directly to a database query. Always use parameterized queries.
-@end
+        <pre><code class="language-markdown">@constraint[critical] NEVER pass user input directly to a database query. Always use parameterized queries. /
 
-@constraint id="eval-forbidden" severity="critical"
-eval() is never used. Use vm.runInNewContext() for expression evaluation.
-@end</code></pre>
+@constraint[critical] eval() is never used. Use vm.runInNewContext() for expression evaluation. /</code></pre>
+        <p>
+          <code>@constraint</code> is a self-closing directive in v2. The severity bracket attribute is required; the text is the positional body.
+        </p>
 
         <p>AI tools reading the document via MCP see:</p>
         <pre><code>## Constraints
@@ -2183,18 +2387,20 @@ eval() is never used. Use vm.runInNewContext() for expression evaluation.
         <h3>@note - Source Comments</h3>
         <p>Invisible in rendered output by default. Visible in the raw source file:</p>
         <pre><code class="language-markdown">@note
-This @db directive pulls from the staging replica.
-Switch the alias to "prod" before the next release.
-@end
+&gt;
+  This @db directive pulls from the staging replica.
+  Switch the alias to "prod" before the next release.
+@note-end
 
 @note visible
-This section updates nightly. Refresh before sharing.
-@end</code></pre>
+&gt;
+  This section updates nightly. Refresh before sharing.
+@note-end</code></pre>
 
         <h3>@define-concept - Inline Glossary</h3>
         <p>Registers domain-specific terms. AI readers receive a full glossary at the top of the document:</p>
-        <pre><code class="language-markdown">@define-concept jailRoot "the document root directory used to confine file access"
-@define-concept directive "a line starting with @ that MarkdownAI processes at render time"</code></pre>
+        <pre><code class="language-markdown">@define-concept jailRoot "the document root directory used to confine file access" /
+@define-concept directive "a line starting with @ that MarkdownAI processes at render time" /</code></pre>
 
         <h3>Token-Efficient Format Mode</h3>
         <p>
@@ -2236,15 +2442,15 @@ mai render docs/changelog.md --format=ai --tables=kv</code></pre>
         </table>
 
         <h3>Argument-Based Dispatch</h3>
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
-@if ARGUMENTS.startsWith("audit")
-  @include ./audit-mode.md
-@elseif ARGUMENTS.startsWith("build")
-  @include ./build-mode.md
-@elseif ARGUMENTS.startsWith("status")
-  @include ./status-mode.md
-@endif</code></pre>
+@if {{ ARGUMENTS.startsWith("audit") }}
+  @include ./audit-mode.md /
+@elseif {{ ARGUMENTS.startsWith("build") }}
+  @include ./build-mode.md /
+@elseif {{ ARGUMENTS.startsWith("status") }}
+  @include ./status-mode.md /
+@if-end</code></pre>
 
         <p>
           Use <code>allowed()</code> to validate and default an argument before routing. It returns the value when it is on the list and <code>false</code> otherwise, so the <code>||</code> fallback fires automatically:
@@ -2252,21 +2458,21 @@ mai render docs/changelog.md --format=ai --tables=kv</code></pre>
 
         <pre><code class="language-markdown">@switch {{ allowed(argsList[0], ["audit","build","op"]) || "build" }}
   @case "build"
-    @include ./build-mode.md
+    @include ./build-mode.md /
   @case "audit"
-    @include ./audit-mode.md
+    @include ./audit-mode.md /
   @case "op"
-    @include ./op-mode.md
-@endswitch</code></pre>
+    @include ./op-mode.md /
+@switch-end</code></pre>
 
         <h3>Effort-Based Conditionals</h3>
-        <pre><code class="language-markdown">@if CLAUDE_EFFORT == "max"
-  @include ./extended-analysis.md
-@elseif CLAUDE_EFFORT == "high"
-  @include ./standard-analysis.md
+        <pre><code class="language-markdown">@if {{ CLAUDE_EFFORT == "max" }}
+  @include ./extended-analysis.md /
+@elseif {{ CLAUDE_EFFORT == "high" }}
+  @include ./standard-analysis.md /
 @else
-  @include ./quick-analysis.md
-@endif</code></pre>
+  @include ./quick-analysis.md /
+@if-end</code></pre>
 
         <h3>Named Arguments from Frontmatter</h3>
         <pre><code class="language-yaml">---
@@ -2274,15 +2480,15 @@ arguments:
   - issue
   - branch
 ---
-@markdownai v1.0
+@markdownai v2.0
 
-@if issue !== ""
-Working on issue: {{ issue }}
-@endif
+@if {{ issue != "" }}
+  Working on issue: {{ issue }}
+@if-end
 
-@if branch !== ""
-Target branch: {{ branch }}
-@endif</code></pre>
+@if {{ branch != "" }}
+  Target branch: {{ branch }}
+@if-end</code></pre>
       </section>
 
       <!-- ===== SHELL INLINE ===== -->
@@ -2297,7 +2503,7 @@ Target branch: {{ branch }}
           Authors can write either syntax and get the same security behavior. This means a <code>@markdownai</code> document cannot be used as a vector for ungated shell execution even if the author uses Claude Code's own syntax.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
 Current branch: !`git branch --show-current`
 Files changed: !`git diff --stat | wc -l`</code></pre>
@@ -2343,14 +2549,14 @@ Files changed: !`git diff --stat | wc -l`</code></pre>
           <code>.mdd/.startup.md</code> with a <code>@markdownai</code> header can query its own data on render - current branch, feature counts by status, last audit summary, recent commits. Claude always enters the session with accurate project state, not whatever <code>.startup.md</code> said last week.
         </p>
 
-        <pre><code class="language-markdown">@markdownai v1.0
+        <pre><code class="language-markdown">@markdownai v2.0
 
-@call git-branch
-@call git-status
+@call git-branch /
+@call git-status /
 
 Current branch: {{ current_branch }}
 
-@query "find .mdd/docs -name '*.md' | wc -l" label=feature_count
+@query "find .mdd/docs -name '*.md' | wc -l" label=feature_count /
 Total features: {{ feature_count }}</code></pre>
 
         <h3>Token Economics</h3>
@@ -2428,7 +2634,7 @@ code --install-extension markdownai.markdownai</code></pre>
           </div>
           <div class="feature-card">
             <h3>Diagnostics</h3>
-            <p>Red underlines for unclosed blocks (<code>@if</code> without <code>@endif</code>). Yellow underlines for <code>@call</code> to undefined macros. Hover any underline to read the message.</p>
+            <p>Red underlines for unclosed blocks (<code>@if</code> without <code>@if-end</code>). Yellow underlines for <code>@call</code> to undefined macros. Hover any underline to read the message.</p>
           </div>
           <div class="feature-card">
             <h3>Live Preview</h3>
@@ -2441,14 +2647,14 @@ code --install-extension markdownai.markdownai</code></pre>
           <thead><tr><th>Prefix</th><th>Expands To</th></tr></thead>
           <tbody>
             <tr><td><code>mai</code></td><td><code>@markdownai</code> header</td></tr>
-            <tr><td><code>@define</code></td><td>Full <code>@define name ... @end</code> block</td></tr>
-            <tr><td><code>@if</code></td><td>Full <code>@if ... @endif</code> block</td></tr>
-            <tr><td><code>@ifelse</code></td><td>Full <code>@if ... @else ... @endif</code> block</td></tr>
-            <tr><td><code>@phase</code></td><td>Phase skeleton with <code>@on complete</code></td></tr>
-            <tr><td><code>@prompt</code></td><td><code>@prompt ... @end</code> block</td></tr>
-            <tr><td><code>@constraint</code></td><td><code>@constraint</code> with id and severity</td></tr>
-            <tr><td><code>@query</code></td><td><code>@query label=result command</code></td></tr>
-            <tr><td><code>@http</code></td><td><code>@http url="" ...</code></td></tr>
+            <tr><td><code>@define</code></td><td>Full <code>@define name ... @define-end</code> block</td></tr>
+            <tr><td><code>@if</code></td><td>Full <code>@if ... @if-end</code> block</td></tr>
+            <tr><td><code>@ifelse</code></td><td>Full <code>@if ... @else ... @if-end</code> block</td></tr>
+            <tr><td><code>@phase</code></td><td>Phase skeleton with <code>@on-complete</code></td></tr>
+            <tr><td><code>@prompt</code></td><td><code>@prompt ... @prompt-end</code> block</td></tr>
+            <tr><td><code>@constraint</code></td><td><code>@constraint[severity] text /</code></td></tr>
+            <tr><td><code>@query</code></td><td><code>@query "command" label=result /</code></td></tr>
+            <tr><td><code>@http</code></td><td><code>@http</code> ... <code>@http-end</code></td></tr>
             <tr><td><code>{{</code></td><td><code>&#123;&#123; variable &#125;&#125;</code></td></tr>
           </tbody>
         </table>
@@ -2508,7 +2714,7 @@ code --install-extension markdownai.markdownai</code></pre>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
             <tr><td><code>@markdownai</code></td><td>Enable MarkdownAI for this file. Must be line 1 (or first line after frontmatter).</td></tr>
-            <tr><td><code>@markdownai v1.0</code></td><td>Enable with version pin.</td></tr>
+            <tr><td><code>@markdownai v2.0</code></td><td>Enable with version pin.</td></tr>
             <tr><td><code>@markdownai shell-inline="passthrough"</code></td><td>Pass Claude Code's <code>!`cmd`</code> syntax through without security gating.</td></tr>
           </tbody>
         </table>
@@ -2517,10 +2723,10 @@ code --install-extension markdownai.markdownai</code></pre>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@env VAR</code></td><td>Output variable value as a paragraph.</td></tr>
-            <tr><td><code>@env VAR fallback="value"</code></td><td>With default when unset.</td></tr>
-            <tr><td><code>@env VAR required</code></td><td>Fail validation if unset.</td></tr>
-            <tr><td><code>@env VAR required masked</code></td><td>Required and never appears in output.</td></tr>
+            <tr><td><code>@env VAR /</code></td><td>Output variable value as a paragraph.</td></tr>
+            <tr><td><code>@env VAR fallback="value" /</code></td><td>With default when unset.</td></tr>
+            <tr><td><code>@env VAR required /</code></td><td>Fail validation if unset.</td></tr>
+            <tr><td><code>@env VAR required masked /</code></td><td>Required and never appears in output.</td></tr>
           </tbody>
         </table>
 
@@ -2528,10 +2734,10 @@ code --install-extension markdownai.markdownai</code></pre>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@define name</code> ... <code>@end</code></td><td>Define a named content block.</td></tr>
-            <tr><td><code>@define name @local</code> ... <code>@end</code></td><td>Local-scoped macro, not shared with parent documents.</td></tr>
-            <tr><td><code>@call name</code></td><td>Insert macro content.</td></tr>
-            <tr><td><code>@call name(param=value)</code></td><td>Insert with named parameters.</td></tr>
+            <tr><td><code>@define name</code> ... <code>@define-end</code></td><td>Define a named content block.</td></tr>
+            <tr><td><code>@define name</code> with <code>local=true</code> attribute ... <code>@define-end</code></td><td>Local-scoped macro, not shared with parent documents.</td></tr>
+            <tr><td><code>@call name /</code></td><td>Insert macro content.</td></tr>
+            <tr><td><code>@call name param=value /</code></td><td>Insert with named parameters.</td></tr>
           </tbody>
         </table>
 
@@ -2539,10 +2745,10 @@ code --install-extension markdownai.markdownai</code></pre>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@include ./path.md</code></td><td>Include file content inline.</td></tr>
-            <tr><td><code>@include ./file.ts lines=N-M</code></td><td>Include specific line range.</td></tr>
-            <tr><td><code>@import ./path.md</code></td><td>Import definitions only (macros, connections, env fallbacks) - no content rendered.</td></tr>
-            <tr><td><code>@include ./file @cache session</code></td><td>Include with session caching.</td></tr>
+            <tr><td><code>@include ./path.md /</code></td><td>Include file content inline.</td></tr>
+            <tr><td><code>@include ./file.ts lines=N-M /</code></td><td>Include specific line range.</td></tr>
+            <tr><td><code>@import ./path.md /</code></td><td>Import definitions only (macros, connections, env fallbacks) - no content rendered.</td></tr>
+            <tr><td><code>@include ./file @cache session /</code></td><td>Include with session caching.</td></tr>
           </tbody>
         </table>
 
@@ -2550,21 +2756,23 @@ code --install-extension markdownai.markdownai</code></pre>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@if condition</code></td><td>Start conditional block.</td></tr>
-            <tr><td><code>@elseif condition</code></td><td>Additional branch.</td></tr>
+            <tr><td><code>@if {{ expression }}</code></td><td>Start conditional block.</td></tr>
+            <tr><td><code>@elseif {{ expression }}</code></td><td>Additional branch.</td></tr>
             <tr><td><code>@else</code></td><td>Fallback branch.</td></tr>
-            <tr><td><code>@endif</code></td><td>Close conditional block.</td></tr>
+            <tr><td><code>@if-end</code></td><td>Close conditional block.</td></tr>
+            <tr><td><code>@switch {{ expression }}</code> ... <code>@switch-end</code></td><td>Multi-branch conditional.</td></tr>
+            <tr><td><code>@case "value"</code></td><td>Branch inside a switch.</td></tr>
+            <tr><td><code>@default</code></td><td>Fallback branch inside a switch.</td></tr>
           </tbody>
         </table>
 
-        <h3>Iteration and Variables (v1.0+)</h3>
+        <h3>Iteration and Variables</h3>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@foreach var in &lt;source&gt;</code> ... <code>@end</code></td><td>Render the body once per item. Source can be a nested directive, a list-typed frontmatter field, a label, or a comma-separated literal.</td></tr>
-            <tr><td><code>@set var = "literal"</code></td><td>Bind a variable to a literal value (string, number, boolean).</td></tr>
-            <tr><td><code>@set var = @directive args</code></td><td>Bind a variable to a directive's rendered output.</td></tr>
-            <tr><td><code>@set var = "Hello {{ name }}"</code></td><td>Bind to an interpolated string.</td></tr>
+            <tr><td><code>@foreach var in {{ source }}</code> ... <code>@foreach-end</code></td><td>Render the body once per item. Source can be a directive expression, a list-typed frontmatter field, a label, or a comma-separated literal.</td></tr>
+            <tr><td><code>@set var = "literal" /</code></td><td>Bind a variable to a literal value (string, number, boolean).</td></tr>
+            <tr><td><code>@set var = {{ expr }} /</code></td><td>Bind a variable to an interpolated expression or sandbox builtin result.</td></tr>
           </tbody>
         </table>
 
@@ -2572,39 +2780,40 @@ code --install-extension markdownai.markdownai</code></pre>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@list ./path/</code></td><td>List files, directories, or structured data.</td></tr>
-            <tr><td><code>@read ./file.json path="key"</code></td><td>Read a value from a structured file.</td></tr>
-            <tr><td><code>@read-frontmatter path="doc.md" field="status"</code></td><td>Read a single YAML field from a document's frontmatter (v1.0+).</td></tr>
-            <tr><td><code>@hash path="doc.md" algo=sha256 length=8</code></td><td>Compute a content hash. Supports any Node crypto algorithm and a regex-based line exclude (v1.0+).</td></tr>
-            <tr><td><code>@tree ./path/ depth=N</code></td><td>Render ASCII directory tree.</td></tr>
-            <tr><td><code>@date format="YYYY-MM-DD"</code></td><td>Current date/time or file modification date.</td></tr>
-            <tr><td><code>@count ./path/ match="*.ts"</code></td><td>Count files matching a pattern.</td></tr>
-            <tr><td><code>@connect name type="mongodb" uri=env.VAR</code></td><td>Register a named database connection.</td></tr>
-            <tr><td><code>@db using="name" find="collection"</code></td><td>Query a database (jailed).</td></tr>
-            <tr><td><code>@http url="https://..."</code></td><td>Fetch from an HTTP endpoint (jailed).</td></tr>
-            <tr><td><code>@query "command"</code></td><td>Run a shell command (jailed).</td></tr>
+            <tr><td><code>@list ./path/ /</code></td><td>List files, directories, or structured data.</td></tr>
+            <tr><td><code>@read ./file.json path="key" /</code></td><td>Read a value from a structured file.</td></tr>
+            <tr><td><code>@read-frontmatter path="doc.md" field="status" /</code></td><td>Read a single YAML field from a document's frontmatter.</td></tr>
+            <tr><td><code>@hash path="doc.md" algo=sha256 length=8 /</code></td><td>Compute a content hash. Supports any Node crypto algorithm and a regex-based line exclude.</td></tr>
+            <tr><td><code>@tree ./path/ depth=N /</code></td><td>Render ASCII directory tree.</td></tr>
+            <tr><td><code>@date format="YYYY-MM-DD" /</code></td><td>Current date/time or file modification date.</td></tr>
+            <tr><td><code>@count ./path/ match="*.ts" /</code></td><td>Count files matching a pattern.</td></tr>
+            <tr><td><code>@connect name type="mongodb" uri=env.VAR /</code></td><td>Register a named database connection.</td></tr>
+            <tr><td><code>@db</code> ... <code>@db-end</code></td><td>Query a database (jailed). Synchronous Mongo worker in v2. Use <code>as=row label=feature</code> for dot-access on results.</td></tr>
+            <tr><td><code>@http</code> ... <code>@http-end</code></td><td>Fetch from an HTTP endpoint (jailed).</td></tr>
+            <tr><td><code>@query "command" /</code></td><td>Run a shell command (jailed).</td></tr>
           </tbody>
         </table>
 
-        <h3>Execution (v1.0+)</h3>
+        <h3>Execution</h3>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@test command="pnpm test" label=results</code></td><td>Run the project test suite. Inlines full combined output. Exposes <code>label</code> (full text), <code>label_exit</code> (exit code), <code>label_summary</code> (recognized one-liner).</td></tr>
-            <tr><td><code>@check command="tsc --noEmit" label=tc</code></td><td>Run typecheck / lint / build. Auto-detects via <code>scripts.typecheck</code>, <code>check</code>, <code>lint</code>, <code>build</code> when <code>command=</code> is omitted.</td></tr>
+            <tr><td><code>@test command="pnpm test" label=results /</code></td><td>Run the project test suite. Inlines full combined output. Exposes <code>label</code> (full text), <code>label_exit</code> (exit code), <code>label_summary</code> (recognized one-liner).</td></tr>
+            <tr><td><code>@check command="tsc --noEmit" label=tc /</code></td><td>Run typecheck / lint / build. Auto-detects via <code>scripts.typecheck</code>, <code>check</code>, <code>lint</code>, <code>build</code> when <code>command=</code> is omitted.</td></tr>
           </tbody>
         </table>
 
-        <h3>Filesystem Writes (v1.0+)</h3>
+        <h3>Filesystem Writes</h3>
         <p>All write directives respect <code>filesystem.write_enabled</code>, <code>write_root</code>, <code>allowed_write_paths</code>, and immutable always-block rules.</p>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@mkdir .mdd/docs</code></td><td>Create a directory. Recursive by default.</td></tr>
-            <tr><td><code>@copy from="tpl.md" to="doc.md" if-missing</code></td><td>Copy a file. <code>if-missing</code> makes it idempotent.</td></tr>
-            <tr><td><code>@append-if-missing path=".gitignore" text="dist/"</code></td><td>Append a line only if not already present.</td></tr>
-            <tr><td><code>@update-frontmatter path="doc.md" field="status" value="done"</code></td><td>Set a YAML field. Supports <code>field[append]</code>, <code>field[N]</code>, and nested <code>field[N].sub</code> addressing.</td></tr>
-            <tr><td><code>@render-template from="tpl" to="out"</code> ... <code>@end</code></td><td>Render a template with injected parameters and write the result. Idempotent by default; <code>force</code> overwrites.</td></tr>
+            <tr><td><code>@touch path="src/foo.ts" /</code></td><td>Idempotent empty-file creation. Safe to re-run.</td></tr>
+            <tr><td><code>@mkdir .mdd/docs /</code></td><td>Create a directory. Recursive by default.</td></tr>
+            <tr><td><code>@copy from="tpl.md" to="doc.md" if-missing /</code></td><td>Copy a file. <code>if-missing</code> makes it idempotent.</td></tr>
+            <tr><td><code>@append-if-missing path=".gitignore" text="dist/" /</code></td><td>Append a line only if not already present.</td></tr>
+            <tr><td><code>@update-frontmatter</code> ... <code>@update-frontmatter-end</code></td><td>Set a YAML field. Supports <code>field[append]</code>, <code>field[N]</code>, and nested <code>field[N].sub</code> addressing.</td></tr>
+            <tr><td><code>@render-template</code> ... <code>@render-template-end</code></td><td>Render a template with injected parameters and write the result. Idempotent by default; <code>force</code> overwrites.</td></tr>
           </tbody>
         </table>
 
@@ -2612,8 +2821,8 @@ code --install-extension markdownai.markdownai</code></pre>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>source | transform | @render type="format"</code></td><td>Pipe data through transforms to a renderer.</td></tr>
-            <tr><td><code>@render type="table" columns="a,b"</code></td><td>Render data in a specific format.</td></tr>
+            <tr><td><code>source | transform | @render type="format" /</code></td><td>Pipe data through transforms to a renderer.</td></tr>
+            <tr><td><code>@render type="table" columns="a,b" /</code></td><td>Render data in a specific format.</td></tr>
           </tbody>
         </table>
 
@@ -2621,9 +2830,9 @@ code --install-extension markdownai.markdownai</code></pre>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@phase name</code> ... <code>@end</code></td><td>Named workflow phase block.</td></tr>
-            <tr><td><code>@on complete -> phase-name</code></td><td>Transition to next phase on completion.</td></tr>
-            <tr><td><code>@on complete -> @call macro</code></td><td>Call a macro on completion.</td></tr>
+            <tr><td><code>@phase name</code> ... <code>@phase-end</code></td><td>Named workflow phase block.</td></tr>
+            <tr><td><code>@on-complete phase-name /</code></td><td>Transition to next phase on completion. Replaces v1 arrow syntax.</td></tr>
+            <tr><td><code>@on-complete @macro-name /</code></td><td>Call a macro on completion.</td></tr>
           </tbody>
         </table>
 
@@ -2631,9 +2840,8 @@ code --install-extension markdownai.markdownai</code></pre>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@event name='x' data='...' transport='log'</code></td><td>Fire a named signal with a payload to a transport during rendering.</td></tr>
-            <tr><td><code>@event name='x' data='...' transport='mcp,log'</code></td><td>Fire to multiple transports simultaneously.</td></tr>
-            <tr><td><code>@event name='x' data='...' transport='mcp' visible</code></td><td>Also render a blockquote in the document output.</td></tr>
+            <tr><td><code>@event &lt;name&gt;</code> with <code>data</code>, <code>transport</code> attributes ... <code>@event-end</code></td><td>Fire a named signal with a payload to one or more transports during rendering.</td></tr>
+            <tr><td>Add <code>visible</code> attribute</td><td>Also render a blockquote in the document output.</td></tr>
           </tbody>
         </table>
 
@@ -2652,39 +2860,58 @@ code --install-extension markdownai.markdownai</code></pre>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@prompt role="context"</code> ... <code>@end</code></td><td>Embed AI instructions. Invisible to humans.</td></tr>
-            <tr><td><code>@constraint id="id" severity="critical"</code> ... <code>@end</code></td><td>Machine-readable rule surfaced in structured table for AI readers.</td></tr>
-            <tr><td><code>@note</code> ... <code>@end</code></td><td>Source-only comment, never in rendered output.</td></tr>
-            <tr><td><code>@note visible</code> ... <code>@end</code></td><td>Renders as a blockquote callout.</td></tr>
-            <tr><td><code>@define-concept term "definition"</code></td><td>Register a domain term for AI glossary injection.</td></tr>
-            <tr><td><code>@section priority="high"</code> ... <code>@end</code></td><td>Section with priority for context budget trimming.</td></tr>
-            <tr><td><code>@chunk-boundary id="name"</code></td><td>Mark a logical chunk boundary for RAG pipelines.</td></tr>
+            <tr><td><code>@prompt &lt;role&gt;</code> ... <code>@prompt-end</code></td><td>Embed AI instructions. Invisible to humans.</td></tr>
+            <tr><td><code>@constraint[severity] &lt;text&gt; /</code></td><td>Machine-readable rule surfaced in structured table for AI readers. Self-closing in v2.</td></tr>
+            <tr><td><code>@note</code> ... <code>@note-end</code></td><td>Source-only comment, never in rendered output.</td></tr>
+            <tr><td><code>@note visible</code> ... <code>@note-end</code></td><td>Renders as a blockquote callout.</td></tr>
+            <tr><td><code>@define-concept term "definition" /</code></td><td>Register a domain term for AI glossary injection.</td></tr>
+            <tr><td><code>@section priority="high"</code> ... <code>@section-end</code></td><td>Section with priority for context budget trimming.</td></tr>
+            <tr><td><code>@chunk-boundary id="name" /</code></td><td>Mark a logical chunk boundary for RAG pipelines.</td></tr>
           </tbody>
         </table>
 
-        <h3>Plugin System (v1.2+)</h3>
+        <h3>Sandbox Builtins</h3>
+        <p>Functions usable inside <code>@if</code> conditions, <code>{{ }}</code> interpolations, and <code>@set</code> bindings. Available in addition to the operators on the <a href="#conditionals">Conditionals</a> section.</p>
+        <table>
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>allowed(value, list, opts?)</code></td><td>Returns <code>value</code> when it is in <code>list</code>, otherwise <code>false</code>. Combine with <code>||</code> for a safe default. Pass <code>{ignoreCase: true}</code> as third arg for case-insensitive matching.</td></tr>
+            <tr><td><code>parse_brief(text)</code></td><td>Parse a structured brief block into a field map.</td></tr>
+            <tr><td><code>read_section(path, heading)</code></td><td>Return the body of a section in a markdown file.</td></tr>
+            <tr><td><code>read_markdown_section(path, heading)</code></td><td>Same as <code>read_section</code> with explicit markdown handling.</td></tr>
+            <tr><td><code>extract_paths(text)</code></td><td>Extract file paths from a block of text.</td></tr>
+            <tr><td><code>now_iso()</code></td><td>Current time as an ISO 8601 string.</td></tr>
+            <tr><td><code>now_ms()</code></td><td>Current time as a Unix millisecond timestamp.</td></tr>
+            <tr><td><code>parse_iso_ms(iso)</code></td><td>Parse an ISO 8601 string into a Unix millisecond timestamp.</td></tr>
+            <tr><td><code>uuid_v4()</code></td><td>Generate a UUID v4.</td></tr>
+            <tr><td><code>truncate(text, n)</code></td><td>Truncate a string to <code>n</code> characters.</td></tr>
+            <tr><td><code>to_json(value)</code></td><td>JSON-stringify a value for use in attribute strings.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Plugin System</h3>
         <p>Consumer directives for working with registered framework plugins.</p>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@markdownai-detect</code></td><td>Detect which loaded plugins match the current project. Returns plugin names and summaries.</td></tr>
-            <tr><td><code>@markdownai-detect as=info</code></td><td>Return full plugin metadata including layout and conventions.</td></tr>
-            <tr><td><code>@markdownai-detect include="layout,conventions"</code></td><td>Filter which sections to include in the output.</td></tr>
-            <tr><td><code>@markdownai-detect project="./path"</code></td><td>Detect against a specific project root instead of the current directory.</td></tr>
-            <tr><td><code>@plugin-data name="mdd"</code></td><td>Return the full descriptor for a named plugin regardless of detection signals.</td></tr>
-            <tr><td><code>@plugin-data name="mdd" include="layout"</code></td><td>Return specific sections of a plugin's descriptor.</td></tr>
+            <tr><td><code>@markdownai-detect /</code></td><td>Detect which loaded plugins match the current project. Returns plugin names and summaries.</td></tr>
+            <tr><td><code>@markdownai-detect as=info /</code></td><td>Return full plugin metadata including layout and conventions.</td></tr>
+            <tr><td><code>@markdownai-detect include="layout,conventions" /</code></td><td>Filter which sections to include in the output.</td></tr>
+            <tr><td><code>@markdownai-detect project="./path" /</code></td><td>Detect against a specific project root instead of the current directory.</td></tr>
+            <tr><td><code>@plugin-data name="mdd" /</code></td><td>Return the full descriptor for a named plugin regardless of detection signals.</td></tr>
+            <tr><td><code>@plugin-data name="mdd" include="layout" /</code></td><td>Return specific sections of a plugin's descriptor.</td></tr>
           </tbody>
         </table>
 
-        <h3>Plugin File Directives (v1.2+)</h3>
+        <h3>Plugin File Directives</h3>
         <p>These directives are only valid inside <code>*.plugin.md</code> files. They define the plugin's identity and structure.</p>
         <table>
           <thead><tr><th>Directive</th><th>Description</th></tr></thead>
           <tbody>
-            <tr><td><code>@plugin-meta</code> ... <code>@end</code></td><td>Plugin identity block. Contains <code>name:</code>, <code>version:</code>, <code>description:</code>, and <code>author:</code> fields.</td></tr>
-            <tr><td><code>@plugin-detect</code> ... <code>@end</code></td><td>Detection signals block. Declares <code>required_dirs:</code>, <code>required_files:</code>, <code>required_marker:</code>, and optional <code>version_signal:</code> for project matching.</td></tr>
-            <tr><td><code>@plugin-layout</code> ... <code>@end</code></td><td>Directory layout block. Describes the plugin's expected directory structure as YAML.</td></tr>
-            <tr><td><code>@plugin-conventions</code> ... <code>@end</code></td><td>Conventions block. Documents naming rules, file format expectations, and other usage guidance as YAML.</td></tr>
+            <tr><td><code>@plugin-meta</code> ... <code>@plugin-meta-end</code></td><td>Plugin identity block. Contains <code>name:</code>, <code>version:</code>, <code>description:</code>, and <code>author:</code> fields.</td></tr>
+            <tr><td><code>@plugin-detect</code> ... <code>@plugin-detect-end</code></td><td>Detection signals block. Declares <code>required_dirs:</code>, <code>required_files:</code>, <code>required_marker:</code>, and optional <code>version_signal:</code> for project matching.</td></tr>
+            <tr><td><code>@plugin-layout</code> ... <code>@plugin-layout-end</code></td><td>Directory layout block. Describes the plugin's expected directory structure as YAML.</td></tr>
+            <tr><td><code>@plugin-conventions</code> ... <code>@plugin-conventions-end</code></td><td>Conventions block. Documents naming rules, file format expectations, and other usage guidance as YAML.</td></tr>
           </tbody>
         </table>
       </section>
@@ -2703,7 +2930,7 @@ code --install-extension markdownai.markdownai</code></pre>
             <tr><td><code>packages/parser</code></td><td><code>@markdownai/parser</code></td><td>AST production only. Never executes. Pure and inert - safe to run in any environment.</td></tr>
             <tr><td><code>packages/renderer</code></td><td><code>@markdownai/renderer</code></td><td>11 format modules. ASCII output. No external charting libraries, no browser required.</td></tr>
             <tr><td><code>packages/engine</code></td><td><code>@markdownai/engine</code></td><td>Execution, env resolution, pipelines, caching, strip. All security enforcement lives here.</td></tr>
-            <tr><td><code>packages/mcp</code></td><td><code>@markdownai/mcp</code></td><td>MCP server with 10 tools. Phase navigation. Lazy loading. Plugin introspection.</td></tr>
+            <tr><td><code>packages/mcp</code></td><td><code>@markdownai/mcp</code></td><td>MCP server with 11 tools. Phase navigation. Lazy loading. Plugin introspection. Cross-phase session state.</td></tr>
             <tr><td><code>packages/core</code></td><td><code>@markdownai/core</code></td><td>The <code>mai</code> binary and all CLI commands.</td></tr>
             <tr><td><code>packages/vscode</code></td><td><code>markdownai</code> (VS Code)</td><td>Language detection, syntax highlighting, snippets, completions, hover, diagnostics, live preview.</td></tr>
           </tbody>

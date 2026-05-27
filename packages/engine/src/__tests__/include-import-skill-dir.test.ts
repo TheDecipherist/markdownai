@@ -54,7 +54,7 @@ describe('@include and @import expand ${VAR} placeholders', () => {
       '@markdownai v1.0\nHello from the template!\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@include \${CLAUDE_SKILL_DIR}/templates/greeting.md
+@include \${CLAUDE_SKILL_DIR}/templates/greeting.md /
 `,
     )
     expect(result.output).toContain('Hello from the template!')
@@ -65,12 +65,12 @@ describe('@include and @import expand ${VAR} placeholders', () => {
       `@markdownai v1.0
 @define greet
 Hi from a macro.
-@end
+@define-end
 `, 'utf8')
     const result = render(
       `@markdownai v1.0
-@import \${CLAUDE_SKILL_DIR}/templates/macros.md
-@call greet
+@import \${CLAUDE_SKILL_DIR}/templates/macros.md /
+@call greet /
 `,
     )
     expect(result.output).toContain('Hi from a macro.')
@@ -79,7 +79,7 @@ Hi from a macro.
   it('@include with unset variable expands to empty and fails closed', () => {
     const result = render(
       `@markdownai v1.0
-@include \${NEVER_SET_VAR}/templates/x.md
+@include \${NEVER_SET_VAR}/templates/x.md /
 `,
     )
     // Expansion produces "/templates/x.md" which is then either blocked by
@@ -93,7 +93,7 @@ Hi from a macro.
       '@markdownai v1.0\nLocal content.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@include ./local.md
+@include ./local.md /
 `,
     )
     expect(result.output).toContain('Local content.')

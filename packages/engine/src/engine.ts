@@ -5,7 +5,7 @@ import type {
   InterpolationSpan, ShellInlineSpan, RenderNode, PromptNode, SectionNode, ConceptNode, ConstraintNode,
   ChunkBoundaryNode, NoteNode, EventNode,
 } from '@markdownai/parser'
-import { parse as parserParse } from '@markdownai/parser'
+import { parse as parserParse, scanInterpolations } from '@markdownai/parser'
 import { render } from '@markdownai/renderer'
 import type { RenderType, RendererInput } from '@markdownai/renderer'
 import { makeContext, resolveEnv, type EngineContext } from './context.js'
@@ -14,7 +14,7 @@ import { evalCondition, evalExpression } from './conditions.js'
 import { runBuiltin, isBuiltin } from './pipe.js'
 import { runShell } from './shell.js'
 import { executeList, executeRead, executeCount, executeDate, executeTree, executeDb, executeHttp, executeQuery } from './sources.js'
-import { executeMkdir, executeCopy, executeAppendIfMissing, executeUpdateFrontmatter } from './write-ops.js'
+import { executeMkdir, executeTouch, executeCopy, executeAppendIfMissing, executeUpdateFrontmatter } from './write-ops.js'
 import { executeReadFrontmatter, executeHash } from './read-ops.js'
 import { executeTest, executeCheck, executeRenderTemplate, setEngineExecute } from './exec-ops.js'
 import { executeForeach, executeSet, setIterEngine } from './iter-ops.js'
@@ -45,6 +45,20 @@ export interface EngineResult {
   errors: string[]
   warnings: string[]
   events: import('./context.js').EngineEvent[]
+  /** The @on complete transition that fired during execution, if any. */
+  chosenTransition: import('./context.js').ChosenTransition | null
+  /**
+   * Final ctx.data (struct values from @set with single-{{ }} RHS) at end of
+   * execution. Exposed so the MCP can persist this into a session and
+   * restore it on the next resolve_phase call, giving cross-phase closure
+   * semantics over the MCP boundary.
+   */
+  data: Record<string, unknown>
+  /**
+   * Final ctx.envFiles (string values from @set) at end of execution.
+   * Same session-persistence role as `data`.
+   */
+  envFiles: Record<string, string>
 }
 
 function resolveGitMeta(cwd: string): { hash: string; short: string } | null {
@@ -144,7 +158,7 @@ function expandAllowList(raw: string[] | undefined, ctx: EngineContext): string[
 
 export function execute(ast: ParseResult, options?: EngineOptions): EngineResult {
   if (!ast.isMarkdownAI && !options?.passthrough) {
-    return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [], events: [] }
+    return { output: '', errors: ['Not a MarkdownAI document (missing @markdownai header)'], warnings: [], events: [], chosenTransition: null, data: {}, envFiles: {} }
   }
   const base = makeContext(options?.ctx)
   if (!base.runId) base.runId = crypto.randomUUID()
@@ -184,7 +198,7 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
   }
   const joined = parts.join('\n').trimStart()
   const output = base.consumer === 'ai' ? injectAiPrefixes(joined, base) : joined
-  return { output, errors, warnings: base.warnings, events: base.events }
+  return { output, errors, warnings: base.warnings, events: base.events, chosenTransition: base.chosenTransition, data: base.data, envFiles: base.envFiles }
 }
 
 // Inject execute + parse into exec-ops for @render-template sub-renders.
@@ -224,7 +238,21 @@ function walkNodes(nodes: ASTNode[], ctx: EngineContext): string[] {
 function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
   switch (node.type) {
     case 'header': return ''
-    case 'transition': return ''
+    case 'transition': {
+      // Walking the transition means it's inside an @if/@switch/@else branch
+      // that the engine actually picked (untaken branches are never walked).
+      // Record the first @on complete -> <phase> we see inside the active
+      // phase so resolve_phase / next_phase can return it as the advised next.
+      if (
+        ctx.phase !== null
+        && node.event === 'complete'
+        && node.action.type === 'phase'
+        && ctx.chosenTransition === null
+      ) {
+        ctx.chosenTransition = { event: 'complete', phaseTarget: node.action.name }
+      }
+      return ''
+    }
     case 'passthrough': return node.raw
     case 'graph': return node.raw
     case 'markdown': return resolveInterpolations(node.text, node.interpolations, ctx, node.shellInlines)
@@ -252,7 +280,8 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
     case 'http':
     case 'query': {
       const lines = executeSource(node, ctx)
-      const label = 'args' in node && (node as { args: Record<string, string> }).args?.['label']
+      const sourceArgs = 'args' in node ? (node as { args: Record<string, string> }).args : undefined
+      const label = sourceArgs?.['label']
       if (label && typeof label === 'string') {
         // For single-line scalar-shaped directives (count, date), the value
         // is the first (and only) line. For multi-line sources (read, list,
@@ -262,10 +291,33 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
         ctx.envFiles[label] = scalarShaped
           ? (lines[0]?.trim() ?? '')
           : lines.join('\n').trim()
+
+        // @db struct capture: when as=row / as=json, the engine's sync
+        // worker stashed the parsed rows on the node via __dbRows. Lift
+        // them into ctx.data so `{{ feature.sourceFiles }}` dot-access
+        // works (rather than just `{{ feature }}` printing a JSON blob).
+        // - as=row → first row as an object (single-doc lookup)
+        // - as=json → full array of rows
+        // For other `as=` shapes, the existing string-join path is fine.
+        if (node.type === 'db') {
+          const asShape = sourceArgs?.['as']
+          const dbRows = (node as { __dbRows?: unknown[] }).__dbRows
+          if (Array.isArray(dbRows)) {
+            if (asShape === 'row') ctx.data[label] = dbRows[0] ?? null
+            else if (asShape === 'json') ctx.data[label] = dbRows
+          }
+        }
       }
+      // visible="false" or silent="true" suppresses inline output (useful
+      // when label= captures the data and inline rendering would just dump
+      // a long file listing into the phase output).
+      const visible = sourceArgs?.['visible']
+      const silent = sourceArgs?.['silent']
+      if (visible === 'false' || silent === 'true') return ''
       return lines.join('\n')
     }
     case 'mkdir': return executeMkdir(node, ctx)
+    case 'touch': return executeTouch(node, ctx)
     case 'copy': return executeCopy(node, ctx)
     case 'append-if-missing': return executeAppendIfMissing(node, ctx)
     case 'update-frontmatter': return executeUpdateFrontmatter(node, ctx)
@@ -340,8 +392,12 @@ function walkNode(node: ASTNode, ctx: EngineContext): string {
 }
 
 function executePrompt(node: PromptNode, ctx: EngineContext): string {
-  if (ctx.consumer === 'ai') return `[AI INSTRUCTION — ${node.role}]\n${node.body}\n[/AI INSTRUCTION]`
-  const lines = node.body.split('\n').map(l => `> ${l}`).join('\n')
+  // Interpolate {{ }} in the body so dynamic state (feature_slug, paths,
+  // pivot, etc.) is substituted before the instruction reaches Claude.
+  // Without this, @prompt bodies show literal "{{ x }}" — confusing the AI.
+  const body = resolveInterpolations(node.body, scanInterpolations(node.body), ctx, [])
+  if (ctx.consumer === 'ai') return `[AI INSTRUCTION — ${node.role}]\n${body}\n[/AI INSTRUCTION]`
+  const lines = body.split('\n').map(l => `> ${l}`).join('\n')
   return `> **Note (${node.role}):**\n${lines}`
 }
 
@@ -351,7 +407,9 @@ function executeNote(node: NoteNode, ctx: EngineContext): string {
     const effective = ctx.consumer ?? 'human'
     if (node.consumer !== effective) return ''
   }
-  const lines = node.body.split('\n').map((l: string) => `> ${l}`).join('\n')
+  // Same interpolation treatment as @prompt — dynamic state in @note bodies.
+  const body = resolveInterpolations(node.body, scanInterpolations(node.body), ctx, [])
+  const lines = body.split('\n').map((l: string) => `> ${l}`).join('\n')
   return `> **Note:**\n${lines}`
 }
 
@@ -398,7 +456,13 @@ function handlePhase(node: PhaseNode, ctx: EngineContext): string {
   if (ctx.phase !== null && ctx.phase !== node.name) return ''
   ctx.callstack.push(`phase:${node.name}`)
   try {
-    return walkNodes(node.body, ctx).join('\n').trimStart()
+    const out = walkNodes(node.body, ctx).join('\n').trimStart()
+    // Top-level `@on complete -> X` parses into phase.transitions (separate
+    // from body). Walk them after the body so the transition handler in
+    // walkNodeCore records ctx.chosenTransition. Conditional @on complete
+    // inside @if/@else lives in body and is captured naturally there.
+    for (const t of node.transitions) walkNode(t, ctx)
+    return out
   } finally {
     ctx.callstack.pop()
   }
@@ -433,12 +497,47 @@ function handleSwitch(node: SwitchNode, ctx: EngineContext): string {
 
 function executePipe(node: PipeNode, ctx: EngineContext): string {
   let lines: string[] = []
+  // Source-stage args that affect labeling/visibility need to be honored
+  // even though the parser auto-wraps `@db ... as=row label=x visible=false`
+  // into a pipe — the label binding and visibility suppression apply to the
+  // SOURCE, not the rendered sink output. The parser moves `as=` from the
+  // source onto the sink, so we read the render type from the sink.
+  const sinkStage = node.stages.find(s => s.type === 'sink') as { type: 'sink'; node: { args: Record<string, string> } } | undefined
+  const sinkRenderType = sinkStage?.node.args['type']
+  let sourceArgs: Record<string, string> | undefined
+  let sourceNode: ASTNode | null = null
   for (const stage of node.stages) {
     switch (stage.type) {
-      case 'source': lines = executeSource(stage.node, ctx); break
+      case 'source': {
+        sourceNode = stage.node
+        if ('args' in stage.node) sourceArgs = (stage.node as { args: Record<string, string> }).args
+        lines = executeSource(stage.node, ctx)
+        // Label-capture mirrors walkNodeCore for bare source directives:
+        //   - default: ctx.envFiles[label] = joined string
+        //   - @db with as=row (sink type=row): ctx.data[label] = first row as object
+        //   - @db with as=json (sink type=json): ctx.data[label] = full row array
+        const label = sourceArgs?.['label']
+        if (label && typeof label === 'string') {
+          ctx.envFiles[label] = lines.join('\n').trim()
+          if (sourceNode.type === 'db') {
+            const dbRows = (sourceNode as { __dbRows?: unknown[] }).__dbRows
+            if (Array.isArray(dbRows)) {
+              if (sinkRenderType === 'row') ctx.data[label] = dbRows[0] ?? null
+              else if (sinkRenderType === 'json') ctx.data[label] = dbRows
+            }
+          }
+        }
+        break
+      }
       case 'builtin': lines = runBuiltin(stage.command, lines); break
       case 'shell': lines = runShell(stage.command, lines, ctx); break
       case 'sink': {
+        // visible=false / silent=true on the SOURCE suppresses the sink's
+        // rendered output — caller wants the data captured into a label,
+        // not dumped inline.
+        const visible = sourceArgs?.['visible']
+        const silent = sourceArgs?.['silent']
+        if (visible === 'false' || silent === 'true') return ''
         const { type: t, columns: cols, ...rest } = stage.node.args
         const input: RendererInput = { type: (t ?? 'list') as RenderType, data: lines }
         if (cols) input.columns = cols.split(',').map((c: string) => c.trim())
@@ -463,6 +562,32 @@ function executeSource(node: ASTNode, ctx: EngineContext): string[] {
     case 'db': return executeDb(node, ctx)
     case 'http': return executeHttp(node, ctx)
     case 'query': return executeQuery(node, ctx)
+    case 'call': {
+      // @call as a pipe source: invoke the macro and treat its rendered
+      // output as the pipe input. Macros that return multi-line text
+      // become a line-array; single-line scalars become a single-element
+      // array. Empty output yields an empty array (no rows).
+      const out = handleCall(node as CallNode, ctx)
+      if (out === '') return []
+      return out.split('\n')
+    }
+    case 'read-frontmatter': {
+      // Field read returns a scalar; emit as a single line.
+      const out = executeReadFrontmatter(node as import('@markdownai/parser').ReadFrontmatterNode, ctx)
+      return out === '' ? [] : out.split('\n')
+    }
+    case 'hash': {
+      const out = executeHash(node as import('@markdownai/parser').HashNode, ctx)
+      return out === '' ? [] : [out]
+    }
+    case 'markdownai-detect': {
+      const out = executeMarkdownaiDetect(node as import('@markdownai/parser').MarkdownaiDetectNode, ctx)
+      return out === '' ? [] : out.split('\n')
+    }
+    case 'plugin-data': {
+      const out = executePluginData(node as import('@markdownai/parser').PluginDataNode, ctx)
+      return out === '' ? [] : out.split('\n')
+    }
     default: throw new Error(`"@${node.type}" cannot be used as a pipe source`)
   }
 }

@@ -45,7 +45,7 @@ describe('@test and @check', () => {
     it('runs an explicit command and labels exit code', () => {
       const result = render(
         `@markdownai v1.0
-@test command="true" label=t
+@test command="true" label=t /
 exit={{ t_exit }}
 summary={{ t_summary }}
 `,
@@ -59,7 +59,7 @@ summary={{ t_summary }}
     it('surfaces failure with non-zero exit', () => {
       const result = render(
         `@markdownai v1.0
-@test command="false" label=t
+@test command="false" label=t /
 exit={{ t_exit }}
 `,
         { allowShell: true, shellConfig: trueShell },
@@ -72,7 +72,7 @@ exit={{ t_exit }}
       // Claude needs the runner's actual stdout/stderr to diagnose failures.
       const result = render(
         `@markdownai v1.0
-@test command="echo line-one && echo line-two && echo line-three" label=t
+@test command="echo line-one && echo line-two && echo line-three" label=t /
 full={{ t }}
 `,
         { allowShell: true, shellConfig: trueShell },
@@ -86,7 +86,7 @@ full={{ t }}
       const result = render(
         `@markdownai v1.0
 START
-@test command="echo hello-from-test"
+@test command="echo hello-from-test" /
 END
 `,
         { allowShell: true, shellConfig: trueShell },
@@ -111,7 +111,7 @@ END
       }
       const result = render(
         `@markdownai v1.0
-@test label=t
+@test label=t /
 exit={{ t_exit }}
 `,
         { allowShell: true, shellConfig: npmShell },
@@ -123,7 +123,7 @@ exit={{ t_exit }}
     it('warns when no command and no package.json', () => {
       const result = render(
         `@markdownai v1.0
-@test
+@test /
 `,
         { allowShell: true, shellConfig: trueShell },
       )
@@ -133,7 +133,7 @@ exit={{ t_exit }}
     it('blocked when shell is disabled', () => {
       const result = render(
         `@markdownai v1.0
-@test command="true"
+@test command="true" /
 `,
         { allowShell: false },
       )
@@ -143,7 +143,7 @@ exit={{ t_exit }}
     it('blocked when command not in shell allowlist', () => {
       const result = render(
         `@markdownai v1.0
-@test command="rm -rf /"
+@test command="rm -rf /" /
 `,
         { allowShell: true, shellConfig: trueShell },
       )
@@ -167,7 +167,7 @@ exit={{ t_exit }}
       }
       const result = render(
         `@markdownai v1.0
-@check label=c
+@check label=c /
 exit={{ c_exit }}
 `,
         { allowShell: true, shellConfig: npmShell },
@@ -178,7 +178,7 @@ exit={{ c_exit }}
     it('explicit command runs without package.json', () => {
       const result = render(
         `@markdownai v1.0
-@check command="true" label=c
+@check command="true" label=c /
 exit={{ c_exit }}
 `,
         { allowShell: true, shellConfig: trueShell },
@@ -201,7 +201,7 @@ exit={{ c_exit }}
       }
       const result = render(
         `@markdownai v1.0
-@check label=c
+@check label=c /
 exit={{ c_exit }}
 `,
         { allowShell: true, shellConfig: npmShell },

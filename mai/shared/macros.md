@@ -2,14 +2,14 @@
 
 @define badge(label, value)
 **{{ label }}:** {{ value }}
-@end
+@define-end
 
 @define section_header(title, subtitle)
 ## {{ title }}
 
 _{{ subtitle }}_
-@end
+@define-end
 
 @define feature_status(name, status)
 - **{{ name }}** — `{{ status }}`
-@end
+@define-end

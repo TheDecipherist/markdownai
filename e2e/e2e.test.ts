@@ -90,7 +90,7 @@ describe('E2E — mai cache', () => {
   it('@cache mode=session — second render returns identical output', () => {
     const tmp = join(tmpdir(), 'mai-cache-' + Date.now())
     mkdirSync(tmp)
-    writeFileSync(join(tmp, 'cached.md'), '@markdownai\n\n@date format="YYYY-MM-DD" @cache mode="session"\n\nHello from cache test.\n')
+    writeFileSync(join(tmp, 'cached.md'), '@markdownai\n\n@date format="YYYY-MM-DD" @cache mode="session" /\n\nHello from cache test.\n')
     const r1 = runRender(join(tmp, 'cached.md'), { cwd: tmp })
     const r2 = runRender(join(tmp, 'cached.md'), { cwd: tmp })
     expect(r1.exitCode).toBe(0)
@@ -144,15 +144,15 @@ describe('E2E — Error cases', () => {
   })
 
   it('circular @include — reports FatalError with "Circular reference" in message', () => {
-    writeFileSync(join(TMP, 'circ-a.md'), '@markdownai\n\n@include ./circ-b.md\n')
-    writeFileSync(join(TMP, 'circ-b.md'), '@markdownai\n\n@include ./circ-a.md\n')
+    writeFileSync(join(TMP, 'circ-a.md'), '@markdownai\n\n@include ./circ-b.md /\n')
+    writeFileSync(join(TMP, 'circ-b.md'), '@markdownai\n\n@include ./circ-a.md /\n')
     const result = runRender(join(TMP, 'circ-a.md'), { cwd: TMP })
     expect(result.exitCode).toBe(1)
     expect(result.errors.some(e => e.toLowerCase().includes('circular'))).toBe(true)
   })
 
   it('path traversal in @include — blocked with confinement error', () => {
-    writeFileSync(join(TMP, 'traverse.md'), '@markdownai\n\n@include ../../../etc/passwd\n')
+    writeFileSync(join(TMP, 'traverse.md'), '@markdownai\n\n@include ../../../etc/passwd /\n')
     const result = runRender(join(TMP, 'traverse.md'), { cwd: TMP })
     expect(result.exitCode).toBe(1)
     expect(result.errors.some(e => e.toLowerCase().includes('traversal') || e.toLowerCase().includes('blocked'))).toBe(true)
@@ -166,7 +166,7 @@ describe('E2E — Error cases', () => {
   })
 
   it('missing @include target — renders without fatal error (graceful degradation)', () => {
-    writeFileSync(join(TMP, 'missing.md'), '@markdownai\n\nSome prose.\n\n@include ./does-not-exist.md\n\nMore prose.\n')
+    writeFileSync(join(TMP, 'missing.md'), '@markdownai\n\nSome prose.\n\n@include ./does-not-exist.md /\n\nMore prose.\n')
     const result = runRender(join(TMP, 'missing.md'), { cwd: TMP })
     // Engine gracefully skips missing includes; prose is preserved
     expect(result.output).toContain('Some prose')

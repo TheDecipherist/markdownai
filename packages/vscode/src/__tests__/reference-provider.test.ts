@@ -3,13 +3,13 @@ import { findCallSites } from '../providers/macro-registry.js';
 
 const DOC = `@markdownai
 
-@call git-status
+@call git-status /
 Some prose.
-@call git-branch
-@call git-status
+@call git-branch /
+@call git-status /
 @define git-status
-@query git status --short label=git_status
-@end
+@query git status --short label=git_status /
+@define-end
 `;
 
 describe('findCallSites', () => {

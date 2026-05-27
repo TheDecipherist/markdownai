@@ -1,13 +1,15 @@
-import type { ParseModule, ParseContext, ASTNode, SwitchNode } from '../types.js'
+import type { ParseModule, ParseContext, DirectiveInput, ASTNode, SwitchNode } from '../types.js'
 
 const switchDir: ParseModule = {
   name: 'switch',
-  block: true,
-  parse(_rawLine: string, args: string, ctx: ParseContext): ASTNode {
+  parse(input: DirectiveInput, ctx: ParseContext): ASTNode {
+    // rawArgs is the expression. Strip any trailing self-close already handled
+    // by the parser (rawArgs has it removed).
+    const expression = input.rawArgs.trim() || input.positional
     const node: SwitchNode = {
       type: 'switch',
       line: ctx.line,
-      expression: args.trim(),
+      expression,
       cases: [],
       defaultBody: null,
     }

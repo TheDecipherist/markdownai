@@ -131,7 +131,7 @@ describe('E2E — @chunk-boundary directive', () => {
     expect(result.output).not.toContain('---chunk:')
   })
 
-  it('@chunk-boundary does not appear as raw directive', () => {
+  it('@chunk-boundary does not appear as raw directive /', () => {
     const ai = renderAi(FILE)
     const human = renderHuman(FILE)
     expect(ai.output).not.toMatch(/@chunk-boundary\b/)

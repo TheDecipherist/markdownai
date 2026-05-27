@@ -95,9 +95,9 @@ describe('Parser', () => {
     })
   })
 
-  describe('@include directive', () => {
+  describe('@include directive /', () => {
     it('parses @include with a path', () => {
-      const result = parse('@markdownai\n@include ./sections/footer.md')
+      const result = parse('@markdownai\n@include ./sections/footer.md /')
       const n = node<IncludeNode>(result.nodes, 1)
       expect(n.type).toBe('include')
       expect(n.path).toBe('./sections/footer.md')
@@ -106,27 +106,27 @@ describe('Parser', () => {
     })
 
     it('parses @include with condition', () => {
-      const result = parse('@markdownai\n@include ./debug.md if env.NODE_ENV == "development"')
+      const result = parse('@markdownai\n@include ./debug.md if env.NODE_ENV == "development" /')
       const n = node<IncludeNode>(result.nodes, 1)
       expect(n.condition).toBe('env.NODE_ENV == "development"')
     })
 
     it('parses @include with @local flag', () => {
-      const result = parse('@markdownai\n@include ./local.md @local')
+      const result = parse('@markdownai\n@include ./local.md @local /')
       const n = node<IncludeNode>(result.nodes, 1)
       expect(n.local).toBe(true)
     })
 
     it('parses line number correctly', () => {
-      const result = parse('@markdownai\n@include ./footer.md')
+      const result = parse('@markdownai\n@include ./footer.md /')
       const n = node<IncludeNode>(result.nodes, 1)
       expect(n.line).toBe(2)
     })
   })
 
-  describe('@import directive', () => {
+  describe('@import directive /', () => {
     it('parses @import with a path', () => {
-      const result = parse('@markdownai\n@import ./shared/defaults.md')
+      const result = parse('@markdownai\n@import ./shared/defaults.md /')
       const n = node<ImportNode>(result.nodes, 1)
       expect(n.type).toBe('import')
       expect(n.path).toBe('./shared/defaults.md')
@@ -134,9 +134,9 @@ describe('Parser', () => {
     })
   })
 
-  describe('@env directive', () => {
+  describe('@env directive /', () => {
     it('parses @env with name and fallback', () => {
-      const result = parse('@markdownai\n@env COMPANY_NAME fallback="My Company"')
+      const result = parse('@markdownai\n@env COMPANY_NAME fallback="My Company" /')
       const n = node<EnvNode>(result.nodes, 1)
       expect(n.type).toBe('env')
       expect(n.name).toBe('COMPANY_NAME')
@@ -144,7 +144,7 @@ describe('Parser', () => {
     })
 
     it('parses @env name-only has null fallback', () => {
-      const result = parse('@markdownai\n@env REQUIRED_VAR')
+      const result = parse('@markdownai\n@env REQUIRED_VAR /')
       const n = node<EnvNode>(result.nodes, 1)
       expect(n.name).toBe('REQUIRED_VAR')
       expect(n.fallback).toBeNull()
@@ -153,7 +153,7 @@ describe('Parser', () => {
 
   describe('@define block directive', () => {
     it('parses @define ... @end block', () => {
-      const result = parse('@markdownai\n@define footer\nSome footer content\n@end')
+      const result = parse('@markdownai\n@define footer\nSome footer content\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.type).toBe('define')
       expect(n.name).toBe('footer')
@@ -161,47 +161,47 @@ describe('Parser', () => {
     })
 
     it('parses @define with @local flag', () => {
-      const result = parse('@markdownai\n@define user_row @local\ncontent\n@end')
+      const result = parse('@markdownai\n@define user_row @local\ncontent\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.local).toBe(true)
     })
 
     it('parses @define with bare local keyword (no @ prefix)', () => {
-      const result = parse('@markdownai\n@define greeter local\nHi\n@end')
+      const result = parse('@markdownai\n@define greeter local\nHi\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.local).toBe(true)
       expect(n.name).toBe('greeter')
     })
 
     it('does not treat "local" as the marker when it appears inside the name', () => {
-      const result = parse('@markdownai\n@define localish\ncontent\n@end')
+      const result = parse('@markdownai\n@define localish\ncontent\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.local).toBe(false)
       expect(n.name).toBe('localish')
     })
 
     it('parses no params when no parens', () => {
-      const result = parse('@markdownai\n@define footer\ncontent\n@end')
+      const result = parse('@markdownai\n@define footer\ncontent\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.params).toEqual([])
     })
 
     it('parses @define name(param) syntax — single param', () => {
-      const result = parse('@markdownai\n@define greet(name)\nHello {{name}}\n@end')
+      const result = parse('@markdownai\n@define greet(name)\nHello {{name}}\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.name).toBe('greet')
       expect(n.params).toEqual(['name'])
     })
 
     it('parses @define name(param1, param2) syntax — multiple params', () => {
-      const result = parse('@markdownai\n@define row(title, value)\n{{title}}: {{value}}\n@end')
+      const result = parse('@markdownai\n@define row(title, value)\n{{title}}: {{value}}\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.name).toBe('row')
       expect(n.params).toEqual(['title', 'value'])
     })
 
     it('parses @define name(param) @local', () => {
-      const result = parse('@markdownai\n@define cell(content) @local\n{{content}}\n@end')
+      const result = parse('@markdownai\n@define cell(content) @local\n{{content}}\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.name).toBe('cell')
       expect(n.params).toEqual(['content'])
@@ -209,7 +209,7 @@ describe('Parser', () => {
     })
 
     it('collects @on complete -> next at @define top level into transitions', () => {
-      const result = parse('@markdownai\n@define probe @local\n@on complete -> next\n@end')
+      const result = parse('@markdownai\n@define probe @local\n@on-complete next /\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.type).toBe('define')
       expect(n.transitions).toHaveLength(1)
@@ -217,7 +217,7 @@ describe('Parser', () => {
     })
 
     it('allows @on complete -> next nested inside @if within @define (placed in conditional body)', () => {
-      const result = parse('@markdownai\n@define probe @local\n@if {{ disabled }}\n@on complete -> next\n@endif\nbody\n@end')
+      const result = parse('@markdownai\n@define probe @local\n@if {{ disabled }}\n@on-complete next /\n@if-end\nbody\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.type).toBe('define')
       // The nested @on lives in the conditional branch body, not on the define's transitions
@@ -227,35 +227,35 @@ describe('Parser', () => {
     })
 
     it('collects @on complete -> halt at @define top level', () => {
-      const result = parse('@markdownai\n@define fatal\n@on complete -> halt\n@end')
+      const result = parse('@markdownai\n@define fatal\n@on-complete halt /\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.transitions).toHaveLength(1)
       expect(n.transitions[0]?.action.type).toBe('halt')
     })
 
     it('initializes empty transitions array when @define has no @on', () => {
-      const result = parse('@markdownai\n@define plain\ncontent\n@end')
+      const result = parse('@markdownai\n@define plain\ncontent\n@define-end')
       const n = node<DefineNode>(result.nodes, 1)
       expect(n.transitions).toEqual([])
     })
   })
 
-  describe('@call directive', () => {
+  describe('@call directive /', () => {
     it('parses @call with macro name', () => {
-      const result = parse('@markdownai\n@call footer')
+      const result = parse('@markdownai\n@call footer /')
       const n = node<CallNode>(result.nodes, 1)
       expect(n.type).toBe('call')
       expect(n.name).toBe('footer')
     })
 
     it('parses @call with key=value args', () => {
-      const result = parse('@markdownai\n@call header title="My Doc"')
+      const result = parse('@markdownai\n@call header title="My Doc" /')
       const n = node<CallNode>(result.nodes, 1)
       expect(n.args['title']).toBe('My Doc')
     })
 
     it('parses @call name(arg1, arg2) positional paren syntax', () => {
-      const result = parse('@markdownai\n@call greet(Alice, Admin)')
+      const result = parse('@markdownai\n@call greet(Alice, Admin) /')
       const n = node<CallNode>(result.nodes, 1)
       expect(n.name).toBe('greet')
       expect(n.positionalArgs).toEqual(['Alice', 'Admin'])
@@ -263,7 +263,7 @@ describe('Parser', () => {
     })
 
     it('parses @call name(key=value) named paren syntax', () => {
-      const result = parse('@markdownai\n@call row(title=Hello, value=World)')
+      const result = parse('@markdownai\n@call row(title=Hello, value=World) /')
       const n = node<CallNode>(result.nodes, 1)
       expect(n.name).toBe('row')
       expect(n.args['title']).toBe('Hello')
@@ -274,7 +274,7 @@ describe('Parser', () => {
 
   describe('@phase block directive', () => {
     it('parses @phase ... @end block', () => {
-      const result = parse('@markdownai\n@phase build\n## Build phase\n@end')
+      const result = parse('@markdownai\n@phase build\n## Build phase\n@phase-end')
       const n = node<PhaseNode>(result.nodes, 1)
       expect(n.type).toBe('phase')
       expect(n.name).toBe('build')
@@ -282,7 +282,7 @@ describe('Parser', () => {
     })
 
     it('parses @on complete -> @phase transition', () => {
-      const result = parse('@markdownai\n@phase build\n## Build\n@on complete -> @phase test\n@end')
+      const result = parse('@markdownai\n@phase build\n## Build\n@on-complete @phase test /\n@phase-end')
       const n = node<PhaseNode>(result.nodes, 1)
       expect(n.transitions).toHaveLength(1)
       const t = n.transitions[0]
@@ -294,7 +294,7 @@ describe('Parser', () => {
     })
 
     it('parses @on complete -> bare-phase-name transition (no @phase prefix)', () => {
-      const result = parse('@markdownai\n@phase build\n@on complete -> next_phase\n@end')
+      const result = parse('@markdownai\n@phase build\n@on-complete next_phase /\n@phase-end')
       const n = node<PhaseNode>(result.nodes, 1)
       expect(n.transitions).toHaveLength(1)
       const t = n.transitions[0]
@@ -305,7 +305,7 @@ describe('Parser', () => {
     })
 
     it('handles snake_case + dot-suffix phase names in bare transitions', () => {
-      const result = parse('@markdownai\n@phase first\n@on complete -> 7c_complete\n@end\n@phase 7c_complete\n@end')
+      const result = parse('@markdownai\n@phase first\n@on-complete 7c_complete /\n@phase-end\n@phase 7c_complete\n@phase-end')
       const n = node<PhaseNode>(result.nodes, 1)
       expect(n.transitions[0]?.action.type).toBe('phase')
       if (n.transitions[0]?.action.type === 'phase') {
@@ -314,14 +314,14 @@ describe('Parser', () => {
     })
 
     it('collects @on complete -> halt at @phase top level into transitions', () => {
-      const result = parse('@markdownai\n@phase guard\n@on complete -> halt\n@end')
+      const result = parse('@markdownai\n@phase guard\n@on-complete halt /\n@phase-end')
       const n = node<PhaseNode>(result.nodes, 1)
       expect(n.transitions).toHaveLength(1)
       expect(n.transitions[0]?.action.type).toBe('halt')
     })
 
     it('allows @on complete -> halt nested inside @if within @phase (placed in conditional body)', () => {
-      const result = parse('@markdownai\n@phase guard\n@if {{ refuse }}\n@on complete -> halt\n@endif\n@end')
+      const result = parse('@markdownai\n@phase guard\n@if {{ refuse }}\n@on-complete halt /\n@if-end\n@phase-end')
       const n = node<PhaseNode>(result.nodes, 1)
       // The nested @on lives in the conditional branch body, not on the phase's transitions
       expect(n.transitions).toEqual([])
@@ -330,21 +330,21 @@ describe('Parser', () => {
     })
 
     it('collects @on complete -> next at @phase top level', () => {
-      const result = parse('@markdownai\n@phase step\n@on complete -> next\n@end')
+      const result = parse('@markdownai\n@phase step\n@on-complete next /\n@phase-end')
       const n = node<PhaseNode>(result.nodes, 1)
       expect(n.transitions[0]?.action.type).toBe('next')
     })
 
     it('throws ParseError for @phase in import context', () => {
       expect(() =>
-        parse('@markdownai\n@phase build\ncontent\n@end', { inImport: true })
+        parse('@markdownai\n@phase build\ncontent\n@phase-end', { inImport: true })
       ).toThrow()
     })
   })
 
-  describe('@connect directive', () => {
+  describe('@connect directive /', () => {
     it('parses @connect directive', () => {
-      const result = parse('@markdownai\n@connect primary type="mongodb" uri=env.MONGODB_URI')
+      const result = parse('@markdownai\n@connect primary type="mongodb" uri=env.MONGODB_URI /')
       const n = node<ConnectNode>(result.nodes, 1)
       expect(n.type).toBe('connect')
       expect(n.name).toBe('primary')
@@ -352,15 +352,15 @@ describe('Parser', () => {
     })
 
     it('parses @connect with @local flag', () => {
-      const result = parse('@markdownai\n@connect temp type="redis" uri=env.REDIS @local')
+      const result = parse('@markdownai\n@connect temp type="redis" uri=env.REDIS @local /')
       const n = node<ConnectNode>(result.nodes, 1)
       expect(n.local).toBe(true)
     })
   })
 
-  describe('@list directive', () => {
+  describe('@list directive /', () => {
     it('parses @list with path and named args', () => {
-      const result = parse('@markdownai\n@list ./src/ match="**/*.ts"')
+      const result = parse('@markdownai\n@list ./src/ match="**/*.ts" /')
       const n = node<ListNode>(result.nodes, 1)
       expect(n.type).toBe('list')
       expect(n.path).toBe('./src/')

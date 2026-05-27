@@ -67,10 +67,10 @@ describe('write directives (Wave 3)', () => {
     })
   }
 
-  describe('@mkdir', () => {
+  describe('@mkdir /', () => {
     it('creates a directory inside the write root', () => {
       render(
-        `@markdownai v1.0\n@mkdir .mdd/docs\n`,
+        `@markdownai v1.0\n@mkdir .mdd/docs /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       expect(existsSync(join(projectDir, '.mdd/docs'))).toBe(true)
@@ -78,7 +78,7 @@ describe('write directives (Wave 3)', () => {
 
     it('creates nested directories with recursive=true (default)', () => {
       render(
-        `@markdownai v1.0\n@mkdir .mdd/audits/2026\n`,
+        `@markdownai v1.0\n@mkdir .mdd/audits/2026 /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       expect(existsSync(join(projectDir, '.mdd/audits/2026'))).toBe(true)
@@ -86,7 +86,7 @@ describe('write directives (Wave 3)', () => {
 
     it('blocked when write_enabled is false', () => {
       const result = render(
-        `@markdownai v1.0\n@mkdir .mdd\n`,
+        `@markdownai v1.0\n@mkdir .mdd /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: false }) },
       )
       expect(existsSync(join(projectDir, '.mdd'))).toBe(false)
@@ -95,7 +95,7 @@ describe('write directives (Wave 3)', () => {
 
     it('blocked when path is outside write root', () => {
       const result = render(
-        `@markdownai v1.0\n@mkdir ../escape\n`,
+        `@markdownai v1.0\n@mkdir ../escape /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       expect(result.warnings.join('\n')).toMatch(/blocked|outside/i)
@@ -103,19 +103,19 @@ describe('write directives (Wave 3)', () => {
 
     it('uses path= named arg', () => {
       render(
-        `@markdownai v1.0\n@mkdir path=".mdd/jobs"\n`,
+        `@markdownai v1.0\n@mkdir path=".mdd/jobs" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       expect(existsSync(join(projectDir, '.mdd/jobs'))).toBe(true)
     })
   })
 
-  describe('@copy', () => {
+  describe('@copy /', () => {
     it('copies a source file to a destination inside the write root', () => {
       const src = join(skillDir, 'template.md')
       writeFileSync(src, 'template content', 'utf8')
       render(
-        `@markdownai v1.0\n@copy from="${src}" to=".mdd/file.md"\n`,
+        `@markdownai v1.0\n@copy from="${src}" to=".mdd/file.md" /\n`,
         {
           cwd: projectDir,
           filesystemConfig: makeFsConfig({
@@ -133,7 +133,7 @@ describe('write directives (Wave 3)', () => {
       const src = join(skillDir, 'template.md')
       writeFileSync(src, 'template content', 'utf8')
       render(
-        `@markdownai v1.0\n@copy from="${src}" to=".mdd/file.md" if-missing\n`,
+        `@markdownai v1.0\n@copy from="${src}" to=".mdd/file.md" if-missing /\n`,
         {
           cwd: projectDir,
           filesystemConfig: makeFsConfig({
@@ -147,7 +147,7 @@ describe('write directives (Wave 3)', () => {
 
     it('expands ${CLAUDE_SKILL_DIR} in from path', () => {
       writeFileSync(join(skillDir, 'tpl.md'), 'from-expansion', 'utf8')
-      const content = `@markdownai v1.0\n@copy from="\${CLAUDE_SKILL_DIR}/tpl.md" to=".mdd/x.md"\n`
+      const content = `@markdownai v1.0\n@copy from="\${CLAUDE_SKILL_DIR}/tpl.md" to=".mdd/x.md" /\n`
       const filePath = join(skillDir, 'doc.md')
       writeFileSync(filePath, content, 'utf8')
       const ast = parse(content, { filePath })
@@ -173,7 +173,7 @@ describe('write directives (Wave 3)', () => {
       const src = join(skillDir, 'tpl.md')
       writeFileSync(src, 'should not copy', 'utf8')
       const result = render(
-        `@markdownai v1.0\n@copy from="${src}" to=".env"\n`,
+        `@markdownai v1.0\n@copy from="${src}" to=".env" /\n`,
         {
           cwd: projectDir,
           filesystemConfig: makeFsConfig({
@@ -190,7 +190,7 @@ describe('write directives (Wave 3)', () => {
       const src = join(skillDir, 'tpl.md')
       writeFileSync(src, 'should not copy', 'utf8')
       const result = render(
-        `@markdownai v1.0\n@copy from="${src}" to=".mdd/x.md"\n`,
+        `@markdownai v1.0\n@copy from="${src}" to=".mdd/x.md" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: false }) },
       )
       expect(existsSync(join(projectDir, '.mdd/x.md'))).toBe(false)
@@ -198,12 +198,12 @@ describe('write directives (Wave 3)', () => {
     })
   })
 
-  describe('@update-frontmatter', () => {
+  describe('@update-frontmatter /', () => {
     it('replaces an existing frontmatter field value', () => {
       writeFileSync(join(projectDir, 'doc.md'),
         '---\nid: 01-test\nstatus: draft\ntitle: Test\n---\n\nBody content.\n', 'utf8')
       render(
-        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete"\n`,
+        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       const after = readFileSync(join(projectDir, 'doc.md'), 'utf8')
@@ -216,7 +216,7 @@ describe('write directives (Wave 3)', () => {
       const original = '---\nid: 01-test\nstatus: complete\n---\n\nBody.\n'
       writeFileSync(join(projectDir, 'doc.md'), original, 'utf8')
       render(
-        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete"\n`,
+        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       expect(readFileSync(join(projectDir, 'doc.md'), 'utf8')).toBe(original)
@@ -226,7 +226,7 @@ describe('write directives (Wave 3)', () => {
       writeFileSync(join(projectDir, 'doc.md'),
         '---\nid: 01-test\ntitle: Test\n---\n\nBody.\n', 'utf8')
       render(
-        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete"\n`,
+        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       const after = readFileSync(join(projectDir, 'doc.md'), 'utf8')
@@ -238,7 +238,7 @@ describe('write directives (Wave 3)', () => {
     it('refuses to write a file with no frontmatter block', () => {
       writeFileSync(join(projectDir, 'doc.md'), 'No frontmatter here.\n', 'utf8')
       const result = render(
-        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete"\n`,
+        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       expect(readFileSync(join(projectDir, 'doc.md'), 'utf8')).toBe('No frontmatter here.\n')
@@ -249,7 +249,7 @@ describe('write directives (Wave 3)', () => {
       writeFileSync(join(projectDir, '.env'),
         '---\nSECRET: abc\n---\n', 'utf8')
       const result = render(
-        `@markdownai v1.0\n@update-frontmatter path=".env" field="SECRET" value="xyz"\n`,
+        `@markdownai v1.0\n@update-frontmatter path=".env" field="SECRET" value="xyz" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       expect(readFileSync(join(projectDir, '.env'), 'utf8')).toContain('SECRET: abc')
@@ -260,7 +260,7 @@ describe('write directives (Wave 3)', () => {
       writeFileSync(join(projectDir, 'doc.md'),
         '---\nstatus: draft\n---\n', 'utf8')
       const result = render(
-        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete"\n`,
+        `@markdownai v1.0\n@update-frontmatter path="doc.md" field="status" value="complete" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: false }) },
       )
       expect(readFileSync(join(projectDir, 'doc.md'), 'utf8')).toContain('status: draft')
@@ -268,11 +268,11 @@ describe('write directives (Wave 3)', () => {
     })
   })
 
-  describe('@append-if-missing', () => {
+  describe('@append-if-missing /', () => {
     it('appends text when not already present', () => {
       writeFileSync(join(projectDir, '.gitignore'), 'node_modules/\n', 'utf8')
       render(
-        `@markdownai v1.0\n@append-if-missing path=".gitignore" text=".mdd/audits/"\n`,
+        `@markdownai v1.0\n@append-if-missing path=".gitignore" text=".mdd/audits/" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       const after = readFileSync(join(projectDir, '.gitignore'), 'utf8')
@@ -283,7 +283,7 @@ describe('write directives (Wave 3)', () => {
     it('idempotent: does not duplicate existing text', () => {
       writeFileSync(join(projectDir, '.gitignore'), 'node_modules/\n.mdd/audits/\n', 'utf8')
       render(
-        `@markdownai v1.0\n@append-if-missing path=".gitignore" text=".mdd/audits/"\n`,
+        `@markdownai v1.0\n@append-if-missing path=".gitignore" text=".mdd/audits/" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       const after = readFileSync(join(projectDir, '.gitignore'), 'utf8')
@@ -293,7 +293,7 @@ describe('write directives (Wave 3)', () => {
 
     it('no-op when target file does not exist', () => {
       const result = render(
-        `@markdownai v1.0\n@append-if-missing path=".gitignore" text=".mdd/"\n`,
+        `@markdownai v1.0\n@append-if-missing path=".gitignore" text=".mdd/" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       expect(existsSync(join(projectDir, '.gitignore'))).toBe(false)
@@ -303,7 +303,7 @@ describe('write directives (Wave 3)', () => {
     it('blocked when target is .env', () => {
       writeFileSync(join(projectDir, '.env'), 'PORT=3000\n', 'utf8')
       const result = render(
-        `@markdownai v1.0\n@append-if-missing path=".env" text="NEW_VAR=value"\n`,
+        `@markdownai v1.0\n@append-if-missing path=".env" text="NEW_VAR=value" /\n`,
         { cwd: projectDir, filesystemConfig: makeFsConfig({ write_enabled: true }) },
       )
       expect(readFileSync(join(projectDir, '.env'), 'utf8')).toBe('PORT=3000\n')

@@ -20,9 +20,9 @@ function fixture(name: string): string {
 
 function noRawDirectives(output: string): void {
   const blocked = [
-    '@include ', '@define ', '@call ', '@phase ', '@end\n',
-    '@list ', '@tree ', '@read ', '@count ', '@date ', '@env ',
-    '@render ', '@import ', '@if ', '@elseif ', '@else\n', '@endif',
+    '@include', '@define ', '@call', '@phase ', '@end\n',
+    '@list', '@tree', '@read', '@count', '@date', '@env',
+    '@render', '@import', '@if ', '@elseif ', '@else\n', '@if-end',
   ]
   for (const token of blocked) {
     expect(output, `output must not contain unresolved token "${token.trim()}"`).not.toContain(token)
@@ -59,11 +59,11 @@ describe('E2E — mai render', () => {
       expect(result.output).not.toContain('This section should never appear')
     })
 
-    it('@date inserts current year', () => {
+    it('@date inserts current year /', () => {
       expect(result.output).toContain('2026')
     })
 
-    it('@env fallback renders when env var is not set', () => {
+    it('@env fallback renders when env var is not set /', () => {
       expect(result.output).toContain('development')
     })
 
@@ -88,31 +88,31 @@ describe('E2E — mai render', () => {
       expect(result.exitCode).toBe(0)
     })
 
-    it('@list with @render type=list — produces unordered list of section files', () => {
+    it('@list with @render type=list — produces unordered list of section files /', () => {
       expect(result.output).toContain('guide.md')
       expect(result.output).toContain('intro.md')
     })
 
-    it('@list with @render type=numbered — produces numbered list of data files', () => {
+    it('@list with @render type=numbered — produces numbered list of data files /', () => {
       expect(result.output).toMatch(/1\.\s/)
       expect(result.output).toContain('config.json')
     })
 
-    it('@tree produces an ASCII tree structure', () => {
+    it('@tree produces an ASCII tree structure /', () => {
       expect(result.output).toContain('config.json')
       expect(result.output).toContain('features.json')
       expect(result.output).toContain('team.csv')
     })
 
-    it('@count produces a numeric count (sections/ has 2 .md files)', () => {
+    it('@count produces a numeric count (sections/ has 2 .md files) /', () => {
       expect(result.output).toContain('2')
     })
 
-    it('@date inserts a formatted date string', () => {
+    it('@date inserts a formatted date string /', () => {
       expect(result.output).toContain('2026')
     })
 
-    it('@env fallback renders when env var is not set', () => {
+    it('@env fallback renders when env var is not set /', () => {
       expect(result.output).toContain('local')
     })
 
@@ -133,16 +133,16 @@ describe('E2E — mai render', () => {
       expect(result.exitCode).toBe(0)
     })
 
-    it('@import brings macro into scope — section_header output appears', () => {
+    it('@import brings macro into scope — section_header output appears /', () => {
       expect(result.output).toContain('Complete directive reference for MarkdownAI')
     })
 
-    it('@import + @call — feature_status macro renders each item', () => {
+    it('@import + @call — feature_status macro renders each item /', () => {
       expect(result.output).toContain('Parser')
       expect(result.output).toContain('stable')
     })
 
-    it('@import + @call — badge macro renders key/value pairs', () => {
+    it('@import + @call — badge macro renders key/value pairs /', () => {
       expect(result.output).toContain('Version')
       expect(result.output).toContain('1.0.0')
     })
@@ -174,19 +174,19 @@ describe('E2E — mai render', () => {
       expect(result.exitCode).toBe(0)
     })
 
-    it('@read JSON path= — extracts project name from config.json', () => {
+    it('@read JSON path= — extracts project name from config.json /', () => {
       expect(result.output).toContain('MarkdownAI')
     })
 
-    it('@read JSON path= — extracts version from config.json', () => {
+    it('@read JSON path= — extracts version from config.json /', () => {
       expect(result.output).toContain('1.0.0')
     })
 
-    it('@read CSV — renders team member data in tabular form', () => {
+    it('@read CSV — renders team member data in tabular form /', () => {
       expect(result.output).toContain('Alice')
     })
 
-    it('@read JSON array — renders feature list via @render type=table', () => {
+    it('@read JSON array — renders feature list via @render type=table /', () => {
       expect(result.output).toContain('include')
     })
 

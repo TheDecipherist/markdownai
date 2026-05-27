@@ -2,7 +2,7 @@
 
 # Consumer Targeting Demo
 
-@include ./sections/intro.md
+@include ./sections/intro.md /
 
 @if consumer="ai"
 ## AI-Only Section
@@ -10,7 +10,7 @@
 This content is visible to AI consumers only.
 Automated analysis pipeline active.
 Structured data processing enabled.
-@endif
+@if-end
 
 @if consumer="human"
 ## Human-Only Section
@@ -18,7 +18,7 @@ Structured data processing enabled.
 This content is visible to human readers only.
 Please explore the documentation interactively.
 Use the navigation sidebar to find what you need.
-@endif
+@if-end
 
 @if consumer="ai"
 ## AI Metadata
@@ -30,7 +30,7 @@ Token budget awareness: active.
 
 Welcome, developer! This document explains the system architecture.
 Explore each section at your own pace.
-@endif
+@if-end
 
 Standard content visible to all consumers.
 This paragraph always appears regardless of consumer setting.

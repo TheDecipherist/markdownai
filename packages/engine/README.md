@@ -1,621 +1,119 @@
 # @markdownai/engine
 
-<p align="center">
-  <a href="https://markdownai.dev">
-    <img src="https://img.shields.io/badge/📖_Documentation-markdownai.dev-0891b2?style=for-the-badge&labelColor=08090f" alt="Documentation Site" />
-  </a>
-  &nbsp;
-  <a href="https://markdownai.dev/user-guide.html">
-    <img src="https://img.shields.io/badge/📚_User_Guide-Full_Reference-059669?style=for-the-badge&labelColor=08090f" alt="User Guide" />
-  </a>
-</p>
+Executes a parsed AST. Resolves directives, runs queries, evaluates expressions, applies the security policy, and returns the final rendered string.
 
-The execution core of MarkdownAI. Takes a parsed AST and evaluates all directives - shell queries, HTTP requests, database connections, environment resolution, caching, security enforcement, and output assembly.
+[Root README](../../README.md) · [Parser](../parser/README.md) · [Renderer](../renderer/README.md) · [MCP](../mcp/README.md) · [GitHub](https://github.com/TheDecipherist/markdownai)
 
-**All packages:**
-[@markdownai/core](https://www.npmjs.com/package/@markdownai/core) &nbsp;·&nbsp;
-[@markdownai/engine](https://www.npmjs.com/package/@markdownai/engine) &nbsp;·&nbsp;
-[@markdownai/parser](https://www.npmjs.com/package/@markdownai/parser) &nbsp;·&nbsp;
-[@markdownai/renderer](https://www.npmjs.com/package/@markdownai/renderer) &nbsp;·&nbsp;
-[@markdownai/mcp](https://www.npmjs.com/package/@markdownai/mcp) &nbsp;·&nbsp;
-[@markdownai](https://www.npmjs.com/package/@markdownai/markdownai)
-
-**Links:** [GitHub](https://github.com/TheDecipherist/markdownai) &nbsp;·&nbsp; [npm org](https://www.npmjs.com/package/@markdownai/markdownai)
-
----
-
-## What it does
-
-`@markdownai/engine` is the brain of MarkdownAI. It takes a parsed AST from `@markdownai/parser`, walks every node in document order, resolves all dynamic directives, and assembles the final rendered output.
-
-If you want to embed MarkdownAI rendering inside your own Node.js application - or build tools on top of the language - this is the package to use. The CLI (`@markdownai/core`) and MCP server (`@markdownai/mcp`) both use it internally.
-
-## Installation
+## Install
 
 ```bash
-npm install @markdownai/engine
+npm install @markdownai/engine @markdownai/parser
 ```
 
-Requires Node.js >= 18. Database adapters (PostgreSQL, MySQL, MSSQL, MongoDB, SQLite) are included but only loaded when a `@connect` directive references them.
+Node 18+. DB drivers (mongodb, pg, mysql2, mssql, better-sqlite3) load lazily on first `@connect`.
 
-## Quick Start
+## What changed in v2
 
-```ts
-import { parse } from '@markdownai/parser'
-import { execute } from '@markdownai/engine'
+- **Synchronous MongoDB reads.** `@db using="..."` actually queries Atlas / self-hosted Mongo through a sync worker. v1 stubbed this and emitted "async execution required".
+- **Struct labels.** `@db ... as=row label=feature` captures the row into `ctx.data.feature` as an object. `{{ feature.source_files }}` dot-access works on real arrays and nested objects. Same shape for `@read`, `@render-template` sinks, and anything else that pipes through `as=row` or `as=json`.
+- **`@touch`** for idempotent empty-file scaffolding.
+- **Interpolation in file ops.** `@touch`, `@update-frontmatter`, `@render-template`, `@check`, and `@test` all expand `{{ }}` in paths, commands, and template parameter values. v1 only honoured it on a subset of attributes.
+- **Test runners on the default allowlist.** `npx vitest`, `npx playwright`, `tsc`, `pnpm test*` work in `@check` / `@test` without manual `~/.markdownai/security.json` edits.
+- **Cross-call session state.** Values set with `@set` persist across `resolve_phase` calls when a `skill_session_id` is threaded through the MCP boundary. See the [MCP README](../mcp/README.md).
 
-const source = `@markdownai
+## Sandbox builtins
 
-# Project Status
+Available inside `@if` conditions and `{{ }}` interpolations:
 
-**Branch:** @query "git branch --show-current" label="branch"
-{{ branch }}
+| Builtin | Returns |
+|---|---|
+| `now_iso()` | ISO 8601 timestamp |
+| `now_ms()` | `Date.now()` |
+| `parse_iso_ms(s)` | ms since epoch from an ISO string |
+| `uuid_v4()` | random UUID |
+| `truncate(s, n)` | string clipped to n chars |
+| `to_json(v)` | JSON-stringified value |
+| `parse_brief(text)` | YAML-frontmatter-like key/value extraction |
+| `read_section(path, heading)` | section body from a markdown file |
+| `read_markdown_section(path, heading)` | same, alternative entrypoint |
+| `extract_paths(text)` | filesystem paths mentioned in prose |
+| `allowed(value, list, opts?)` | returns `value` if in list, else `false` |
 
-**Source files:** @count ./src/ match="**/*.ts"
-`
-
-const ast = parse(source)
-const result = execute(ast, {
-  ctx: {
-    security: {
-      allowShell: true,
-      allowHttp: false,
-      allowDb: false,
-      jailRoot: null,
-    }
-  }
-})
-
-if (result.errors.length === 0) {
-  console.log(result.output)
-} else {
-  console.error(result.errors)
-}
-```
-
-## Core API
-
-### `execute(ast, options?): EngineResult`
-
-Executes a parsed MarkdownAI AST and returns the rendered output.
+## Worked example
 
 ```ts
 import { parse } from '@markdownai/parser'
 import { execute, makeContext } from '@markdownai/engine'
 
-const ast = parse(source)
+const ast = parse(`@markdownai v2.0
+
+@db
+  using="local"
+  find="features"
+  where='id == "auth"'
+  as=row
+  label=feature
+  visible=false
+@db-end
+
+Feature: {{ feature.title }}
+Files: {{ feature.source_files.length }}
+`)
+
 const result = execute(ast, {
-  filePath: '/path/to/doc.md',   // used for relative path resolution
   ctx: makeContext({
-    envFiles: ['.env'],
     cwd: process.cwd(),
-    security: {
-      allowShell: false,
-      allowHttp: false,
-      allowDb: false,
-      jailRoot: null,
-    }
+    security: { allowShell: false, allowHttp: false, allowDb: true, jailRoot: null },
   })
 })
+
+console.log(result.output)        // rendered markdown
+console.log(result.data.feature)  // { title: '...', source_files: [...] }
 ```
 
-**`EngineOptions`:**
-```ts
-interface EngineOptions {
-  filePath?: string             // absolute path to the document being executed
-  ctx?: Partial<EngineContext>  // execution context (security, env, etc.)
-  passthrough?: boolean         // pass plain markdown files through unchanged instead of erroring
-}
-```
+`EngineResult` carries `output`, `errors`, `warnings`, `events`, and `data` (the struct-label bag).
 
-**`EngineResult`:**
-```ts
-interface EngineResult {
-  output: string            // the final rendered markdown
-  errors: string[]          // fatal errors that prevented execution
-  warnings: string[]        // non-fatal issues (blocked directives, missing vars, etc.)
-  events: EngineEvent[]     // events fired to the mcp transport during execution
-}
-```
+## Security model
 
-### `makeContext(options?): EngineContext`
+Loaded from `~/.markdownai/security.json` via `loadSecurityConfig()`. Defaults are restrictive:
 
-Creates a complete execution context with defaults filled in.
+- Shell - off. Allowlist starts with read-only inspection commands plus test runners.
+- HTTP - off. Domain allowlist required.
+- DB - off. Per-connection allowlist with read-only / collection / keyword restrictions.
+- Filesystem - three jails (`source_root`, `data_root`, `write_root`). Write is off by default.
+
+Immutable blocks (cannot be overridden by config): cloud metadata endpoints, pipe-to-shell patterns (`curl ... | bash`), paths that escape the jail. Blocked operations emit `SECURITY_ALERT` warnings.
+
+Full policy reference and per-jail config shapes are in `src/security/`.
+
+## Public API
 
 ```ts
-import { makeContext } from '@markdownai/engine'
+import {
+  execute, makeContext, resolveEnv,
+  loadSecurityConfig, defaultSecurityConfig,
+  evalCondition, evalExpression,
+  strip,
+  cacheKey, readCache, writeCache, clearSessionCache, clearPersistCache, showCacheEntries,
+  isBuiltin, runBuiltin,
+  loadPlugins, loadPluginsSync, getPlugin, getPluginSync, detectPlugin, clearPluginCache,
+} from '@markdownai/engine'
 
-const ctx = makeContext({
-  envFiles: ['.env.production'],
-  cwd: '/path/to/project',
-  consumer: 'ai',
-  security: {
-    allowShell: true,
-    allowHttp: true,
-    allowDb: true,
-    jailRoot: '/path/to/project',
-    shellConfig: { /* ... */ },
-    httpConfig: { /* ... */ },
-  }
-})
-```
-
-### `strip(source, options?): StripResult`
-
-Removes all MarkdownAI directives from a document, producing clean static Markdown. Conditional blocks are evaluated against the provided environment so the correct branch is preserved. `@note` blocks are always stripped regardless of their `visible` flag - `mai strip` is for producing plain markdown, not for consumer-targeted rendering.
-
-```ts
-import { strip } from '@markdownai/engine'
-
-const result = strip(source, {
-  env: { APP_ENV: 'production' },
-  keepPrompts: false,    // strip @prompt blocks (default: false)
-})
-
-console.log(result.output)     // clean markdown
-console.log(result.stripped)   // count of directives removed
-```
-
-**`StripOptions`:**
-```ts
-interface StripOptions {
-  env?: Record<string, string>   // variables for conditional evaluation
-  keepPrompts?: boolean           // preserve @prompt blocks in output
-}
-```
-
-**`StripResult`:**
-```ts
-interface StripResult {
-  output: string
-  stripped: number
-}
-```
-
-## Security
-
-All security is opt-out by default - everything that could have side effects is blocked unless explicitly enabled.
-
-### Security Config
-
-```ts
-interface SecurityConfig {
-  allowShell: boolean        // enable @query shell execution
-  allowHttp: boolean         // enable @http requests
-  allowDb: boolean           // enable @db database queries
-  jailRoot: string | null    // legacy single-jail field; superseded by filesystemConfig below
-  shellConfig?: ShellSecurityConfig
-  httpConfig?: HttpSecurityConfig
-  filesystemConfig?: FilesystemSecurityConfig
-  eventConfig?: EventSecurityConfig  // enable @event transport dispatch
-}
-
-interface FilesystemSecurityConfig {
-  // Source ops (@import, @include) - directives that bring source content
-  // into a document. Defaults to the directory of the entry document.
-  source_root?: 'auto' | 'cwd' | string
-  allowed_source_paths?: string[]
-
-  // Data ops (@list, @read, @tree, @count, @date file=, @read-frontmatter,
-  // @hash, file.* helpers, @copy from=, @test/@check working dir).
-  // Defaults to the process working directory (v1.0+). Set to 'auto' to
-  // restore the 0.x behavior of jailing data ops to the document directory.
-  data_root?: 'auto' | 'cwd' | string
-  allowed_data_paths?: string[]
-
-  // Write ops (@mkdir, @copy to=, @append-if-missing, @update-frontmatter,
-  // @render-template to=). Off by default.
-  write_enabled?: boolean
-  write_root?: 'auto' | 'cwd' | string
-  allowed_write_paths?: string[]
-
-  // Path-allowlist patterns support glob syntax and ${VAR} expansion
-  // against HOME, CLAUDE_SKILL_DIR, CLAUDE_SESSION_ID, and process env
-  // vars. Unset variables expand to empty string (fail-closed).
-}
-```
-
-**v1.0 split:** before v1.0 the engine used a single `jailRoot` for every filesystem op. v1.0 introduces three independent jails (`source_root`, `data_root`, `write_root`) because a Claude Code skill file installed at `~/.claude/commands/<name>.md` needs to read its sibling templates (source ops) while still reaching into the user's project (data ops). The single-jail model couldn't express that distinction.
-
-**Migration from 0.x:** if you relied on `jailRoot` confining `@list` / `@read` to the document directory, set `filesystemConfig.data_root = "auto"` to restore that behavior. The new default (`"cwd"`) is what most workflows want now.
-
-### Loading from disk
-
-The `mai security` commands write to `~/.markdownai/security.json`. Use `loadSecurityConfig()` to read it:
-
-```ts
-import { loadSecurityConfig } from '@markdownai/engine'
-
-const json = loadSecurityConfig()
-// json.shell.enabled, json.http.enabled, json.db, etc.
-```
-
-### Default config
-
-```ts
-import { defaultSecurityConfig } from '@markdownai/engine'
-
-// defaultSecurityConfig = {
-//   allowShell: false,
-//   allowHttp: false,
-//   allowDb: false,
-//   jailRoot: null,
-// }
-```
-
-### Immutable rules
-
-Certain operations are permanently blocked regardless of your configuration. These cannot be overridden:
-
-- Cloud metadata endpoints (`169.254.169.254`, `metadata.google.internal`, etc.)
-- Pipe-to-shell patterns (`curl ... | bash`, `wget ... | sh`)
-- Filesystem paths that escape the jail root
-
-When an immutable rule blocks something, a `SECURITY_ALERT` is emitted to stderr even if `--silent` is set.
-
-### Shell security
-
-When `allowShell: true`, shell commands run through your allowlist and deny patterns:
-
-```ts
-const shellConfig: ShellSecurityConfig = {
-  enabled: true,
-  allow_patterns: ['git log *', 'npm audit *'],
-  deny_patterns: ['rm *', 'sudo *'],
-  allow_network: false,
-  require_confirmation: false,
-  audit_log: true,
-}
-```
-
-### HTTP security
-
-When `allowHttp: true`, HTTP requests are limited to your allowed domains:
-
-```ts
-const httpConfig: HttpSecurityConfig = {
-  enabled: true,
-  allowed_domains: ['api.github.com', 'api.example.com'],
-  denied_domains: [],
-  allowed_methods: ['GET'],
-  max_response_size: 1048576,  // 1 MB
-  timeout: 10000,              // 10 seconds
-}
-```
-
-## Environment Resolution
-
-The engine resolves environment variables in a fixed priority order:
-
-1. Shell environment (`process.env`)
-2. Any env files passed via `envFiles` or `--env`
-3. Fallbacks registered via `@import` files
-4. The `fallback=` value on the directive itself
-5. Empty string (no error)
-
-```ts
-import { resolveEnv } from '@markdownai/engine'
-
-const value = resolveEnv('DATABASE_URL', ctx)
-```
-
-## Expression Evaluation
-
-The expression system is used in `@if` conditions, `{{ }}` interpolations, and `where` filters. It runs in a sandboxed `vm.runInNewContext` context - `eval()` is never used.
-
-```ts
-import { evalCondition, evalExpression } from '@markdownai/engine'
-
-// Boolean condition (for @if)
-const matches = evalCondition('env.APP_ENV == "production"', ctx)
-
-// Expression result (for {{ }})
-const value = evalExpression('date format="YYYY-MM-DD"', ctx)
-```
-
-**Supported operators:**
-- Equality: `==`, `!=`
-- Comparison: `>`, `<`, `>=`, `<=`
-- Logical: `&&`, `||`, `!`
-- Existence: `file.exists`, `file.isFile`, `file.isDir`
-- Content (v1.0+): `file.containsLine(path, regex)`, `file.containsSection(path, heading)`, `file.frontmatterField(path, field)`
-- String: `.startsWith()`, `.endsWith()`, `.includes()`
-- Ternary: `condition ? "yes" : "no"`
-- Nullish: `??` (fallback if null/undefined)
-- Optional chain: `?.`
-- Allow-list: `allowed(value, allowedValues, opts?)` - returns `value` if it is in the list, `false` otherwise; second arg can be an array or a single string; `opts.ignoreCase` for case-insensitive matching
-
-`v1.0` also fixed two parser issues that affected conditions: `||` (logical OR) is now correctly distinguished from `|` (pipe), and `${VAR}` placeholders in `@include` / `@import` paths are expanded against `HOME`, `CLAUDE_SKILL_DIR`, `CLAUDE_SESSION_ID`, and process env before the path is jailed.
-
-**Dynamic include paths** - `{{ expression }}` segments in an `@include` path are evaluated at runtime using the same sandbox as `@if` conditions. `arg0`, `ARGUMENTS`, `env.*`, and any `@foreach` loop variable work directly in the path:
-
-```markdown
-@include ./{{arg0}}-mode.md
-@include ./{{arg0 || 'default'}}-section.md
-```
-
-This replaces `@if`/`@elseif` chains that differ only in which file they include. The expanded path goes through the same jail check as a static include - no security exceptions.
-
-**@switch / @case / @default** - Multi-branch conditional that evaluates an expression and renders the first matching `@case` body. Both the switch expression and each case value support `{{ }}` dynamic expressions using the same sandbox:
-
-```markdown
-@switch {{argsList[0]}}
-  @case "build"
-    Build mode content
-  @case "audit"
-    Audit mode content
-  @default
-    Unknown command.
-@endswitch
-```
-
-First match wins, no fall-through. `@default` is optional - if absent and nothing matches, the block returns empty output. The block closes with `@endswitch`. Works nested inside `@foreach`, `@if`, or other `@switch` blocks.
-
-## Directive Inventory by Module
-
-The engine's execute step dispatches each AST node to a specialized op module. v1.0 added several modules:
-
-| Module | Directives | What it does |
-|--------|------------|--------------|
-| `exec-ops.ts` | `@test`, `@check` | Spawns runners (`pnpm test`, `tsc`, etc.), captures full combined stdout+stderr, recognizes vitest / jest / playwright / tsc / eslint / prettier output to produce optional `label_summary`. 5-minute timeout. |
-| `write-ops.ts` | `@mkdir`, `@copy`, `@append-if-missing`, `@update-frontmatter`, `@render-template` | Filesystem mutation behind `filesystem.write_enabled`. All paths jailed against `write_root`. |
-| `read-ops.ts` | `@read-frontmatter`, `@hash` | Targeted reads. `@read-frontmatter` parses YAML and returns a single scalar (lists comma-join). `@hash` supports any Node `crypto.createHash` algorithm + `length=` truncation + `exclude-line=` regex. |
-| `iter-ops.ts` | `@foreach`, `@set` | Iteration and value binding. `@foreach` binds the loop variable into `ctx.envFiles` so nested directives see `{{ var }}` substituted into their args. `@set` binds a literal, directive result, or interpolated string. |
-| `frontmatter-utils.ts` | shared by `@update-frontmatter`, `@read-frontmatter`, `file.frontmatterField` | YAML scalar / list / nested-object manipulation. Supports block-list `[append]` and `[N]` indexing. |
-| `plugin-loader.ts` | - | Scans `<projectRoot>/.markdownai/plugins/`, `~/.markdownai/plugins/`, and `/usr/share/markdownai/plugins/` for `*.plugin.md` files. Validates plugin files (no executable directives allowed). Exposes sync and async APIs. |
-| `plugin-detect-exec.ts` | `@markdownai-detect`, `@plugin-data` | Matches loaded plugins against a project using detection signals (required dirs, files, version fields). Returns formatted plugin metadata. |
-
-## Caching
-
-Add `@cache` to any data directive to cache its result:
-
-```ts
-import { cacheKey, readCache, writeCache, clearSessionCache, clearPersistCache, showCacheEntries } from '@markdownai/engine'
-
-// Read a cached value
-const cached = readCache(key)
-
-// Write to cache
-writeCache(key, value, { mode: 'session' | 'persist', ttl?: number })
-
-// List all cache entries
-const entries = showCacheEntries()
-
-// Clear session (in-memory) cache
-clearSessionCache()
-
-// Clear persistent (disk) cache
-clearPersistCache()
-```
-
-Cache modes:
-- `session` - in-memory, cleared when the process exits
-- `persist` - written to disk, survives restarts
-- `ttl=N` - session cache that expires after N seconds
-- `persist ttl=N` - disk cache that expires after N seconds
-- `mock=./file.json` - always returns the contents of a local file, never hits the real source
-
-Sensitive content is masked before anything is written to the cache.
-
-## Built-in Pipe Commands
-
-The engine includes pure-Node.js implementations of common Unix pipe utilities. These work on all platforms without spawning a shell:
-
-| Command | Behavior |
-|---------|----------|
-| `grep <pattern>` | Filter lines matching a regex |
-| `sort` | Sort lines alphabetically |
-| `sort -r` | Sort lines in reverse |
-| `head -n N` | Keep first N lines |
-| `tail -n N` | Keep last N lines |
-| `wc -l` | Count lines |
-| `uniq` | Remove consecutive duplicate lines |
-
-Shell-dependent commands (`awk`, `sed`, `jq`, etc.) spawn a child process and are Unix/WSL only. The engine detects platform at startup and warns when shell-only commands are used on Windows.
-
-```ts
-import { isBuiltin, runBuiltin } from '@markdownai/engine'
-
-if (isBuiltin('grep \\.ts$')) {
-  const filtered = runBuiltin('grep \\.ts$', lines)
-}
-```
-
-## Database Support
-
-`@markdownai/engine` includes adapters for:
-
-- **MongoDB** (`mongodb://` or `mongodb+srv://`)
-- **PostgreSQL** (`postgres://` or `postgresql://`)
-- **MySQL** (`mysql://`)
-- **MSSQL** (`mssql://`)
-- **SQLite** (`sqlite://`)
-
-Connections are established via `@connect` in your document and referenced by name in `@db` blocks. All queries run through the database security jail (read-only by default, operation allowlist, collection restrictions).
-
-## Event Broadcast (`@event`)
-
-The engine executes `@event` directives and dispatches named signals to one or more transports. All transports are blocked by default - add them to `allowed_transports` to enable.
-
-```ts
-import { parse } from '@markdownai/parser'
-import { execute } from '@markdownai/engine'
-
-const source = `@markdownai
-@event name='build-done' data='{"status":"ok"}' transport='mcp'
-`
-
-const result = execute(parse(source), {
-  ctx: {
-    security: {
-      allowShell: false, allowHttp: false, allowDb: false, jailRoot: null,
-      eventConfig: {
-        allowed_transports: ['mcp'],
-        allow_env_interpolation: false,
-        max_value_length: 500,
-        onError: 'silence',
-      },
-    },
-  },
-})
-
-for (const event of result.events) {
-  console.log(event.name, event.data, event.meta.datetime)
-}
-```
-
-**`EventSecurityConfig`:**
-
-```ts
-interface EventSecurityConfig {
-  allowed_transports: string[]    // transports permitted to receive events (empty = block all)
-  allow_env_interpolation: boolean // evaluate {{ env.VAR }} in data (default: false)
-  max_value_length: number         // hard cap on data length, never above 500
-  onError: 'silence' | 'warn' | 'fail'
-}
-```
-
-**`EngineEvent` and `EventMeta`:**
-
-Every dispatched event includes an automatically populated `meta` object with contextual debugging information:
-
-```ts
-interface EventMeta {
-  datetime: string                             // ISO 8601 timestamp
-  line: number                                 // source line in the .md file
-  runId: string                                // UUID for this execute() call
-  sessionId: string | null                     // MCP session ID, or null
-  model: string | null                         // AI model (injected by caller via ctx.model)
-  tokenUsage: number | null                    // token count (injected by caller via ctx.tokenUsage)
-  git: { hash: string; short: string } | null  // git commit at execute() start
-  callstack: string[]                          // active @phase/@call context path
-}
-
-interface EngineEvent {
-  name: string
-  data: string          // masked before dispatch - secrets replaced with ***MASKED***
-  transport: string     // which transport this copy was routed to
-  document: string      // source document path
-  phase: string | null  // active phase filter, if any
-  timestamp: number     // Date.now()
-  meta: EventMeta
-}
-```
-
-Built-in transports: `mcp` (synchronous, appears in `result.events`), `log` (stderr), `vscode` (temp file for VS Code extension), `websocket`, `file`, `http`, `db`. All non-`mcp` transports are fire-and-forget via a worker thread.
-
-## Plugin Loader (v1.2+)
-
-The engine includes a plugin loader that scans three paths for `*.plugin.md` files:
-
-1. `<projectRoot>/.markdownai/plugins/`
-2. `~/.markdownai/plugins/`
-3. `/usr/share/markdownai/plugins/`
-
-Plugin files define a framework's identity, detection signals, directory layout, and conventions. The loader validates each file - any plugin containing executable directives (`@query`, `@http`, `@db`, etc.) is rejected with a warning.
-
-```ts
-import { loadPlugins, loadPluginsSync, getPlugin, getPluginSync, detectPlugin, clearPluginCache } from '@markdownai/engine'
-import type { LoadedPlugin, PluginLoadResult } from '@markdownai/engine'
-
-// Async API
-const { plugins, warnings } = await loadPlugins('/path/to/project')
-
-// Sync API (used internally by the engine's synchronous execute())
-const { plugins, warnings } = loadPluginsSync('/path/to/project')
-
-// Get a plugin by name
-const mdd = getPluginSync('mdd', '/path/to/project')
-
-// Test whether a plugin's detection signals match a project
-const isDetected = detectPlugin(mdd, '/path/to/project')
-// checks: required_dirs, required_files, required_marker, version_signal
-
-// Clear the in-process cache (useful in tests)
-clearPluginCache()
-```
-
-`LoadedPlugin` shape:
-
-```ts
-interface LoadedPlugin {
-  name: string
-  version: string
-  description: string
-  author: string
-  detect: {
-    required_dirs?: string[]
-    required_files?: string[]
-    required_marker?: string
-    version_signal?: {
-      file: string
-      field: string
-      minimum?: string   // semver minimum
-      exact?: string
-    }
-  }
-  layout: Record<string, string>
-  conventions: Record<string, unknown>
-  filePath: string
-}
-```
-
-## Developer Tracing
-
-Set `MARKDOWNAI_TRACE` to emit a structured JSON-Lines span for every directive execution. Off by default - zero overhead when unset.
-
-```bash
-MARKDOWNAI_TRACE=stderr mai render doc.md           # print spans to stderr
-MARKDOWNAI_TRACE=file:/tmp/trace.jsonl mai render doc.md  # write spans to file
-MARKDOWNAI_TRACE=http://localhost:4317/trace mai render doc.md  # POST each span
-```
-
-Each span includes: `id`, `runId`, `ast` (`markdownai`/`markdown`/`header`), `directive` (on markdownai spans), `status` (`start`/`end`/`error`), `timestamp`, `duration`, `outputSize`, `line`, `phase`, `callstack`, `args` (always masked), `git`, `sessionId`.
-
-Directive args are masked unconditionally before serialization - credentials never appear in trace output regardless of transport.
-
-`MARKDOWNAI_TRACE=1` and `MARKDOWNAI_TRACE=true` are aliases for `stderr`.
-
-The `TraceSpan` and `TraceConfig` types are exported from this package if you need to consume spans programmatically.
-
-## TypeScript
-
-Full type declarations are included for all exports:
-
-```ts
 import type {
-  EngineContext,
-  EngineOptions,
-  EngineResult,
-  SecurityConfig,
-  ShellSecurityConfig,
-  HttpSecurityConfig,
-  DbSecurityConfig,
-  FilesystemSecurityConfig,
-  SecurityJsonConfig,
-  DbConnectionSecurityConfig,
-  EventSecurityConfig,
-  EventTransportConfig,
-  EngineEvent,
-  EventMeta,
-  Connection,
-  MacroDefinition,
-  MCPContext,
-  CacheEntry,
-  StripOptions,
-  StripResult,
-  TraceConfig,
-  TraceSpan,
+  EngineContext, EngineOptions, EngineResult,
+  SecurityConfig, ShellSecurityConfig, HttpSecurityConfig, DbSecurityConfig,
+  FilesystemSecurityConfig, EventSecurityConfig, EventTransportConfig,
+  MacroDefinition, MCPContext, EngineEvent, EventMeta, ChosenTransition,
+  StripOptions, StripResult, CacheEntry,
+  TraceConfig, TraceSpan,
+  LoadedPlugin, PluginLoadResult,
 } from '@markdownai/engine'
 ```
 
-## Part of the MarkdownAI toolchain
+## Tracing
 
-- **Parse documents** - use [`@markdownai/parser`](https://www.npmjs.com/package/@markdownai/parser)
-- **Format output** - use [`@markdownai/renderer`](https://www.npmjs.com/package/@markdownai/renderer)
-- **Run from the CLI** - install [`@markdownai/core`](https://www.npmjs.com/package/@markdownai/core) globally
-- **Serve to AI tools** - use [`@markdownai/mcp`](https://www.npmjs.com/package/@markdownai/mcp)
+Set `MARKDOWNAI_TRACE=stderr|file:<path>|<url>` to emit one JSON-Lines span per directive. Args are masked unconditionally before serialization. Zero overhead when unset.
 
 ## License
 
-MIT - [GitHub](https://github.com/TheDecipherist/markdownai)
+MIT.

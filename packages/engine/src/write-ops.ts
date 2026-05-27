@@ -6,10 +6,11 @@
 
 import { mkdirSync, copyFileSync, existsSync, readFileSync, appendFileSync, writeFileSync, statSync } from 'node:fs'
 import { resolve, isAbsolute, dirname } from 'node:path'
-import type { MkdirNode, CopyNode, AppendIfMissingNode, UpdateFrontmatterNode } from '@markdownai/parser'
+import type { MkdirNode, TouchNode, CopyNode, AppendIfMissingNode, UpdateFrontmatterNode } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
 import { checkDataPath, checkWritePath } from './security/filesystem.js'
 import { expandPattern } from './security/path-expand.js'
+import { interpolatePathSoft } from './engine-include.js'
 import { extractFrontmatter, fieldRegex } from './frontmatter-utils.js'
 
 function buildExpandContext(ctx: EngineContext) {
@@ -36,7 +37,13 @@ function ensureWriteEnabled(ctx: EngineContext, directive: string): boolean {
 
 function resolveWritePath(rawPath: string, ctx: EngineContext, directive: string): string | null {
   // ${VAR} expansion at use time so users can reference CLAUDE_SKILL_DIR etc.
-  const expanded = expandPattern(rawPath, buildExpandContext(ctx))
+  const varExpanded = expandPattern(rawPath, buildExpandContext(ctx))
+  // {{ expression }} interpolation so paths like
+  //   "${CWD}/.mdd/docs/{{ feature_id }}.md"
+  // resolve both halves. Without this, the engine substitutes ${CWD} but
+  // leaves {{ feature_id }} literal in the path, then complains the file
+  // doesn't exist with the literal {{ }} still visible in the warning.
+  const expanded = interpolatePathSoft(varExpanded, ctx)
   const writeJail = ctx.security.writeJail!
   const abs = isAbsolute(expanded) ? expanded : resolve(writeJail, expanded)
   const check = checkWritePath(abs, writeJail, ctx.security.allowedWritePaths, ctx.security.filesystemConfig)
@@ -79,6 +86,35 @@ export function executeMkdir(node: MkdirNode, ctx: EngineContext): string {
     mkdirSync(target, { recursive })
   } catch (err) {
     ctx.warnings.push(`@mkdir failed: ${node.path} — ${String(err)}`)
+  }
+  return ''
+}
+
+export function executeTouch(node: TouchNode, ctx: EngineContext): string {
+  if (!ensureWriteEnabled(ctx, '@touch')) return ''
+  const target = resolveWritePath(node.path, ctx, '@touch')
+  if (!target) return ''
+  // Idempotent: if the file already exists, do nothing. Existing content is
+  // preserved (we don't truncate). If it doesn't exist, create parents and
+  // an empty file. Used by build flows to scaffold the source files declared
+  // in a wave brief so tests can import from them and `@derive-*` directives
+  // have something to walk.
+  if (existsSync(target)) {
+    try {
+      const st = statSync(target)
+      if (st.isFile()) return ''
+      ctx.warnings.push(`@touch: path exists but is not a regular file — ${node.path}`)
+      return ''
+    } catch (err) {
+      ctx.warnings.push(`@touch failed to stat existing path: ${node.path} — ${String(err)}`)
+      return ''
+    }
+  }
+  try {
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(target, '', 'utf8')
+  } catch (err) {
+    ctx.warnings.push(`@touch failed: ${node.path} — ${String(err)}`)
   }
   return ''
 }

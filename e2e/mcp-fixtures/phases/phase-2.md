@@ -4,13 +4,13 @@
 
 @define status(module)
 Module **{{module}}** is currently being implemented.
-@end
+@define-end
 
 This is the core implementation phase.
 Write the main logic and connect all components together.
 
-@call status(module=engine)
-@call status(module=parser)
+@call status(module=engine) /
+@call status(module=parser) /
 
 Implementation checklist:
 - Core directive parsing

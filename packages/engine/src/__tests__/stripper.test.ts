@@ -19,21 +19,21 @@ describe('strip — node removal rules', () => {
   })
 
   it('removes @env directives', () => {
-    const ast = parse('@markdownai\n@env MY_VAR default\nSome text')
+    const ast = parse('@markdownai\n@env MY_VAR default /\nSome text')
     const result = strip(ast)
     expect(result.output).not.toContain('@env')
     expect(result.output).toContain('Some text')
   })
 
   it('removes @connect directives', () => {
-    const ast = parse('@markdownai\n@connect primary type=mongodb uri=env.MONGO\nSome text')
+    const ast = parse('@markdownai\n@connect primary type=mongodb uri=env.MONGO /\nSome text')
     const result = strip(ast)
     expect(result.output).not.toContain('@connect')
     expect(result.output).toContain('Some text')
   })
 
   it('keeps @phase body but removes @phase/@end tags', () => {
-    const ast = parse('@markdownai\n@phase setup\nSetup content.\n@end')
+    const ast = parse('@markdownai\n@phase setup\nSetup content.\n@phase-end')
     const result = strip(ast)
     expect(result.output).toContain('Setup content.')
     expect(result.output).not.toContain('@phase')
@@ -41,7 +41,7 @@ describe('strip — node removal rules', () => {
   })
 
   it('removes @define blocks entirely', () => {
-    const ast = parse('@markdownai\n@define greet\nHello!\n@end\nAfter')
+    const ast = parse('@markdownai\n@define greet\nHello!\n@define-end\nAfter')
     const result = strip(ast)
     expect(result.output).not.toContain('@define')
     expect(result.output).not.toContain('@end')
@@ -49,42 +49,42 @@ describe('strip — node removal rules', () => {
   })
 
   it('removes @call directives', () => {
-    const ast = parse('@markdownai\n@call greet\nAfter')
+    const ast = parse('@markdownai\n@call greet /\nAfter')
     const result = strip(ast)
     expect(result.output).not.toContain('@call')
     expect(result.output).toContain('After')
   })
 
   it('resolves @if conditional true branch', () => {
-    const ast = parse('@markdownai\n@if true\nTrue branch\n@else\nFalse branch\n@endif')
+    const ast = parse('@markdownai\n@if true\nTrue branch\n@else\nFalse branch\n@if-end')
     const result = strip(ast, { env: {} })
     expect(result.output).toContain('True branch')
     expect(result.output).not.toContain('False branch')
   })
 
   it('resolves @if with env variable', () => {
-    const ast = parse('@markdownai\n@if NODE_ENV === "production"\nProd content\n@else\nDev content\n@endif')
+    const ast = parse('@markdownai\n@if NODE_ENV === "production"\nProd content\n@else\nDev content\n@if-end')
     const result = strip(ast, { env: { NODE_ENV: 'production' } })
     expect(result.output).toContain('Prod content')
     expect(result.output).not.toContain('Dev content')
   })
 
   it('@else renders when condition is false', () => {
-    const ast = parse('@markdownai\n@if false\nTrue branch\n@else\nFalse branch\n@endif')
+    const ast = parse('@markdownai\n@if false\nTrue branch\n@else\nFalse branch\n@if-end')
     const result = strip(ast)
     expect(result.output).not.toContain('True branch')
     expect(result.output).toContain('False branch')
   })
 
   it('removes data directives (list, read, tree, date, count, db, http, query)', () => {
-    const ast = parse('@markdownai\n@list ./src\nAfter')
+    const ast = parse('@markdownai\n@list ./src /\nAfter')
     const result = strip(ast)
     expect(result.output).not.toContain('@list')
     expect(result.output).toContain('After')
   })
 
   it('removes pipe chains', () => {
-    const ast = parse('@markdownai\n@list ./src | sort | @render type=list\nAfter')
+    const ast = parse('@markdownai\n@list ./src | sort | @render type=list /\nAfter')
     const result = strip(ast)
     expect(result.output).not.toContain('@list')
     expect(result.output).toContain('After')
@@ -110,7 +110,7 @@ describe('strip — node removal rules', () => {
   })
 
   it('warns about unset variables in @if conditions', () => {
-    const ast = parse('@markdownai\n@if UNSET_VAR === "x"\nbranch\n@endif')
+    const ast = parse('@markdownai\n@if UNSET_VAR === "x"\nbranch\n@if-end')
     const result = strip(ast, { env: {} })
     expect(result.warnings.some(w => w.includes('UNSET_VAR'))).toBe(true)
   })

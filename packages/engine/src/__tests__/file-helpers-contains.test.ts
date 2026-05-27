@@ -36,7 +36,7 @@ describe('file.containsLine / file.containsSection (@if helpers)', () => {
         `@markdownai v1.0
 @if file.containsLine("CHANGELOG.md", "^## Unreleased")
   has unreleased
-@endif
+@if-end
 `,
       )
       expect(result.output).toContain('has unreleased')
@@ -50,7 +50,7 @@ describe('file.containsLine / file.containsSection (@if helpers)', () => {
   has unreleased
 @else
   no unreleased
-@endif
+@if-end
 `,
       )
       expect(result.output).toContain('no unreleased')
@@ -63,7 +63,7 @@ describe('file.containsLine / file.containsSection (@if helpers)', () => {
   found
 @else
   not found
-@endif
+@if-end
 `,
       )
       expect(result.output).toContain('not found')
@@ -78,7 +78,7 @@ describe('file.containsLine / file.containsSection (@if helpers)', () => {
         `@markdownai v1.0
 @if file.containsSection("doc.md", "## Bugs")
   has bugs
-@endif
+@if-end
 `,
       )
       expect(result.output).toContain('has bugs')
@@ -91,7 +91,7 @@ describe('file.containsLine / file.containsSection (@if helpers)', () => {
         `@markdownai v1.0
 @if file.containsSection("doc.md", "Bugs")
   has bugs section at some level
-@endif
+@if-end
 `,
       )
       expect(result.output).toContain('has bugs section at some level')
@@ -106,7 +106,7 @@ describe('file.containsLine / file.containsSection (@if helpers)', () => {
   has bugs
 @else
   no bugs
-@endif
+@if-end
 `,
       )
       expect(result.output).toContain('no bugs')
@@ -121,7 +121,7 @@ describe('file.containsLine / file.containsSection (@if helpers)', () => {
   has bugs
 @else
   no bugs
-@endif
+@if-end
 `,
       )
       expect(result.output).toContain('no bugs')

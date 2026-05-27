@@ -36,7 +36,7 @@ describe('@hash', () => {
     const expected = createHash('sha256').update(body).digest('hex')
     const result = render(
       `@markdownai v1.0
-@hash path="doc.md" label=h
+@hash path="doc.md" label=h /
 {{ h }}
 `,
     )
@@ -49,7 +49,7 @@ describe('@hash', () => {
     const full = createHash('sha256').update(body).digest('hex')
     const result = render(
       `@markdownai v1.0
-@hash path="doc.md" length=8 label=h
+@hash path="doc.md" length=8 label=h /
 {{ h }}
 `,
     )
@@ -66,10 +66,10 @@ describe('@hash', () => {
     writeFileSync(join(projectDir, 'a.md'), v1, 'utf8')
     writeFileSync(join(projectDir, 'b.md'), v2, 'utf8')
     const ra = render(
-      `@markdownai v1.0\n@hash path="a.md" exclude-line="^hash:" length=8 label=h\n{{ h }}\n`,
+      `@markdownai v1.0\n@hash path="a.md" exclude-line="^hash:" length=8 label=h /\n{{ h }}\n`,
     )
     const rb = render(
-      `@markdownai v1.0\n@hash path="b.md" exclude-line="^hash:" length=8 label=h\n{{ h }}\n`,
+      `@markdownai v1.0\n@hash path="b.md" exclude-line="^hash:" length=8 label=h /\n{{ h }}\n`,
     )
     const aHash = ra.output.trim().split('\n').pop()!.trim()
     const bHash = rb.output.trim().split('\n').pop()!.trim()
@@ -80,14 +80,14 @@ describe('@hash', () => {
   it('warns on unsupported algo', () => {
     writeFileSync(join(projectDir, 'doc.md'), 'x', 'utf8')
     const result = render(
-      `@markdownai v1.0\n@hash path="doc.md" algo=zzzzz label=h\n`,
+      `@markdownai v1.0\n@hash path="doc.md" algo=zzzzz label=h /\n`,
     )
     expect(result.warnings.join('\n')).toMatch(/unsupported algo/i)
   })
 
   it('warns when file does not exist', () => {
     const result = render(
-      `@markdownai v1.0\n@hash path="missing.md" label=h\n`,
+      `@markdownai v1.0\n@hash path="missing.md" label=h /\n`,
     )
     expect(result.warnings.join('\n')).toMatch(/does not exist/i)
   })
@@ -97,7 +97,7 @@ describe('@hash', () => {
     writeFileSync(join(projectDir, 'doc.md'), body, 'utf8')
     const md5 = createHash('md5').update(body).digest('hex')
     const result = render(
-      `@markdownai v1.0\n@hash path="doc.md" algo=md5 label=h\n{{ h }}\n`,
+      `@markdownai v1.0\n@hash path="doc.md" algo=md5 label=h /\n{{ h }}\n`,
     )
     expect(result.output).toContain(md5)
   })

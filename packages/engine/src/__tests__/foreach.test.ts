@@ -38,7 +38,7 @@ describe('@foreach', () => {
       `@markdownai v1.0
 @foreach doc in @list ./docs/ match="*.md"
 - {{ doc }}
-@end
+@foreach-end
 `,
     )
     expect(result.output).toContain('docs/a.md')
@@ -53,7 +53,7 @@ describe('@foreach', () => {
       `@markdownai v1.0
 @foreach dep in @read-frontmatter path="doc.md" field="depends_on"
 * {{ dep }}
-@end
+@foreach-end
 `,
     )
     expect(result.output).toContain('* 01-foo')
@@ -68,9 +68,9 @@ describe('@foreach', () => {
     const result = render(
       `@markdownai v1.0
 @foreach doc in @list ./docs/ match="*.md"
-@read-frontmatter path="{{ doc }}" field="status" label=s
+@read-frontmatter path="{{ doc }}" field="status" label=s /
 {{ doc }} → {{ s }}
-@end
+@foreach-end
 `,
     )
     expect(result.output).toContain('docs/01-a.md → complete')
@@ -84,7 +84,7 @@ describe('@foreach', () => {
 before
 @foreach x in @list ./empty/ match="*.md"
 body for {{ x }}
-@end
+@foreach-end
 after
 `,
     )
@@ -101,11 +101,11 @@ after
     const result = render(
       `@markdownai v1.0
 @foreach doc in @list ./docs/ match="*.md"
-@read-frontmatter path="{{ doc }}" field="status" label=s
+@read-frontmatter path="{{ doc }}" field="status" label=s /
 @if {{ s }} == "complete"
 - {{ doc }} (done)
-@endif
-@end
+@if-end
+@foreach-end
 `,
     )
     expect(result.output).toContain('docs/01.md (done)')
@@ -116,10 +116,10 @@ after
   it('iterates over a labeled variable', () => {
     const result = render(
       `@markdownai v1.0
-@date format="YYYY-MM-DD" label=today
+@date format="YYYY-MM-DD" label=today /
 @foreach d in {{ today }}
 got: {{ d }}
-@end
+@foreach-end
 `,
     )
     expect(result.output).toMatch(/got: 20\d\d-\d\d-\d\d/)
@@ -130,7 +130,7 @@ got: {{ d }}
       `@markdownai v1.0
 @foreach color in red, green, blue
 + {{ color }}
-@end
+@foreach-end
 `,
     )
     expect(result.output).toContain('+ red')
@@ -141,11 +141,11 @@ got: {{ d }}
   it('restores outer binding after iteration ends', () => {
     const result = render(
       `@markdownai v1.0
-@set x = "outer"
+@set x = "outer" /
 before: {{ x }}
 @foreach x in red, green
 inner: {{ x }}
-@end
+@foreach-end
 after: {{ x }}
 `,
     )
@@ -161,8 +161,8 @@ after: {{ x }}
 @foreach outer in a, b
 @foreach inner in 1, 2
 ({{ outer }},{{ inner }})
-@end
-@end
+@foreach-end
+@foreach-end
 `,
     )
     expect(result.output).toContain('(a,1)')

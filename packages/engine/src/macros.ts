@@ -75,6 +75,8 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
       return { ...node as DateNode, args: subArgs(node.args, args) }
     case 'mkdir':
       return { ...node, path: subStr(node.path, args), args: subArgs(node.args, args) }
+    case 'touch':
+      return { ...node, path: subStr(node.path, args), args: subArgs(node.args, args) }
     case 'copy':
       return {
         ...node,
@@ -173,6 +175,35 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
       return { ...node as ConceptNode, definition: subStr(node.definition, args) }
     case 'constraint':
       return { ...node as ConstraintNode, body: subStr(node.body, args) }
+    case 'event':
+      return {
+        ...node,
+        name: subStr(node.name, args),
+        data: subStr(node.data, args),
+        transports: node.transports.map(s => subStr(s, args)),
+      }
+    case 'markdownai-detect':
+      return {
+        ...node,
+        label: node.label === null ? null : subStr(node.label, args),
+        projectOverride: node.projectOverride === null ? null : subStr(node.projectOverride, args),
+        include: node.include.map(s => subStr(s, args)),
+      }
+    case 'plugin-data':
+      return {
+        ...node,
+        name: subStr(node.name, args),
+        label: node.label === null ? null : subStr(node.label, args),
+        projectOverride: node.projectOverride === null ? null : subStr(node.projectOverride, args),
+        include: node.include.map(s => subStr(s, args)),
+      }
+    // Plugin declarative blocks: only valid inside .plugin.md files; if they
+    // appear in a macro body the engine treats them as inert. Return as-is.
+    case 'plugin-meta':
+    case 'plugin-detect':
+    case 'plugin-layout':
+    case 'plugin-conventions':
+      return node
     // header, transition, env, graph, passthrough, chunk-boundary — no user-visible string params to substitute
     case 'header':
     case 'transition':

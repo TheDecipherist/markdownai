@@ -25,7 +25,7 @@ function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4)
 }
 
-const aiDirectiveTokens = ['@prompt ', '@define-concept ', '@constraint ', '@section ', '@chunk-boundary ']
+const aiDirectiveTokens = ['@prompt ', '@define-concept', '@constraint ', '@section ', '@chunk-boundary']
 
 function noRawAiDirectives(output: string): void {
   for (const token of aiDirectiveTokens) {
@@ -35,9 +35,9 @@ function noRawAiDirectives(output: string): void {
 
 function noRawDirectives(output: string): void {
   const blocked = [
-    '@include ', '@define ', '@call ', '@phase ', '@end\n',
-    '@list ', '@tree ', '@read ', '@count ', '@date ', '@env ',
-    '@render ', '@import ', '@if ', '@elseif ', '@else\n', '@endif',
+    '@include', '@define ', '@call', '@phase ', '@end\n',
+    '@list', '@tree', '@read', '@count', '@date', '@env',
+    '@render', '@import', '@if ', '@elseif ', '@else\n', '@if-end',
   ]
   for (const token of blocked) {
     expect(output, `output must not contain unresolved token "${token.trim()}"`).not.toContain(token)

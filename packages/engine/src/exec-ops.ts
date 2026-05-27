@@ -16,6 +16,7 @@ import type { EngineContext } from './context.js'
 import { checkDataPath, checkWritePath } from './security/filesystem.js'
 import { checkShellCommand } from './security/shell.js'
 import { expandPattern } from './security/path-expand.js'
+import { interpolatePathSoft } from './engine-include.js'
 
 function buildExpandContext(ctx: EngineContext) {
   const env: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
@@ -166,11 +167,16 @@ function runCommand(
 }
 
 export function executeTest(node: TestNode, ctx: EngineContext): string {
-  const command = node.command ?? detectCommand(ctx, ['test'])
-  if (!command) {
+  const rawCommand = node.command ?? detectCommand(ctx, ['test'])
+  if (!rawCommand) {
     ctx.warnings.push('@test: no command= provided and no scripts.test in package.json')
     return ''
   }
+  // Interpolate {{ }} in the command so e.g. `npx vitest run tests/unit/
+  // {{ feature_slug }}.test.ts` resolves before the shell runs it. Without
+  // this, vitest sees `{{` and `}}` as separate filter terms and matches
+  // nothing.
+  const command = interpolatePathSoft(rawCommand, ctx)
   const r = runCommand(command, ctx, '@test', 'test')
   if (!r) return ''
   const label = node.args['label']
@@ -188,11 +194,12 @@ export function executeTest(node: TestNode, ctx: EngineContext): string {
 }
 
 export function executeCheck(node: CheckNode, ctx: EngineContext): string {
-  const command = node.command ?? detectCommand(ctx, ['typecheck', 'check', 'lint', 'build'])
-  if (!command) {
+  const rawCommand = node.command ?? detectCommand(ctx, ['typecheck', 'check', 'lint', 'build'])
+  if (!rawCommand) {
     ctx.warnings.push('@check: no command= provided and no scripts.typecheck/check/lint/build in package.json')
     return ''
   }
+  const command = interpolatePathSoft(rawCommand, ctx)
   const r = runCommand(command, ctx, '@check', 'check')
   if (!r) return ''
   const label = node.args['label']
@@ -235,21 +242,28 @@ export function executeRenderTemplate(node: RenderTemplateNode, ctx: EngineConte
     ctx.warnings.push('@render-template: both from= and to= are required')
     return ''
   }
-  const dst = resolveWritePath(node.to, ctx, '@render-template')
+  // Interpolate {{ }} in from= and to= so dynamic state set by upstream
+  // phases (next_id, feature_slug, CWD) substitutes before the path checks
+  // hit existsSync / write jail. Without this, `{{ next_id }}` reaches
+  // existsSync as a literal segment, the write either fails the path check
+  // or creates a file literally named "{{ next_id }}-…".
+  const interpolatedFrom = interpolatePathSoft(node.from, ctx)
+  const interpolatedTo = interpolatePathSoft(node.to, ctx)
+  const dst = resolveWritePath(interpolatedTo, ctx, '@render-template')
   if (!dst) return ''
   const force = node.args['force'] === 'true'
   if (existsSync(dst) && !force) {
     return ''
   }
-  const src = resolveReadPath(node.from, ctx, '@render-template')
+  const src = resolveReadPath(interpolatedFrom, ctx, '@render-template')
   if (!src) return ''
   if (!existsSync(src)) {
-    ctx.warnings.push(`@render-template: source does not exist: ${node.from}`)
+    ctx.warnings.push(`@render-template: source does not exist: ${interpolatedFrom}`)
     return ''
   }
   let templateContent: string
   try { templateContent = readFileSync(src, 'utf8') } catch (err) {
-    ctx.warnings.push(`@render-template: cannot read template ${node.from}: ${String(err)}`)
+    ctx.warnings.push(`@render-template: cannot read template ${interpolatedFrom}: ${String(err)}`)
     return ''
   }
 
@@ -258,11 +272,20 @@ export function executeRenderTemplate(node: RenderTemplateNode, ctx: EngineConte
     return ''
   }
 
+  // Param values may contain {{ }} interpolations referencing the parent
+  // ctx's bindings (e.g. `id = {{ next_id }}-{{ feature_slug }}`). Resolve
+  // those against the PARENT ctx before passing to the child, otherwise
+  // the template sees literal `{{ next_id }}` for the value of `id`.
+  const resolvedParams: Record<string, string> = {}
+  for (const [k, raw] of Object.entries(node.params)) {
+    resolvedParams[k] = interpolatePathSoft(raw, ctx)
+  }
+
   const ast = _parse(templateContent, { filePath: src })
   if (!ast.isMarkdownAI) {
     // Plain-text template — just substitute `{{ key }}` placeholders.
     let out = templateContent
-    for (const [k, v] of Object.entries(node.params)) {
+    for (const [k, v] of Object.entries(resolvedParams)) {
       out = out.replace(new RegExp(`{{\\s*${k.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')}\\s*}}`, 'g'), v)
     }
     return writeTemplateOutput(dst, out, ctx, node.to)
@@ -270,7 +293,7 @@ export function executeRenderTemplate(node: RenderTemplateNode, ctx: EngineConte
 
   // Inject params as envFiles so `{{ key }}` interpolations and
   // `@if {{ key }} == "..."` work without macro wrappers.
-  const childEnvFiles: Record<string, string> = { ...ctx.envFiles, ...node.params }
+  const childEnvFiles: Record<string, string> = { ...ctx.envFiles, ...resolvedParams }
   const childCtx: Partial<EngineContext> = {
     cwd: ctx.cwd,
     docDir: ctx.docDir,

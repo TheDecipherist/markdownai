@@ -37,7 +37,7 @@ describe('@read-frontmatter', () => {
       '---\nid: 01-test\nstatus: complete\ntitle: Test\n---\n\nBody.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@read-frontmatter path="doc.md" field="status" label=doc_status
+@read-frontmatter path="doc.md" field="status" label=doc_status /
 Status is {{ doc_status }}.
 `,
     )
@@ -49,7 +49,7 @@ Status is {{ doc_status }}.
       '---\nid: 01-test\nsource_files:\n  - src/a.ts\n  - src/b.ts\n---\n\nBody.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@read-frontmatter path="doc.md" field="source_files" label=files
+@read-frontmatter path="doc.md" field="source_files" label=files /
 Files: {{ files }}.
 `,
     )
@@ -61,7 +61,7 @@ Files: {{ files }}.
       '---\nid: 01-test\n---\n\nBody.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@read-frontmatter path="doc.md" field="status" label=doc_status
+@read-frontmatter path="doc.md" field="status" label=doc_status /
 Status: "{{ doc_status }}".
 `,
     )
@@ -75,7 +75,7 @@ Status: "{{ doc_status }}".
     writeFileSync(join(projectDir, 'doc.md'), 'Plain text, no frontmatter.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@read-frontmatter path="doc.md" field="status"
+@read-frontmatter path="doc.md" field="status" /
 `,
     )
     expect(result.warnings.join('\n')).toMatch(/no YAML frontmatter/i)
@@ -86,7 +86,7 @@ Status: "{{ doc_status }}".
       '---\nstatus: ready\n---\n\nBody.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@read-frontmatter path="doc.md" field="status"
+@read-frontmatter path="doc.md" field="status" /
 `,
     )
     expect(result.output).toContain('ready')
@@ -97,13 +97,13 @@ Status: "{{ doc_status }}".
       '---\nstatus: complete\n---\n\nBody.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@read-frontmatter path="doc.md" field="status" label=s
+@read-frontmatter path="doc.md" field="status" label=s /
 @if {{ s }} == "complete"
   Doc is complete.
-@endif
+@if-end
 @if {{ s }} == "draft"
   Doc is draft.
-@endif
+@if-end
 `,
     )
     expect(result.output).toContain('Doc is complete.')
@@ -113,7 +113,7 @@ Status: "{{ doc_status }}".
   it('warns when file does not exist', () => {
     const result = render(
       `@markdownai v1.0
-@read-frontmatter path="missing.md" field="status"
+@read-frontmatter path="missing.md" field="status" /
 `,
     )
     expect(result.warnings.join('\n')).toMatch(/does not exist/i)

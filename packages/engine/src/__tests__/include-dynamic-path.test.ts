@@ -48,7 +48,7 @@ describe('@include {{ }} dynamic path expressions', () => {
       '@markdownai v1.0\nAudit content.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@include ./{{arg0}}-mode.md
+@include ./{{arg0}}-mode.md /
 `,
       'audit',
     )
@@ -61,7 +61,7 @@ describe('@include {{ }} dynamic path expressions', () => {
       '@markdownai v1.0\nBuild content.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@include ./{{arg0}}-mode.md
+@include ./{{arg0}}-mode.md /
 `,
       'build',
     )
@@ -73,7 +73,7 @@ describe('@include {{ }} dynamic path expressions', () => {
       '@markdownai v1.0\nDefault audit.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@include ./{{arg0 || 'audit'}}-mode.md
+@include ./{{arg0 || 'audit'}}-mode.md /
 `,
       '',
     )
@@ -86,7 +86,7 @@ describe('@include {{ }} dynamic path expressions', () => {
       '@markdownai v1.0\nProd config.\n', 'utf8')
     const filePath = join(projectDir, 'main.md')
     const content = `@markdownai v1.0
-@include ./{{env.APP_ENV}}-config.md
+@include ./{{env.APP_ENV}}-config.md /
 `
     writeFileSync(filePath, content, 'utf8')
     const ast = parse(content, { filePath })
@@ -108,7 +108,7 @@ describe('@include {{ }} dynamic path expressions', () => {
       '@markdownai v1.0\nV2 report.\n', 'utf8')
     const result = render(
       `@markdownai v1.0
-@include ./{{arg0}}-{{arg1}}.md
+@include ./{{arg0}}-{{arg1}}.md /
 `,
       'v2 report',
     )
@@ -119,7 +119,7 @@ describe('@include {{ }} dynamic path expressions', () => {
     // arg0 is '' with no fallback — evalExpression returns '' → FatalError stored in errors
     const result = render(
       `@markdownai v1.0
-@include ./{{arg0}}-mode.md
+@include ./{{arg0}}-mode.md /
 `,
       '',
     )
@@ -130,7 +130,7 @@ describe('@include {{ }} dynamic path expressions', () => {
     // noSuchVar is not in sandbox — evalExpression returns '' → FatalError stored in errors
     const result = render(
       `@markdownai v1.0
-@include ./{{noSuchVar}}-mode.md
+@include ./{{noSuchVar}}-mode.md /
 `,
       '',
     )
@@ -140,7 +140,7 @@ describe('@include {{ }} dynamic path expressions', () => {
   it('blocks path traversal introduced by dynamic expression value', () => {
     const result = render(
       `@markdownai v1.0
-@include ./{{arg0}}-mode.md
+@include ./{{arg0}}-mode.md /
 `,
       '../../etc/shadow',
     )
@@ -151,7 +151,7 @@ describe('@include {{ }} dynamic path expressions', () => {
   it('emits a warning (not fatal) when the resolved file does not exist', () => {
     const result = render(
       `@markdownai v1.0
-@include ./{{arg0}}-mode.md
+@include ./{{arg0}}-mode.md /
 `,
       'nonexistent',
     )
@@ -167,8 +167,8 @@ describe('@include {{ }} dynamic path expressions', () => {
     const result = render(
       `@markdownai v1.0
 @foreach mode in audit,build
-@include ./{{mode}}-section.md
-@end
+@include ./{{mode}}-section.md /
+@foreach-end
 `,
     )
     expect(result.errors).toHaveLength(0)
@@ -182,8 +182,8 @@ describe('@include {{ }} dynamic path expressions', () => {
     const result = render(
       `@markdownai v1.0
 @foreach mode in build
-@include ./{{mode || 'audit'}}-section.md
-@end
+@include ./{{mode || 'audit'}}-section.md /
+@foreach-end
 `,
     )
     expect(result.errors).toHaveLength(0)

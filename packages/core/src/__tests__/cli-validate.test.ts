@@ -35,21 +35,21 @@ describe('runValidate', () => {
   })
 
   it('reports error for missing @include file', () => {
-    const file = write('include-bad.md', '@markdownai\n\n@include ./nonexistent.md\n')
+    const file = write('include-bad.md', '@markdownai\n\n@include ./nonexistent.md /\n')
     const result = runValidate(file)
     expect(result.exitCode).toBe(1)
     expect(result.errors.some(e => e.includes('@include'))).toBe(true)
   })
 
   it('reports error for undefined @call macro', () => {
-    const file = write('call-bad.md', '@markdownai\n\n@call undefined_macro\n')
+    const file = write('call-bad.md', '@markdownai\n\n@call undefined_macro /\n')
     const result = runValidate(file)
     expect(result.exitCode).toBe(1)
     expect(result.errors.some(e => e.includes('@call'))).toBe(true)
   })
 
   it('reports warning for @env without fallback', () => {
-    const file = write('env-warn.md', '@markdownai\n\n@env NO_FALLBACK_VAR_123\n')
+    const file = write('env-warn.md', '@markdownai\n\n@env NO_FALLBACK_VAR_123 /\n')
     const result = runValidate(file)
     expect(result.warnings.some(w => w.includes('@env'))).toBe(true)
   })
@@ -76,7 +76,7 @@ describe('runParse', () => {
   })
 
   it('filters to specific node type with --node', () => {
-    const file = write('parse-node.md', '@markdownai\n\n# Hello\n\n@env FOO fallback="bar"\n')
+    const file = write('parse-node.md', '@markdownai\n\n# Hello\n\n@env FOO fallback="bar" /\n')
     const result = runParse(file, { node: 'env' })
     const ast = JSON.parse(result.output) as { nodes: Array<{ type: string }> }
     expect(ast.nodes.every(n => n.type === 'env')).toBe(true)
@@ -136,22 +136,22 @@ describe('loadEnvFile', () => {
 
 describe('ISSUE-002 — runRender loads security config and passes it to engine', () => {
   it('runRender accepts a securityConfig option that enables @query execution', () => {
-    const file = write('query-shell.md', '@markdownai\n@query "echo shellworks" label="out"\n{{ out }}\n')
+    const file = write('query-shell.md', '@markdownai\n@query "echo shellworks" label="out" /\n{{ out }}\n')
     const result = runRender(file, { securityConfig: { allowShell: true, allowHttp: false, allowDb: false, jailRoot: TMP } })
     expect(result.exitCode).toBe(0)
     expect(result.output).toContain('shellworks')
   })
 
-  it('@query in rendered doc returns empty string when securityConfig has allowShell: false', () => {
-    const file = write('query-blocked.md', '@markdownai\n@query "echo blocked" label="out"\n{{ out }}\n')
+  it('@query in rendered doc returns empty string when securityConfig has allowShell: false /', () => {
+    const file = write('query-blocked.md', '@markdownai\n@query "echo blocked" label="out" /\n{{ out }}\n')
     const result = runRender(file, { securityConfig: { allowShell: false, allowHttp: false, allowDb: false, jailRoot: TMP } })
     expect(result.exitCode).toBe(0)
     expect(result.output.trim()).toBe('')
     expect(result.errors).toHaveLength(0)
   })
 
-  it('@query in @define/@call is accessible to caller when securityConfig enables shell', () => {
-    const src = '@markdownai\n@define q_macro\n@query "echo macroworks" label="result"\n@end\n@call q_macro\n{{ result }}\n'
+  it('@query in @define/@call is accessible to caller when securityConfig enables shell /', () => {
+    const src = '@markdownai\n@define q_macro\n@query "echo macroworks" label="result" /\n@define-end\n@call q_macro /\n{{ result }}\n'
     const file = write('macro-query.md', src)
     const result = runRender(file, { securityConfig: { allowShell: true, allowHttp: false, allowDb: false, jailRoot: TMP } })
     expect(result.exitCode).toBe(0)

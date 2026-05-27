@@ -96,8 +96,41 @@ export interface SecurityJsonConfig {
 export function defaultSecurityConfig(): SecurityJsonConfig {
   return {
     shell: {
-      enabled: false,
-      allow_patterns: [],
+      // Enabled by default with a curated allowlist of read-only commands
+      // commonly used by flow files (git introspection, file/system reads,
+      // text processing). The immutable always-block list (SHELL_ALWAYS_BLOCK
+      // in rules.ts) still applies — destructive commands like rm/dd/mkfs
+      // and code execution like `node -e`/`eval` are unconditionally blocked
+      // regardless of allowlist. Users who want a stricter default can drop
+      // `~/.markdownai/security.json` with their own shell.allow_patterns.
+      enabled: true,
+      allow_patterns: [
+        'git *',                          // branch, log, status, diff, rev-parse, config, show, etc.
+        'cat *',                          // read text files
+        'head *', 'tail *', 'wc *',       // text processing
+        'grep *', 'sort *', 'uniq *',
+        'find *',
+        'ls', 'ls *',
+        'pwd',
+        'whoami', 'id',
+        'hostname',
+        'which *',
+        'echo *',
+        'date', 'date *',
+        'test *',                         // POSIX file tests
+        // Test runners and build tools — flow files use @test and @check to
+        // run these via the engine's allowlisted shell. The runners are
+        // read-only (they execute the test suite, exit code is the signal)
+        // and standard in any JS/TS project.
+        'npx vitest*', 'npx jest*', 'npx playwright*',
+        'pnpm test*', 'pnpm run test*', 'pnpm vitest*', 'pnpm exec vitest*',
+        'pnpm typecheck*', 'pnpm run typecheck*',
+        'pnpm lint*', 'pnpm run lint*',
+        'pnpm build*', 'pnpm run build*',
+        'pnpm tsc*', 'npx tsc*', 'tsc', 'tsc *',
+        'node --test*',
+        'vitest*',
+      ],
       deny_patterns: [],
       allow_network: false,
       require_confirmation: false,

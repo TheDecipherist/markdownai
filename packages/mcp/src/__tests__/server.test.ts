@@ -77,7 +77,7 @@ describe('listPhases', () => {
 
   it('returns phases from a document with @phase', () => {
     setup()
-    const content = '@markdownai\n@phase setup\nContent.\n@on complete -> @phase teardown\n@end\n@phase teardown\nDone.\n@end'
+    const content = '@markdownai\n@phase setup\nContent.\n@on-complete @phase teardown /\n@phase-end\n@phase teardown\nDone.\n@phase-end'
     writeFileSync(join(TMP, 'phases.md'), content)
     const result = listPhases('phases.md', TMP)
     expect(result.phases.length).toBe(2)
@@ -88,7 +88,7 @@ describe('listPhases', () => {
 
   it('returns transitions for each phase', () => {
     setup()
-    const content = '@markdownai\n@phase step1\nContent.\n@on complete -> @phase step2\n@end\n@phase step2\nDone.\n@end'
+    const content = '@markdownai\n@phase step1\nContent.\n@on-complete @phase step2 /\n@phase-end\n@phase step2\nDone.\n@phase-end'
     writeFileSync(join(TMP, 'trans.md'), content)
     const result = listPhases('trans.md', TMP)
     expect(result.phases[0]?.transitions.length).toBe(1)
@@ -113,15 +113,15 @@ describe('listPhases', () => {
 
 describe('resolvePhase', () => {
   it('returns found=false for missing file', () => {
-    const result = resolvePhase('missing.md', 'setup', '/tmp')
+    const result = resolvePhase({ filePath: 'missing.md', phase: 'setup' }, '/tmp')
     expect(result.found).toBe(false)
   })
 
   it('resolves phase content', () => {
     setup()
-    const content = '@markdownai\n@phase setup\nSetup content.\n@end\n@phase teardown\nTeardown.\n@end'
+    const content = '@markdownai\n@phase setup\nSetup content.\n@phase-end\n@phase teardown\nTeardown.\n@phase-end'
     writeFileSync(join(TMP, 'doc.md'), content)
-    const result = resolvePhase('doc.md', 'setup', TMP)
+    const result = resolvePhase({ filePath: 'doc.md', phase: 'setup' }, TMP)
     expect(result.found).toBe(true)
     expect(result.content).toContain('Setup content.')
     expect(result.content).not.toContain('Teardown.')
@@ -130,8 +130,8 @@ describe('resolvePhase', () => {
 
   it('returns found=false for non-existent phase', () => {
     setup()
-    writeFileSync(join(TMP, 'doc2.md'), '@markdownai\n@phase setup\nContent.\n@end')
-    const result = resolvePhase('doc2.md', 'nonexistent', TMP)
+    writeFileSync(join(TMP, 'doc2.md'), '@markdownai\n@phase setup\nContent.\n@phase-end')
+    const result = resolvePhase({ filePath: 'doc2.md', phase: 'nonexistent' }, TMP)
     expect(result.found).toBe(false)
     teardown()
   })
@@ -139,16 +139,16 @@ describe('resolvePhase', () => {
 
 describe('nextPhase', () => {
   it('returns null for missing file', () => {
-    const result = nextPhase('missing.md', 'setup', '/tmp')
+    const result = nextPhase({ filePath: 'missing.md', currentPhase: 'setup' }, '/tmp')
     expect(result.found).toBe(false)
     expect(result.phase).toBeNull()
   })
 
   it('returns next phase from @on complete transition', () => {
     setup()
-    const content = '@markdownai\n@phase setup\nContent.\n@on complete -> @phase teardown\n@end\n@phase teardown\nDone.\n@end'
+    const content = '@markdownai\n@phase setup\nContent.\n@on-complete @phase teardown /\n@phase-end\n@phase teardown\nDone.\n@phase-end'
     writeFileSync(join(TMP, 'next.md'), content)
-    const result = nextPhase('next.md', 'setup', TMP)
+    const result = nextPhase({ filePath: 'next.md', currentPhase: 'setup' }, TMP)
     expect(result.found).toBe(true)
     expect(result.phase).toBe('teardown')
     teardown()
@@ -156,8 +156,8 @@ describe('nextPhase', () => {
 
   it('returns null phase when no transition defined', () => {
     setup()
-    writeFileSync(join(TMP, 'last.md'), '@markdownai\n@phase final\nDone.\n@end')
-    const result = nextPhase('last.md', 'final', TMP)
+    writeFileSync(join(TMP, 'last.md'), '@markdownai\n@phase final\nDone.\n@phase-end')
+    const result = nextPhase({ filePath: 'last.md', currentPhase: 'final' }, TMP)
     expect(result.found).toBe(true)
     expect(result.phase).toBeNull()
     teardown()
@@ -166,7 +166,7 @@ describe('nextPhase', () => {
 
 describe('executeDirective', () => {
   it('executes @env directive', () => {
-    const result = executeDirective('@env TEST_EXEC_VAR fallback', process.cwd(), { TEST_EXEC_VAR: 'value' })
+    const result = executeDirective('@env TEST_EXEC_VAR fallback /', process.cwd(), { TEST_EXEC_VAR: 'value' })
     expect(result.errors).toHaveLength(0)
   })
 
@@ -177,7 +177,7 @@ describe('executeDirective', () => {
   })
 
   it('rejects @query — not in MCP allowlist', () => {
-    const result = executeDirective('@query "echo hello"', process.cwd())
+    const result = executeDirective('@query "echo hello" /', process.cwd())
     expect(result.output.trim()).toBe('')
     expect(result.errors.length).toBeGreaterThan(0)
     expect(result.errors[0]).toContain('not permitted via MCP')
@@ -189,32 +189,32 @@ describe('executeDirective', () => {
   })
 
   it('rejects @http — not in MCP allowlist', () => {
-    const result = executeDirective('@http url=https://example.com', process.cwd())
+    const result = executeDirective('@http url=https://example.com /', process.cwd())
     expect(result.errors[0]).toContain('not permitted via MCP')
   })
 
   it('rejects @db — not in MCP allowlist', () => {
-    const result = executeDirective('@db sql="SELECT 1"', process.cwd())
+    const result = executeDirective('@db sql="SELECT 1" /', process.cwd())
     expect(result.errors[0]).toContain('not permitted via MCP')
   })
 
   it('rejects @include — not in MCP allowlist', () => {
-    const result = executeDirective('@include file.md', process.cwd())
+    const result = executeDirective('@include file.md /', process.cwd())
     expect(result.errors[0]).toContain('not permitted via MCP')
   })
 
   it('rejects @import — not in MCP allowlist', () => {
-    const result = executeDirective('@import macros.md', process.cwd())
+    const result = executeDirective('@import macros.md /', process.cwd())
     expect(result.errors[0]).toContain('not permitted via MCP')
   })
 
   it('rejects @connect — not in MCP allowlist', () => {
-    const result = executeDirective('@connect name=db type=postgres', process.cwd())
+    const result = executeDirective('@connect name=db type=postgres /', process.cwd())
     expect(result.errors[0]).toContain('not permitted via MCP')
   })
 
   it('rejects embedded newlines (injection attempt)', () => {
-    const result = executeDirective('@env SAFE_VAR\n@shell rm -rf /', process.cwd())
+    const result = executeDirective('@env SAFE_VAR /\n@shell rm -rf /', process.cwd())
     // newline stripped — only @env is processed, @shell part becomes part of the env directive
     expect(result.errors).toHaveLength(0)
   })
@@ -241,7 +241,7 @@ describe('getConstraints', () => {
 
   it('returns constraints from a MarkdownAI document', () => {
     setup()
-    const content = '@markdownai\n@constraint id=C1 severity=high\nAll inputs must be validated.\n@end'
+    const content = '@markdownai\n@constraint id=C1 severity=high\nAll inputs must be validated.\n@constraint-end'
     writeFileSync(join(TMP, 'constrained.md'), content)
     const result = getConstraints('constrained.md', TMP)
     expect(result.isMarkdownAI).toBe(true)
