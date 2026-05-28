@@ -28,7 +28,8 @@ function registerAutoClose(context: vscode.ExtensionContext): void {
         const ifMatch = !blockMatch ? IF_OPENER.exec(lineText) : null;
         if (!blockMatch && !ifMatch) continue;
         const indent = (blockMatch ?? ifMatch)![1] ?? '';
-        const closer = blockMatch ? '@end' : '@endif';
+        const closerName = blockMatch ? (blockMatch[2] ?? 'end') : 'if';
+        const closer = `@${closerName}-end`;
         const cursorLine = sourceLineNum + 1;
         if (cursorLine + 1 < doc.lineCount) {
           const nextText = doc.lineAt(cursorLine + 1).text.trim();

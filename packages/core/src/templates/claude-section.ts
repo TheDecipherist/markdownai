@@ -38,10 +38,10 @@ Do not convert existing .md files that are not already MarkdownAI documents.
 
 ### MarkdownAI formatting style
 
-When writing or generating MarkdownAI files, indent body content inside block directives by 2 spaces. \`@end\` (or \`@endif\`) closes at the same indent level as the opener.
+When writing or generating MarkdownAI files, indent body content inside block directives by 2 spaces. Block directives close with \`@<name>-end\` at the same indent level as the opener.
 
-Block directives that require \`@end\`: \`@phase\`, \`@define\`, \`@note\`, \`@section\`, \`@prompt\`
-Block directive that requires \`@endif\`: \`@if\` (and \`@else\` at the opener level)
+Block directives close with \`@<name>-end\`: \`@phase\`, \`@define\`, \`@note\`, \`@section\`, \`@prompt\`
+\`@if\` closes with \`@if-end\` (and \`@else\` in between)
 Single-line directives with no closing tag: \`@constraint\`, \`@define-concept\`, \`@env\`,
 \`@include\`, \`@import\`, \`@call\`, \`@on complete\`, \`@read\`, \`@list\`, \`@tree\`, \`@count\`,
 \`@http\`, \`@chunk-boundary\`
@@ -52,12 +52,12 @@ Example:
   @constraint[critical] Environment must be validated before proceeding
   @note visible
     This phase configures the runtime environment.
-  @end
+  @note-end
   @if env.CI
     Running in CI mode.
-  @endif
+  @if-end
   @on complete -> @phase main
-@end
+@phase-end
 \`\`\`
 
 ${SECTION_END_MARKER}`

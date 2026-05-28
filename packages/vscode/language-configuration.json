@@ -4,7 +4,7 @@
   },
   "indentationRules": {
     "increaseIndentPattern": "^\\s*@(phase|define|if|note|section|prompt|foreach|render-template)\\b",
-    "decreaseIndentPattern": "^\\s*@(end|endif|else)\\s*$"
+    "decreaseIndentPattern": "^\\s*@([\\w-]+-end|else)\\s*$"
   },
   "onEnterRules": [
     {

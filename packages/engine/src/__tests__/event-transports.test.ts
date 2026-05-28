@@ -362,13 +362,19 @@ describe('@event — file transport /', () => {
 
 describe('@event — http transport /', () => {
   it('requires a valid URL — invalid URL throws before sending', () => {
-    expect(() => fireHttp(makeEvent(), 'not-a-url', {}, ['example.com'])).toThrow(/invalid URL/)
+    expect(() => fireHttp(makeEvent(), 'not-a-url', {}, ['example.com'])).toThrow(/Invalid URL/)
   })
 
   it('blocks the request when the domain is not in allowed_domains', () => {
     expect(() =>
       fireHttp(makeEvent(), 'https://evil.com/hook', {}, ['allowed.com'])
-    ).toThrow(/domain not allowlisted/)
+    ).toThrow(/Domain not in allowlist/)
+  })
+
+  it('blocks cloud metadata endpoint even when domain is in allowed_domains', () => {
+    expect(() =>
+      fireHttp(makeEvent(), 'http://169.254.169.254/latest/meta-data/', {}, ['169.254.169.254'])
+    ).toThrow(/Cloud metadata/)
   })
 
   it('posted body contains name, data, document, phase, and timestamp', () => {

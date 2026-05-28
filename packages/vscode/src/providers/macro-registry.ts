@@ -80,7 +80,7 @@ export function scanDocumentMacros(text: string, filePath: string): MacroInfo[] 
 
     for (let j = i + 1; j < lines.length; j++) {
       const jLine = lines[j] ?? '';
-      if (jLine.trim() === '@end') break;
+      if (jLine.trim() === '@define-end') break;
       const labelMatch = jLine.match(LABEL_RE);
       if (labelMatch) {
         label = labelMatch[1] ?? '';

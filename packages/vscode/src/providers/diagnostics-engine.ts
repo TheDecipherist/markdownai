@@ -12,7 +12,7 @@ interface OpenBlock {
 }
 
 const IF_RE = /^@if\b/;
-const ENDIF_RE = /^@endif\b/;
+const IF_END_RE = /^@if-end\b/;
 const ELSEIF_RE = /^@elseif\b/;
 const ELSE_RE = /^@else\b/;
 const DEFINE_RE = /^@define\b/;
@@ -22,7 +22,7 @@ const SECTION_RE = /^@section\b/;
 const PROMPT_RE = /^@prompt\b/;
 const FOREACH_RE = /^@foreach\b/;
 const RENDER_TEMPLATE_RE = /^@render-template\b/;
-const END_RE = /^@end\b/;
+const BLOCK_END_RE = /^@[\w][\w-]*-end\b/;
 const CALL_RE = /^@call\s+([\w-]+)/;
 
 function checkCallReference(
@@ -56,9 +56,9 @@ function processLine(
         severity: 'error',
       });
     }
-  } else if (ENDIF_RE.test(trimmed)) {
+  } else if (IF_END_RE.test(trimmed)) {
     if (ifStack.length === 0) {
-      diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: '@endif with no matching @if', severity: 'error' });
+      diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: '@if-end with no matching @if', severity: 'error' });
     } else {
       ifStack.pop();
     }
@@ -76,9 +76,9 @@ function processLine(
     blockStack.push({ directive: 'foreach', line: lineNum });
   } else if (RENDER_TEMPLATE_RE.test(trimmed)) {
     blockStack.push({ directive: 'render-template', line: lineNum });
-  } else if (END_RE.test(trimmed)) {
+  } else if (BLOCK_END_RE.test(trimmed)) {
     if (blockStack.length === 0) {
-      diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: '@end with no matching block directive', severity: 'error' });
+      diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: `${trimmed} with no matching block directive`, severity: 'error' });
     } else {
       blockStack.pop();
     }
@@ -93,13 +93,13 @@ function reportUnclosed(
   for (const block of ifStack) {
     diagnostics.push({
       line: block.line, startChar: 0, endChar: (lines[block.line] ?? '').length,
-      message: 'Unclosed @if block - missing @endif', severity: 'error',
+      message: 'Unclosed @if block - missing @if-end', severity: 'error',
     });
   }
   for (const block of blockStack) {
     diagnostics.push({
       line: block.line, startChar: 0, endChar: (lines[block.line] ?? '').length,
-      message: `Unclosed @${block.directive} block - missing @end`, severity: 'error',
+      message: `Unclosed @${block.directive} block - missing @${block.directive}-end`, severity: 'error',
     });
   }
 }

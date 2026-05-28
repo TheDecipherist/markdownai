@@ -20,6 +20,10 @@ export interface ValidateResult {
 export function runValidate(filePath: string, options: ValidateOptions = {}): ValidateResult {
   const cwd = options.cwd ?? process.cwd()
   const resolved = resolve(cwd, filePath)
+  const pathCheck = checkAbsolutePath(resolved)
+  if (pathCheck.level === 'blocked') {
+    return { errors: [`File blocked by security policy: ${pathCheck.reason}`], warnings: [], exitCode: 1 }
+  }
   let source: string
   try {
     source = readFileSync(resolved, 'utf8')
