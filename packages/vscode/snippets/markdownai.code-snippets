@@ -9,7 +9,7 @@
     "body": [
       "@phase ${1:name}",
       "  $0",
-      "@end"
+      "@phase-end"
     ],
     "description": "@phase — Named phase block. Resolved individually via resolve_phase()."
   },
@@ -18,16 +18,16 @@
     "body": [
       "@define ${1:name}(${2:args})",
       "  $0",
-      "@end"
+      "@define-end"
     ],
-    "description": "@define — Define a reusable macro block. Closes with @end."
+    "description": "@define — Define a reusable macro block. Closes with @define-end."
   },
   "Prompt block": {
     "prefix": "@prompt",
     "body": [
       "@prompt",
       "  $0",
-      "@end"
+      "@prompt-end"
     ],
     "description": "@prompt — AI instructions embedded in the document (stripped from non-AI renders)"
   },
@@ -36,7 +36,7 @@
     "body": [
       "@section ${1:name}",
       "  $0",
-      "@end"
+      "@section-end"
     ],
     "description": "@section — Named section block"
   },
@@ -45,7 +45,7 @@
     "body": [
       "@note",
       "  $0",
-      "@end"
+      "@note-end"
     ],
     "description": "@note — Note block. Body is hidden unless 'visible' keyword is added."
   },
@@ -54,7 +54,7 @@
     "body": [
       "@note visible",
       "  $0",
-      "@end"
+      "@note-end"
     ],
     "description": "@note visible — Note block rendered as a blockquote"
   },
@@ -63,9 +63,9 @@
     "body": [
       "@if ${1:condition}",
       "  $0",
-      "@endif"
+      "@if-end"
     ],
-    "description": "@if — Conditional block. Closes with @endif (not @end)."
+    "description": "@if — Conditional block. Closes with @if-end."
   },
   "If/else block": {
     "prefix": "@ifelse",
@@ -74,7 +74,7 @@
       "  $2",
       "@else",
       "  $3",
-      "@endif"
+      "@if-end"
     ],
     "description": "@if/@else — Conditional block with fallback branch"
   },
@@ -88,9 +88,9 @@
       "    $5",
       "  @default",
       "    $6",
-      "@endswitch"
+      "@switch-end"
     ],
-    "description": "@switch — Multi-branch conditional. Evaluates an expression and renders the first matching @case body. Supports {{ }} expressions including ARGUMENTS and env vars. Closes with @endswitch."
+    "description": "@switch — Multi-branch conditional. Evaluates an expression and renders the first matching @case body. Supports {{ }} expressions including ARGUMENTS and env vars. Closes with @switch-end."
   },
   "Call macro": {
     "prefix": "@call",
@@ -167,7 +167,7 @@
     "body": [
       "@foreach ${1:item} in ${2:@list ./path match=\"*.md\"}",
       "  $0",
-      "@end"
+      "@foreach-end"
     ],
     "description": "@foreach — Iterate a list source. Body renders once per item; {{ ${1} }} is bound inside. (v1.0+)"
   },
@@ -239,7 +239,7 @@
     "body": [
       "@render-template from=\"${1:./template.md}\" to=\"${2:./output.md}\"",
       "  ${3:key}=${4:value}",
-      "@end"
+      "@render-template-end"
     ],
     "description": "@render-template — Render a template with injected parameters and write to disk. Idempotent by default; force overwrites. (v1.0+)"
   }

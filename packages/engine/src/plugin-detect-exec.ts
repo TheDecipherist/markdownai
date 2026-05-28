@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import type { MarkdownaiDetectNode, PluginDataNode } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
 import { loadPluginsSync, detectPlugin, getPluginSync } from './plugin-loader.js'
@@ -6,7 +7,14 @@ import type { LoadedPlugin, PluginLayout, PluginConventions, PluginMeta, PluginD
 const PLUGIN_FILE_ONLY = new Set(['plugin-meta', 'plugin-detect', 'plugin-layout', 'plugin-conventions'])
 
 function resolveProjectRoot(override: string | null, ctx: EngineContext): string {
-  return override && override.length > 0 ? override : ctx.cwd
+  if (!override || override.length === 0) return ctx.cwd
+  const resolved = resolve(ctx.cwd, override)
+  const jail = ctx.security.jailRoot
+  if (jail !== null && !resolved.startsWith(jail + '/') && resolved !== jail) {
+    ctx.warnings.push(`@markdownai-detect: projectOverride "${override}" escapes jail — using cwd`)
+    return ctx.cwd
+  }
+  return resolved
 }
 
 function formatMeta(meta: PluginMeta): string {

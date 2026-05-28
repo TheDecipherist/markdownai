@@ -1,14 +1,8 @@
 import * as nodeHttp from 'node:http'
 import * as nodeHttps from 'node:https'
 import type { EngineEvent } from '../context.js'
-
-function extractHostname(rawUrl: string): string {
-  try {
-    return new URL(rawUrl).hostname
-  } catch {
-    throw new Error(`[event-http] invalid URL: ${rawUrl}`)
-  }
-}
+import { checkHttpUrl } from '../security/http.js'
+import type { HttpSecurityConfig } from '../security/config.js'
 
 export function fireHttp(
   event: EngineEvent,
@@ -16,10 +10,17 @@ export function fireHttp(
   headers: Record<string, string>,
   allowedDomains: string[]
 ): void {
-  const hostname = extractHostname(url)
-
-  if (!allowedDomains.includes(hostname)) {
-    throw new Error(`[event-http] domain not allowlisted: ${hostname}`)
+  const httpConfig: HttpSecurityConfig = {
+    enabled: true,
+    allowed_domains: allowedDomains ?? [],
+    denied_domains: [],
+    allowed_methods: ['POST'],
+    max_response_size: 0,
+    timeout: 0,
+  }
+  const check = checkHttpUrl(url, httpConfig, 'POST')
+  if (!check.allowed) {
+    throw new Error(`[event-http] ${check.reason}`)
   }
 
   const body = JSON.stringify(event)

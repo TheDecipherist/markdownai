@@ -15,14 +15,14 @@ This plugin registers ExampleFramework projects so MarkdownAI can detect them.
   framework_name: ExampleFramework
   framework_version: ">=1.0.0"
   marker_version: exf-v1
-@end
+@plugin-meta-end
 
 @plugin-detect
   required_dirs:
     - .exf
   required_files:
     - exf.config.json
-@end
+@plugin-detect-end
 
 @plugin-layout
   directories:
@@ -30,9 +30,9 @@ This plugin registers ExampleFramework projects so MarkdownAI can detect them.
     .exf/templates/: Template files
   files:
     exf.config.json: Main configuration file
-@end
+@plugin-layout-end
 
 @plugin-conventions
   naming:
     template_files: kebab-case with .exf.md extension
-@end
+@plugin-conventions-end

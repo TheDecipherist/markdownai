@@ -259,7 +259,11 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
     case 'env': return resolveEnv(node.name, node.fallback, ctx)
     case 'connect': {
       if (!VALID_CONNECTION_TYPES.has(node.connectionType)) ctx.warnings.push(`Unknown connection type: "${node.connectionType}" for connection "${node.name}"`)
-      ctx.connections[node.name] = { type: node.connectionType, args: node.args }
+      const maskedConnArgs: Record<string, string> = {}
+      for (const [k, v] of Object.entries(node.args)) {
+        maskedConnArgs[k] = applyMasking(v).masked
+      }
+      ctx.connections[node.name] = { type: node.connectionType, args: maskedConnArgs }
       if (node.local) ctx.localConnectionNames.add(node.name)
       return ''
     }
