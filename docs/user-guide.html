@@ -207,6 +207,7 @@ mai init</code></pre>
         <a href="#query">@query Shell</a>
         <a href="#phases">@phase / @graph</a>
         <a href="#iteration">@foreach / @set</a>
+        <a href="#template-data">@template / @data</a>
         <a href="#read-helpers">@read-frontmatter / @hash</a>
         <a href="#exec">@test / @check</a>
         <a href="#write-directives">Write Directives</a>
@@ -1484,6 +1485,84 @@ Cutting branch {{ release_branch }} for the {{ today }} release.</code></pre>
 
         <p>
           Each iteration includes a different file. If a file is missing, a warning is emitted and that iteration produces no output - the loop continues.
+        </p>
+      </section>
+
+      <!-- ===== TEMPLATE / DATA ===== -->
+      <section id="template-data">
+        <h2>@template and @data</h2>
+
+        <p>
+          <code>@template</code> inlines another MarkdownAI document at the call site and binds it to
+          a data context, like a partial in Angular or Vue. <code>@data</code> composes a single
+          object from any in-scope values so the same composite can feed multiple template renders.
+          Together they let you reuse the same rendered fragment for a list of database rows, a
+          paginated response, or any other collection - including from inside an <code>@foreach</code>
+          - while keeping every existing file-resolution, security, and scope rule intact.
+        </p>
+
+        <pre><code class="language-markdown">@markdownai v2.0
+
+@db users from=mainDb query="SELECT * FROM users" label=users /
+@set siteName = "Acme" /
+
+@data myReport
+  ...baseConfig
+  users = users
+  site.name = siteName
+  site.theme = "dark"
+@data-end
+
+@template ./summary.md data=myReport /
+
+@foreach row in {{ users }}
+  @template ./user-card.md data=row /
+@foreach-end</code></pre>
+
+        <h3>@template</h3>
+        <p>
+          <code>@template &lt;path&gt; data=&lt;expression&gt; [as=&lt;name&gt;] /</code> reads the
+          partial, parses it as a full MarkdownAI document (every directive that works in a top-level
+          document works inside the partial), and renders it inline. The expression you pass with
+          <code>data=</code> is evaluated against the caller's current scope and bound to
+          <code>&#123;&#123; data.* &#125;&#125;</code> inside the partial. Use <code>as=&lt;name&gt;</code>
+          to expose the binding under a different name - useful when partials are nested and the inner
+          one also wants <code>data</code> for its own caller.
+        </p>
+        <p>
+          <code>@template</code> is single-line in the v2 syntax - the trailing <code>/</code> is
+          required. Path rules match <code>@include</code>: relative only, no absolute paths, no
+          <code>..</code> traversal. The file read goes through the same filesystem-confinement
+          gate as <code>@include</code> / <code>@read</code>, and circular references between
+          partials produce the standard fatal error with the full chain printed.
+        </p>
+
+        <h3>@data</h3>
+        <p>
+          <code>@data &lt;name&gt; ... @data-end</code> opens a block whose body is a list of
+          <code>&lt;key&gt; = &lt;expression&gt;</code> assignments and <code>...&lt;expression&gt;</code>
+          spreads. Each entry is evaluated through the same engine that powers <code>@set</code> and
+          <code>@foreach</code>, so any directive call, interpolation, or literal that works there works
+          here. Dot-notation keys build nested objects (<code>site.name = "Acme"</code> and
+          <code>site.theme = "dark"</code> produce <code>&#123; site: &#123; name: 'Acme', theme: 'dark' &#125; &#125;</code>).
+          Spread lines deep-merge another object into the composite at that point; later entries
+          override earlier ones, so a default block plus a single overriding line is a clean variant
+          pattern.
+        </p>
+        <p>
+          The composed object is stored under <code>&lt;name&gt;</code> in the same scope as
+          <code>@set</code> variables, ready to be passed to one or many template calls or referenced
+          directly as <code>&#123;&#123; &lt;name&gt;.field &#125;&#125;</code>.
+        </p>
+
+        <h3>Scope model</h3>
+        <p>
+          Reads inherit. The partial sees the caller's <code>@set</code> values, <code>@db</code>
+          results, <code>@connect</code> connections, macros, and env fallbacks. Writes are sandboxed:
+          any <code>@define</code>, <code>@connect</code>, <code>@set</code>, or <code>@env</code>
+          executed inside the partial stays local to that render. This is the deliberate difference
+          from <code>@include</code>'s bubble-up behavior and the reason <code>@template</code> is safe
+          to call repeatedly inside <code>@foreach</code> without name collisions piling up.
         </p>
       </section>
 
@@ -2773,6 +2852,16 @@ code --install-extension markdownai.markdownai</code></pre>
             <tr><td><code>@foreach var in {{ source }}</code> ... <code>@foreach-end</code></td><td>Render the body once per item. Source can be a directive expression, a list-typed frontmatter field, a label, or a comma-separated literal.</td></tr>
             <tr><td><code>@set var = "literal" /</code></td><td>Bind a variable to a literal value (string, number, boolean).</td></tr>
             <tr><td><code>@set var = {{ expr }} /</code></td><td>Bind a variable to an interpolated expression or sandbox builtin result.</td></tr>
+          </tbody>
+        </table>
+
+        <h3>Templates and Composition</h3>
+        <table>
+          <thead><tr><th>Directive</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>@template ./partial.md data=expr /</code></td><td>Inline a partial MarkdownAI document and bind the expression to <code>&#123;&#123; data.* &#125;&#125;</code> inside it. Every directive that works in a top-level document works inside the partial.</td></tr>
+            <tr><td><code>@template ./partial.md data=row as=user /</code></td><td>Same, but the bound value is exposed under the chosen name (<code>&#123;&#123; user.* &#125;&#125;</code>) instead of <code>data</code>.</td></tr>
+            <tr><td><code>@data name</code> ... <code>@data-end</code></td><td>Compose a single object from in-scope values. Body lines are <code>&lt;key&gt; = &lt;expression&gt;</code> assignments or <code>...&lt;expression&gt;</code> spreads. Dot-notation builds nested objects; later entries override earlier ones.</td></tr>
           </tbody>
         </table>
 

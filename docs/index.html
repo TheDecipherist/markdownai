@@ -817,6 +817,29 @@
           </div>
 
           <div class="feature-card">
+            <div class="feature-icon feature-icon-cyan">@template</div>
+            <h3>@template and @data</h3>
+            <p>
+              <code>@template</code> inlines another <code>.md</code> file at the call site and binds it to
+              a data context, like a partial in Angular or Vue. <code>@data</code> composes a single object
+              from any in-scope values (db results, set variables, env fallbacks) using
+              <code>&lt;key&gt; = &lt;expression&gt;</code> assignments, dot-notation for nested keys, and
+              <code>...</code> spreads. Inside the partial, the bound value is accessible as
+              <code>{{ data.* }}</code>. Reads inherit from the caller's scope; writes stay local, so the
+              same partial can be rendered repeatedly inside <code>@foreach</code> without name collisions.
+            </p>
+            <pre><code class="language-markdown">@data myReport
+  ...baseConfig
+  site.name = "Acme"
+  site.theme = "dark"
+@data-end
+
+@foreach row in {{ users }}
+  @template ./user-card.md data=row /
+@foreach-end</code></pre>
+          </div>
+
+          <div class="feature-card">
             <div class="feature-icon feature-icon-green">@read-frontmatter</div>
             <h3>@read-frontmatter and @hash</h3>
             <p>

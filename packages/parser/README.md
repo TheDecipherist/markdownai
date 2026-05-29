@@ -67,7 +67,7 @@ const ast = parse(`@markdownai v2.0
 - `scanShellInlines(source)` - returns `` !`...` `` expressions.
 - `getAvailableDirectives()` - registry of every registered directive.
 
-All AST node types are exported under `MarkdownAIDocument`, `PhaseNode`, `DefineNode`, `ConditionalNode`, etc. The full set lives in `src/types.ts`.
+All AST node types are exported under `MarkdownAIDocument`, `PhaseNode`, `DefineNode`, `ConditionalNode`, etc. The full set lives in `src/types.ts`. New as of 1.3.0: `TemplateNode` (`@template` single-line directive with optional `data=` and `as=` bindings) and `DataNode` (`@data` block whose body is `DataAssignEntry`/`DataSpreadEntry` records). `@data` is also registered as a verbatim-body directive, so its `key = expression` body lines reach the directive parser without quote-stripping or attr-extraction.
 
 ## Migration from v1
 

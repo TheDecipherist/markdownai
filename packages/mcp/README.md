@@ -34,7 +34,7 @@ Then point your MCP client at `mai-serve`. With Claude Code, run `mai init` to w
 | `get_constraints` | Extract `@constraint` declarations from a document. |
 | `get_env` | Read an env var through the security gate (credential-pattern keys are blocked). |
 | `invalidate_cache` | Drop cached directive output. |
-| `available_directives` | Catalog every registered directive. |
+| `available_directives` | Catalog every registered directive. As of 1.3.0 this includes `@template` and `@data` (for reusable partials with bound data). They are deliberately NOT on the `execute_directive` allowlist - both can transitively invoke other directives, so they remain available only through the full document-rendering tools (`read_file`, `render`, `resolve_phase`, `next_phase`). |
 
 ## Session state (v2)
 

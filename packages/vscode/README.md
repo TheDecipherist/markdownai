@@ -64,6 +64,8 @@ Type a directive prefix and press Tab. Every directive has a snippet with placeh
 | `@append-if-missing` | `@append-if-missing path="..." text="..."` (v1.0+) |
 | `@update-frontmatter` | `@update-frontmatter path="..." field="..." value="..."` (v1.0+) |
 | `@render-template` | `@render-template from="..." to="..."`...`@end` block (v1.0+) |
+| `@template` | `@template ./partial.md data=data /` single-line directive (v1.3+) |
+| `@data` | `@data name` with `key = value` body and `@data-end` (v1.3+) |
 
 ### Autocomplete
 
