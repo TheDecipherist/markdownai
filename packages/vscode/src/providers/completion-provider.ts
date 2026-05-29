@@ -76,6 +76,12 @@ const BLOCK_DIRECTIVES: DirectiveCompletion[] = [
     doc: 'Render a template with injected parameters and write to disk. Idempotent by default; force overwrites. Requires filesystem.write_enabled. (v1.0+)',
     kind: vscode.CompletionItemKind.Class,
   },
+  {
+    label: '@data',
+    snippet: '@data ${1:name}\n  ${2:key} = ${3:value}\n@data-end',
+    doc: 'Compose a named object from in-scope values for binding to @template. Body lines are <key> = <expression> or ...<spread>. Dot-notation builds nested objects; later entries override earlier ones. (v1.2+)',
+    kind: vscode.CompletionItemKind.Struct,
+  },
 ];
 
 const INLINE_DIRECTIVES: DirectiveCompletion[] = [
@@ -89,6 +95,12 @@ const INLINE_DIRECTIVES: DirectiveCompletion[] = [
     label: '@include',
     snippet: '@include ${1:./path/to/file.md}',
     doc: 'Inline the rendered content of another file',
+    kind: vscode.CompletionItemKind.File,
+  },
+  {
+    label: '@template',
+    snippet: '@template ${1:./partial.md} data=${2:data} /',
+    doc: 'Inline a partial MarkdownAI document and bind it to a data context. Inside the partial, the bound value is accessible as {{ data.* }} (or {{ <name>.* }} with as=<name>). Reads inherit from caller; writes are sandboxed. (v1.2+)',
     kind: vscode.CompletionItemKind.File,
   },
   {

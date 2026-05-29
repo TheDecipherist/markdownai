@@ -46,6 +46,8 @@ import pluginConventions from './directives/plugin-conventions.js'
 import markdownaiDetect from './directives/markdownai-detect.js'
 import pluginData from './directives/plugin-data.js'
 import onComplete from './directives/on-complete.js'
+import template from './directives/template.js'
+import data from './directives/data.js'
 
 const modules: ParseModule[] = [
   header, include, importDir, env, define, call, phase, connect,
@@ -56,6 +58,7 @@ const modules: ParseModule[] = [
   prompt, section, chunkBoundary, defineConcept, constraint, note, eventDir,
   pluginMeta, pluginDetect, pluginLayout, pluginConventions,
   markdownaiDetect, pluginData, onComplete,
+  template, data,
 ]
 
 const registry = new Map<string, ParseModule>(

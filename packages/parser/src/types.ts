@@ -376,6 +376,36 @@ export interface PluginDataNode extends ASTNodeBase {
   projectOverride: string | null
 }
 
+export interface TemplateNode extends ASTNodeBase {
+  type: 'template'
+  path: string
+  dataExpr: string | null
+  asName: string
+  condition: string | null
+  cache: CacheConfig | null
+}
+
+export interface DataAssignEntry {
+  kind: 'assign'
+  key: string[]
+  rhs: string
+  line: number
+}
+
+export interface DataSpreadEntry {
+  kind: 'spread'
+  rhs: string
+  line: number
+}
+
+export type DataEntry = DataAssignEntry | DataSpreadEntry
+
+export interface DataNode extends ASTNodeBase {
+  type: 'data'
+  name: string
+  entries: DataEntry[]
+}
+
 export type ASTNode =
   | HeaderNode
   | IncludeNode
@@ -426,6 +456,8 @@ export type ASTNode =
   | PluginConventionsNode
   | MarkdownaiDetectNode
   | PluginDataNode
+  | TemplateNode
+  | DataNode
 
 export interface ParseResult {
   isMarkdownAI: boolean
