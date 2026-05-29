@@ -1,14 +1,13 @@
 import { execSync } from 'node:child_process'
-import { resolve, isAbsolute } from 'node:path'
-import { existsSync, statSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import type { InterpolationSpan, ShellInlineSpan } from '@markdownai/parser'
-import { readMarkdownSection, parseFeatureBrief, extractFilePaths } from './sources.js'
-import { readFrontmatterField } from './frontmatter-utils.js'
+import { parseFeatureBrief, extractFilePaths } from './sources.js'
 import { resolveEnv, type EngineContext } from './context.js'
 import { allowed } from './conditions.js'
 import { logEngineError } from './error-log.js'
 import { readFileSync, statSync as fsStatSync } from 'node:fs'
+import { makeFileHelpers, resolveDataJail } from './file-access.js'
 
 // Project-settings loader (matches conditions.ts; same cache shape).
 const settingsCache = new Map<string, { mtimeMs: number; value: unknown }>()
@@ -70,7 +69,6 @@ function transformPipes(expr: string): string {
   return acc
 }
 import { checkShellCommand } from './security/shell.js'
-import { checkDataPath } from './security/filesystem.js'
 import type { ShellSecurityConfig } from './security/config.js'
 import { formatDate } from './sources.js'
 
@@ -129,43 +127,14 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
   if (dateFmtMatch) return formatDate(new Date(), dateFmtMatch[1] ?? 'ISO')
 
   const envObj: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
-  // v2.0: data ops jail to dataJail (default: process cwd). Fall back to legacy
-  // jailRoot/docDir if dataJail not configured by caller.
-  const dataJail = ctx.security.dataJail ?? ctx.security.jailRoot ?? ctx.docDir ?? null
-  const allowedDataPaths = ctx.security.allowedDataPaths
-  const fsConfig = ctx.security.filesystemConfig
-  function confinedPath(p: string): string | null {
-    if (!dataJail) return null
-    const check = checkDataPath(p, dataJail, allowedDataPaths, fsConfig)
-    if (check.level === 'blocked') return null
-    return isAbsolute(p) ? p : resolve(dataJail, p)
-  }
-  const fileHelper = {
-    exists: (p: string): boolean => {
-      const abs = confinedPath(p)
-      return abs !== null && existsSync(abs)
-    },
-    isFile: (p: string): boolean => {
-      const abs = confinedPath(p)
-      if (abs === null) return false
-      try { return statSync(abs).isFile() } catch { return false }
-    },
-    isDir: (p: string): boolean => {
-      const abs = confinedPath(p)
-      if (abs === null) return false
-      try { return statSync(abs).isDirectory() } catch { return false }
-    },
-    readSection: (p: string, headingContains: string): string => {
-      const abs = confinedPath(p)
-      if (abs === null) return ''
-      return readMarkdownSection(abs, headingContains)
-    },
-    readFrontmatter: (p: string, field: string): string => {
-      const abs = confinedPath(p)
-      if (abs === null) return ''
-      try { return readFrontmatterField(readFileSync(abs, 'utf8'), field) ?? '' } catch { return '' }
-    },
-  }
+  // Shared jailed file helpers (./file-access.js) - identical surface + jail to
+  // conditions.ts, so {{ }} body / @foreach interpolation and @if read the same.
+  const dataJail = resolveDataJail(ctx)
+  const fileHelper = makeFileHelpers(
+    dataJail,
+    ctx.security.allowedDataPaths,
+    ctx.security.filesystemConfig,
+  )
   // Build the sandbox with skill context variables exposed at the top level
   // (mirrors conditions.ts so {{ arg0 }} / {{ argsList[0] }} / etc. resolve correctly).
   const skill = ctx.skillContext
@@ -235,7 +204,7 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
       return extractFilePaths(String(text ?? ''))
     },
     read_frontmatter: (path: unknown, field: unknown): string => {
-      return fileHelper.readFrontmatter(String(path ?? ''), String(field ?? ''))
+      return fileHelper.frontmatterField(String(path ?? ''), String(field ?? ''))
     },
   }
   try {

@@ -13,6 +13,7 @@ import { checkDataPath } from './security/filesystem.js'
 import { expandPattern } from './security/path-expand.js'
 import { interpolatePathSoft } from './engine-include.js'
 import { readFrontmatterField } from './frontmatter-utils.js'
+import { resolveDataJail } from './file-access.js'
 
 function buildExpandContext(ctx: EngineContext) {
   const env: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
@@ -30,7 +31,7 @@ function resolveReadPath(rawPath: string, ctx: EngineContext, directive: string)
   // `@read-frontmatter path="${CWD}/.mdd/docs/{{ id }}.md"` keeps the literal
   // {{ id }} (it only resolved inside @foreach, where the body is re-rendered).
   const expanded = interpolatePathSoft(expandPattern(rawPath, buildExpandContext(ctx)), ctx)
-  const dataJail = ctx.security.dataJail ?? ctx.security.jailRoot ?? ctx.docDir ?? null
+  const dataJail = resolveDataJail(ctx)
   if (!dataJail) {
     ctx.warnings.push(`${directive}: no data jail for path: ${rawPath}`)
     return null

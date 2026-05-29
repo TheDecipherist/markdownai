@@ -1,8 +1,8 @@
 import { runInNewContext } from 'node:vm'
-import { existsSync, statSync, readFileSync } from 'node:fs'
-import { resolve, isAbsolute } from 'node:path'
+import { statSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import type { EngineContext } from './context.js'
-import { checkDataPath } from './security/filesystem.js'
+import { makeFileHelpers, resolveDataJail } from './file-access.js'
 import { logEngineError } from './error-log.js'
 
 /**
@@ -33,78 +33,11 @@ function loadProjectSettings(cwd: string): unknown {
   }
   return undefined
 }
-import { readFrontmatterField } from './frontmatter-utils.js'
-import { readMarkdownSection, parseFeatureBrief, extractFilePaths } from './sources.js'
+import { parseFeatureBrief, extractFilePaths } from './sources.js'
 
-function makeFileHelpers(
-  dataJail: string | null,
-  allowedDataPaths: string[] | undefined,
-  fsConfig: import('./security/config.js').FilesystemSecurityConfig | undefined,
-) {
-  function confined(p: string): string | null {
-    if (!dataJail) return null
-    const check = checkDataPath(p, dataJail, allowedDataPaths, fsConfig)
-    if (check.level === 'blocked') return null
-    return isAbsolute(p) ? p : resolve(dataJail, p)
-  }
-  return {
-    exists: (p: string): boolean => {
-      const abs = confined(p)
-      return abs !== null ? existsSync(abs) : false
-    },
-    isFile: (p: string): boolean => {
-      const abs = confined(p)
-      if (abs === null) return false
-      try { return statSync(abs).isFile() } catch { return false }
-    },
-    isDir: (p: string): boolean => {
-      const abs = confined(p)
-      if (abs === null) return false
-      try { return statSync(abs).isDirectory() } catch { return false }
-    },
-    containsLine: (p: string, pattern: string): boolean => {
-      const abs = confined(p)
-      if (abs === null || !existsSync(abs)) return false
-      try {
-        const content = readFileSync(abs, 'utf8')
-        const re = new RegExp(pattern, 'm')
-        return re.test(content)
-      } catch { return false }
-    },
-    frontmatterField: (p: string, field: string): string => {
-      const abs = confined(p)
-      if (abs === null || !existsSync(abs)) return ''
-      try {
-        const content = readFileSync(abs, 'utf8')
-        const v = readFrontmatterField(content, field)
-        return v ?? ''
-      } catch { return '' }
-    },
-    readSection: (p: string, headingContains: string): string => {
-      const abs = confined(p)
-      if (abs === null) return ''
-      return readMarkdownSection(abs, headingContains)
-    },
-    containsSection: (p: string, heading: string): boolean => {
-      const abs = confined(p)
-      if (abs === null || !existsSync(abs)) return false
-      try {
-        const content = readFileSync(abs, 'utf8')
-        // Match Markdown ATX heading on its own line. Accept exact "## Bugs"
-        // or "## Bugs " — trailing whitespace OK. Heading argument can include
-        // the leading `#`s ("## Bugs") or just the title ("Bugs"), in which
-        // case we match any heading level.
-        const normalized = heading.trim()
-        if (/^#+\s/.test(normalized)) {
-          const re = new RegExp('^' + normalized.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\s*$', 'm')
-          return re.test(content)
-        }
-        const re = new RegExp('^#{1,6}\\s+' + normalized.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\s*$', 'm')
-        return re.test(content)
-      } catch { return false }
-    },
-  }
-}
+// File-access helpers live in ./file-access.js (shared with engine-interpolate +
+// read-ops) so every path confines to the same data jail and exposes the same
+// surface.
 
 export function allowed(
   value: unknown,
@@ -267,7 +200,7 @@ function buildSandbox(ctx: EngineContext): Record<string, unknown> {
     if (SAFE_ENV_KEY.test(k)) rootEnv[k] = v
   }
   // v2.0: prefer dataJail; fall back to legacy jailRoot/docDir for old callers.
-  const dataJail = ctx.security.dataJail ?? ctx.security.jailRoot ?? ctx.docDir ?? null
+  const dataJail = resolveDataJail(ctx)
   const file = makeFileHelpers(dataJail, ctx.security.allowedDataPaths, ctx.security.filesystemConfig)
   const skill = ctx.skillContext
   const ARGUMENTS = skill?.args ?? ''
