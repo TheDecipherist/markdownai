@@ -1,8 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync } from 'fs'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { loadPlugins, getPlugin, clearPluginCache } from '../plugin-loader.js'
+
+// Stub homedir() to point at an isolated dir so tests don't see real
+// ~/.markdownai/plugins/ content on developer machines.
+vi.mock('os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('os')>()
+  return { ...actual, homedir: () => process.env['MAI_TEST_HOMEDIR'] ?? actual.homedir() }
+})
 
 const VALID_META_BLOCK = '@plugin-meta\n  framework_name: "TestFW"\n  framework_version: "1.0"\n  marker_version: "1.0"\n@plugin-meta-end'
 const VALID_DETECT_BLOCK = '@plugin-detect\n  required_marker: "@markdownai v1.0"\n@plugin-detect-end'
@@ -29,10 +36,15 @@ beforeEach(() => {
   clearPluginCache()
   tmpDir = join(tmpdir(), `mai-plugin-test-${Date.now()}`)
   mkdirSync(join(tmpDir, '.markdownai', 'plugins'), { recursive: true })
+  // Point the stubbed homedir() at an isolated tmp directory so the loader's
+  // ~/.markdownai/plugins search path doesn't see real user-installed plugins.
+  process.env['MAI_TEST_HOMEDIR'] = join(tmpDir, '_home_')
+  mkdirSync(join(tmpDir, '_home_', '.markdownai', 'plugins'), { recursive: true })
 })
 
 afterEach(() => {
   rmSync(tmpDir, { recursive: true, force: true })
+  delete process.env['MAI_TEST_HOMEDIR']
   clearPluginCache()
 })
 

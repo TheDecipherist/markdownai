@@ -120,6 +120,13 @@ export interface EngineContext {
   // next_phase read this to advise Claude which phase to render next,
   // honoring conditional @if/@switch wrappers around @on complete.
   chosenTransition: ChosenTransition | null
+  /**
+   * When `"passthrough"`, the engine leaves `` !`...` `` shell-inline syntax
+   * untouched in the rendered output and skips its security gate. Set by
+   * `execute()` when the document's `@markdownai` header carries
+   * `shell-inline="passthrough"`. Default is `null` (intercept).
+   */
+  shellInline: 'passthrough' | null
 }
 
 export interface ChosenTransition {
@@ -161,6 +168,7 @@ export function makeContext(overrides?: Partial<EngineContext>): EngineContext {
     callstack: [],
     traceConfig: null,
     chosenTransition: null,
+    shellInline: null,
   }
   if (!overrides) return base
   const { warnings, resolutionStack, completedSet, localConnectionNames, glossary, constraints, events, callstack, ...rest } = overrides

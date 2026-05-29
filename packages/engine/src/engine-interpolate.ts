@@ -292,12 +292,17 @@ export function resolveInterpolations(
   ctx: EngineContext,
   shellInlines: ShellInlineSpan[] = [],
 ): string {
-  if (spans.length === 0 && shellInlines.length === 0) return text
+  // Passthrough mode: emit the original `!`...`` tokens verbatim, no exec, no
+  // security gate. Set by the document's @markdownai shell-inline="passthrough"
+  // header. Only the shell spans are skipped — `{{ }}` interpolations still
+  // resolve normally.
+  const activeShellInlines = ctx.shellInline === 'passthrough' ? [] : shellInlines
+  if (spans.length === 0 && activeShellInlines.length === 0) return text
 
   type AnySpan = { start: number; end: number; resolve: () => string }
   const all: AnySpan[] = [
     ...spans.map(s => ({ start: s.start, end: s.end, resolve: () => s.escaped ? `{{${s.expression}}}` : evalExpr(s.expression, ctx) })),
-    ...shellInlines.map(s => ({ start: s.start, end: s.end, resolve: () => executeShellInline(s.command, ctx) })),
+    ...activeShellInlines.map(s => ({ start: s.start, end: s.end, resolve: () => executeShellInline(s.command, ctx) })),
   ].sort((a, b) => a.start - b.start)
 
   let result = ''

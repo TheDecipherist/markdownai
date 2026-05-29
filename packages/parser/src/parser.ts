@@ -847,7 +847,10 @@ export function parse(source: string, options?: ParseOptions): ParseResult {
 
   const vMatch = firstLine.match(/^@markdownai(?:\s+v(\d+\.\d+))?/)
   const version = vMatch?.[1] ?? null
-  const header: HeaderNode = { type: 'header', line: startPos + 1, version }
+  const shellInlineMatch = firstLine.match(/\bshell-inline\s*=\s*"([^"]*)"|\bshell-inline\s*=\s*'([^']*)'|\bshell-inline\s*=\s*(\S+)/)
+  const shellInlineValue = shellInlineMatch?.[1] ?? shellInlineMatch?.[2] ?? shellInlineMatch?.[3] ?? null
+  const shellInline = shellInlineValue === 'passthrough' ? 'passthrough' : null
+  const header: HeaderNode = { type: 'header', line: startPos + 1, version, shellInline }
 
   // Parse everything after the header.
   const rest = lines.slice(startPos + 1)
