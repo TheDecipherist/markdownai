@@ -138,7 +138,7 @@ describe('cacheKey', () => {
 })
 
 describe('execute', () => {
-  const header = { type: 'header' as const, line: 1, version: null }
+  const header = { type: 'header' as const, line: 1, version: null, shellInline: null }
 
   it('returns error for non-MarkdownAI documents', () => {
     const ast: ParseResult = { isMarkdownAI: false, version: null, nodes: [] }

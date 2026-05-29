@@ -46,7 +46,22 @@ function processLine(
   ifStack: OpenBlock[], blockStack: OpenBlock[],
   macroSet: Set<string>, diagnostics: DiagnosticInfo[]
 ): void {
-  if (IF_RE.test(trimmed)) {
+  // Close tags first — `\b` in IF_RE / DEFINE_RE / etc. would otherwise match
+  // the opener's prefix on `@if-end`, `@define-end`, ... and count them as
+  // openers too.
+  if (IF_END_RE.test(trimmed)) {
+    if (ifStack.length === 0) {
+      diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: '@if-end with no matching @if', severity: 'error' });
+    } else {
+      ifStack.pop();
+    }
+  } else if (BLOCK_END_RE.test(trimmed)) {
+    if (blockStack.length === 0) {
+      diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: `${trimmed} with no matching block directive`, severity: 'error' });
+    } else {
+      blockStack.pop();
+    }
+  } else if (IF_RE.test(trimmed)) {
     ifStack.push({ directive: 'if', line: lineNum });
   } else if (ELSEIF_RE.test(trimmed) || ELSE_RE.test(trimmed)) {
     if (ifStack.length === 0) {
@@ -55,12 +70,6 @@ function processLine(
         message: `Stray ${trimmed.startsWith('@elseif') ? '@elseif' : '@else'} - no open @if block`,
         severity: 'error',
       });
-    }
-  } else if (IF_END_RE.test(trimmed)) {
-    if (ifStack.length === 0) {
-      diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: '@if-end with no matching @if', severity: 'error' });
-    } else {
-      ifStack.pop();
     }
   } else if (DEFINE_RE.test(trimmed)) {
     blockStack.push({ directive: 'define', line: lineNum });
@@ -76,12 +85,6 @@ function processLine(
     blockStack.push({ directive: 'foreach', line: lineNum });
   } else if (RENDER_TEMPLATE_RE.test(trimmed)) {
     blockStack.push({ directive: 'render-template', line: lineNum });
-  } else if (BLOCK_END_RE.test(trimmed)) {
-    if (blockStack.length === 0) {
-      diagnostics.push({ line: lineNum, startChar: 0, endChar: trimmed.length, message: `${trimmed} with no matching block directive`, severity: 'error' });
-    } else {
-      blockStack.pop();
-    }
   } else {
     checkCallReference(trimmed, lineNum, macroSet, diagnostics);
   }

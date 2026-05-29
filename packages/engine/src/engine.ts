@@ -185,6 +185,16 @@ export function execute(ast: ParseResult, options?: EngineOptions): EngineResult
     base.warnings.push(`Document requires @markdownai v${ast.version} but installed version is v${MARKDOWNAI_VERSION}`)
   }
 
+  // Propagate the document's shell-inline mode (default intercept; "passthrough"
+  // leaves !`...` tokens unevaluated and skips their security gate). Pulled from
+  // the first @markdownai header node — there is only ever one.
+  for (const n of ast.nodes) {
+    if (n.type === 'header') {
+      base.shellInline = n.shellInline
+      break
+    }
+  }
+
   for (const node of ast.nodes) {
     try {
       const out = walkNode(node, base)

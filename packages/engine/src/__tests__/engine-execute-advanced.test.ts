@@ -3,7 +3,7 @@ import { execute } from '../engine.js'
 import { parse } from '@markdownai/parser'
 import type { ParseResult } from '@markdownai/parser'
 
-const header = { type: 'header' as const, line: 1, version: null }
+const header = { type: 'header' as const, line: 1, version: null, shellInline: null }
 
 describe('execute — macro params and positional call args', () => {
   it('expands macro with positional args via @define name(param) syntax', () => {
@@ -105,7 +105,7 @@ describe('execute — interpolation evaluation', () => {
 })
 
 describe('execute — version pin warnings', () => {
-  const header = { type: 'header' as const, line: 1, version: null }
+  const header = { type: 'header' as const, line: 1, version: null, shellInline: null }
 
   it('returns no warnings when version pin matches installed version', () => {
     const ast: ParseResult = { isMarkdownAI: true, version: '1.0', nodes: [header] }

@@ -25,6 +25,14 @@ export interface ShellInlineSpan {
 export interface HeaderNode extends ASTNodeBase {
   type: 'header'
   version: string | null
+  /**
+   * Per-document opt-out from MarkdownAI's shell-inline interception.
+   * When `"passthrough"` is set on the header line, `` !`...` `` syntax is left
+   * unevaluated in the rendered output (and no shell-security warnings are
+   * emitted) so Claude Code can evaluate it natively. Anything else is
+   * treated as the default "intercept" behavior.
+   */
+  shellInline: 'passthrough' | null
 }
 
 export interface IncludeNode extends ASTNodeBase {

@@ -5,7 +5,7 @@ const KNOWN_MACROS = ['git-status', 'git-branch', 'my-summary'];
 
 describe('analyzeDiagnostics - structural errors', () => {
   describe('unclosed @if blocks', () => {
-    it('should report error for @if without @endif', () => {
+    it('should report error for @if without @if-end', () => {
       const text = `@markdownai\n@if {{ env_var }}\nSome content\n`;
       const result = analyzeDiagnostics(text, KNOWN_MACROS);
       expect(result).toHaveLength(1);
@@ -14,21 +14,21 @@ describe('analyzeDiagnostics - structural errors', () => {
       expect(result[0]?.line).toBe(1);
     });
 
-    it('should not report error when @if is properly closed with @endif', () => {
-      const text = `@markdownai\n@if {{ env_var }}\nSome content\n@endif\n`;
+    it('should not report error when @if is properly closed with @if-end', () => {
+      const text = `@markdownai\n@if {{ env_var }}\nSome content\n@if-end\n`;
       const result = analyzeDiagnostics(text, KNOWN_MACROS);
       expect(result).toHaveLength(0);
     });
 
-    it('should report error for nested @if missing inner @endif', () => {
-      const text = `@markdownai\n@if {{ a }}\n@if {{ b }}\ncontent\n@endif\n`;
+    it('should report error for nested @if missing inner @if-end', () => {
+      const text = `@markdownai\n@if {{ a }}\n@if {{ b }}\ncontent\n@if-end\n`;
       const result = analyzeDiagnostics(text, KNOWN_MACROS);
       expect(result).toHaveLength(1);
       expect(result[0]?.message).toContain('Unclosed @if');
     });
 
     it('should report no error when nested @if blocks are all closed', () => {
-      const text = `@markdownai\n@if {{ a }}\n@if {{ b }}\ncontent\n@endif\n@endif\n`;
+      const text = `@markdownai\n@if {{ a }}\n@if {{ b }}\ncontent\n@if-end\n@if-end\n`;
       const result = analyzeDiagnostics(text, KNOWN_MACROS);
       expect(result).toHaveLength(0);
     });
@@ -41,7 +41,7 @@ describe('analyzeDiagnostics - structural errors', () => {
   });
 
   describe('unclosed @define blocks', () => {
-    it('should report error for @define without @end', () => {
+    it('should report error for @define without @define-end', () => {
       const text = `@markdownai\n@define my-macro\n@query git status label=out\n`;
       const result = analyzeDiagnostics(text, KNOWN_MACROS);
       expect(result).toHaveLength(1);
@@ -49,15 +49,15 @@ describe('analyzeDiagnostics - structural errors', () => {
       expect(result[0]?.message).toContain('Unclosed @define');
     });
 
-    it('should not report error when @define is properly closed with @end', () => {
-      const text = `@markdownai\n@define my-macro\n@query git status label=out\n@end\n`;
+    it('should not report error when @define is properly closed with @define-end', () => {
+      const text = `@markdownai\n@define my-macro\n@query git status label=out\n@define-end\n`;
       const result = analyzeDiagnostics(text, KNOWN_MACROS);
       expect(result.filter(d => d.severity === 'error')).toHaveLength(0);
     });
   });
 
   describe('unclosed @phase blocks', () => {
-    it('should report error for @phase without @end', () => {
+    it('should report error for @phase without @phase-end', () => {
       const text = `@markdownai\n@phase setup\ncontent\n`;
       const result = analyzeDiagnostics(text, KNOWN_MACROS);
       expect(result).toHaveLength(1);
@@ -65,8 +65,8 @@ describe('analyzeDiagnostics - structural errors', () => {
       expect(result[0]?.message).toContain('Unclosed @phase');
     });
 
-    it('should not report error when @phase is properly closed with @end', () => {
-      const text = `@markdownai\n@phase setup\ncontent\n@end\n`;
+    it('should not report error when @phase is properly closed with @phase-end', () => {
+      const text = `@markdownai\n@phase setup\ncontent\n@phase-end\n`;
       const result = analyzeDiagnostics(text, KNOWN_MACROS);
       expect(result.filter(d => d.severity === 'error')).toHaveLength(0);
     });
@@ -133,7 +133,7 @@ describe('analyzeDiagnostics - mixed errors and warnings', () => {
   });
 
   it('should return empty array for a clean document', () => {
-    const text = `@markdownai\n@if {{ env }}\ncontent\n@endif\n@call git-status\n`;
+    const text = `@markdownai\n@if {{ env }}\ncontent\n@if-end\n@call git-status\n`;
     const result = analyzeDiagnostics(text, KNOWN_MACROS);
     expect(result).toHaveLength(0);
   });

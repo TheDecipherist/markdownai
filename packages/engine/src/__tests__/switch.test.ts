@@ -6,7 +6,7 @@ import type { ParseResult, ASTNode, SwitchNode, ForeachNode } from '@markdownai/
 // Helpers
 // ---------------------------------------------------------------------------
 
-const header = { type: 'header' as const, line: 1, version: null }
+const header = { type: 'header' as const, line: 1, version: null, shellInline: null }
 
 function md(text: string) {
   return { type: 'markdown' as const, line: 0, text, interpolations: [], shellInlines: [] }
