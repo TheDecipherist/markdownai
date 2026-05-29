@@ -11,6 +11,7 @@ import type { ReadFrontmatterNode, HashNode } from '@markdownai/parser'
 import type { EngineContext } from './context.js'
 import { checkDataPath } from './security/filesystem.js'
 import { expandPattern } from './security/path-expand.js'
+import { interpolatePathSoft } from './engine-include.js'
 import { readFrontmatterField } from './frontmatter-utils.js'
 
 function buildExpandContext(ctx: EngineContext) {
@@ -24,7 +25,11 @@ function buildExpandContext(ctx: EngineContext) {
 }
 
 function resolveReadPath(rawPath: string, ctx: EngineContext, directive: string): string | null {
-  const expanded = expandPattern(rawPath, buildExpandContext(ctx))
+  // {{ expr }} interpolation + ${VAR} expansion, same order as @render-template's
+  // `to=` path. Without the {{ }} step a top-level read like
+  // `@read-frontmatter path="${CWD}/.mdd/docs/{{ id }}.md"` keeps the literal
+  // {{ id }} (it only resolved inside @foreach, where the body is re-rendered).
+  const expanded = interpolatePathSoft(expandPattern(rawPath, buildExpandContext(ctx)), ctx)
   const dataJail = ctx.security.dataJail ?? ctx.security.jailRoot ?? ctx.docDir ?? null
   if (!dataJail) {
     ctx.warnings.push(`${directive}: no data jail for path: ${rawPath}`)
