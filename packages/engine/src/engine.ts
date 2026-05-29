@@ -20,6 +20,7 @@ import { executeTest, executeCheck, executeRenderTemplate, setEngineExecute } fr
 import { executeForeach, executeSet, setIterEngine } from './iter-ops.js'
 import { resolveInterpolations, evalExpr } from './engine-interpolate.js'
 import { FatalError, versionIsNewer, loadStdlib, executeImport, executeInclude } from './engine-include.js'
+import { executeTemplate, executeData } from './engine-template.js'
 import { executeEvent } from './event.js'
 import { parseTraceConfig } from './trace/config.js'
 import { emitSpan } from './trace/emit.js'
@@ -274,6 +275,8 @@ function walkNodeCore(node: ASTNode, ctx: EngineContext): string {
     case 'switch': return handleSwitch(node, ctx)
     case 'pipe': return executePipe(node, ctx)
     case 'include': return executeInclude(node, ctx, walkNodes)
+    case 'template': return executeTemplate(node, ctx, walkNodes)
+    case 'data': return executeData(node, ctx)
     case 'import': { executeImport(node, ctx); return '' }
     case 'list':
     case 'read':

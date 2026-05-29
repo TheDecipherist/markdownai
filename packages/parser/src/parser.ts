@@ -34,6 +34,13 @@ const RAW_BODY_DIRECTIVES = new Set([
 // @render-template).
 const PARAM_BODY_DIRECTIVES = new Set(['render-template'])
 
+// Directives that opt out of the attr/body split entirely — every line after
+// the opener is treated as a body line, preserving quote shape and any other
+// detail that would be lost if the parser pre-consumed key=value lines as
+// attrs. @data needs this so its <key> = <expression> body is delivered to the
+// directive parser verbatim.
+const VERBATIM_BODY_DIRECTIVES = new Set(['data'])
+
 // Block directives that get their body recursively parsed into ASTNodes.
 const RECURSIVE_BODY_DIRECTIVES = new Set([
   'phase', 'define', 'if', 'switch', 'foreach', 'section',
@@ -226,7 +233,10 @@ function collectBlock(
   const attrs: Record<string, string> = { ...opener.attrs }
   const flags: string[] = [...opener.flags]
   const body: string[] = []
-  let inBody = false
+  // Verbatim-body directives skip the attr/body split — every continuation
+  // line goes straight to body. inBody starts true so the attr-collection
+  // branch never fires.
+  let inBody = VERBATIM_BODY_DIRECTIVES.has(opener.name)
   let depth = 1
   let i = opener.lineIdx + 1
   let closeIdx = -1
@@ -250,13 +260,6 @@ function collectBlock(
       depth++
       // Falls through to the body-collection logic below
     }
-    if (!inBody && V1_CLOSE_TAGS.has(trimmed.slice(1)) && trimmed.startsWith('@')) {
-      throw new ParseError(
-        `v1 close tag "${trimmed}" not accepted in v2 — use "${closeTag}" instead`,
-        i + 1, filePath
-      )
-    }
-
     // Blank line: in attr phase, blank line terminates attrs (does not become
     // part of body). In body phase, blank line is preserved as body.
     if (trimmed === '') {
@@ -282,6 +285,17 @@ function collectBlock(
     // the block's natural boundary). For tolerance, accept any indent here —
     // some authors don't indent continuation lines deeply. Real-world v2
     // documents indent body content by 2 spaces; we don't enforce strictly.
+
+    // v1 close-tag rejection: applies in both attr and body phases. A bare
+    // `@end` / `@endif` / `@endswitch` on its own line inside a v2 block is
+    // always a migration error — including inside verbatim-body directives
+    // like @data where there is no attr phase.
+    if (V1_CLOSE_TAGS.has(trimmed.slice(1)) && trimmed.startsWith('@')) {
+      throw new ParseError(
+        `v1 close tag "${trimmed}" not accepted in v2 — use "${closeTag}" instead`,
+        i + 1, filePath,
+      )
+    }
 
     if (!inBody) {
       const m = raw.match(ATTR_REGEX)

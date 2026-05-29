@@ -212,6 +212,19 @@ function substituteNode(node: ASTNode, args: Record<string, string>): ASTNode {
     case 'passthrough':
     case 'chunk-boundary':
       return node
+    case 'template':
+      return {
+        ...node,
+        path: subStr(node.path, args),
+        dataExpr: node.dataExpr === null ? null : subStr(node.dataExpr, args),
+      }
+    case 'data':
+      return {
+        ...node,
+        entries: node.entries.map(e => e.kind === 'spread'
+          ? { ...e, rhs: subStr(e.rhs, args) }
+          : { ...e, rhs: subStr(e.rhs, args) }),
+      }
     default:
       throw new Error(`substituteNode: unhandled AST node type "${(node as { type: string }).type}"`)
 

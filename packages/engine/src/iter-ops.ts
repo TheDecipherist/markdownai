@@ -60,7 +60,7 @@ function splitItems(raw: string): string[] {
   return [trimmed]
 }
 
-function evaluateSource(literal: string, ctx: EngineContext): string {
+export function evaluateSource(literal: string, ctx: EngineContext): string {
   if (!_walk || !_resolveInterp) return ''
   const trimmed = literal.trim()
   if (trimmed === '') return ''

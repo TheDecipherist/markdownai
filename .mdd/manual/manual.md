@@ -47,6 +47,7 @@ MarkdownAI ships as `mai`, a globally-installed command-line tool. It processes 
    - [@foreach and @set — Iteration and Variable Assignment](#foreach-and-set---iteration-and-variable-assignment)
    - [@read-frontmatter and @update-frontmatter — Frontmatter Access](#read-frontmatter-and-update-frontmatter---frontmatter-access)
    - [@render-template — Document Scaffolding](#render-template---document-scaffolding)
+   - [@template and @data — Reusable Partials with Bound Data](#template-and-data---reusable-partials-with-bound-data)
    - [@test and @check — Code Quality Directives](#test-and-check---code-quality-directives)
    - [@hash — Content Verification](#hash---content-verification)
    - [Write Directives — @mkdir, @copy, @append-if-missing](#write-directives---mkdir-copy-append-if-missing)
@@ -4125,6 +4126,117 @@ Regenerate a config file on every run:
 ```
 
 <!-- /mdd-section: 85-lang-render-template -->
+
+<!-- mdd-section: 99-lang-template-data -->
+### @template and @data - Reusable Partials with Bound Data
+
+`@template` inlines another MarkdownAI document at the call site and binds it to a data context, like a partial in Angular or Vue. `@data` composes a single object from many in-scope values so the same composite can feed multiple template renders. Together they let you reuse the same rendered fragment for a list of database rows, a paginated response, or any other collection - including from inside an `@foreach` - while keeping every existing file-resolution, security, and scope rule intact.
+
+#### What They Do
+
+`@template ./partial.md data=<expression> /` reads the partial, parses it as a full MarkdownAI document (every directive that works in a top-level document works inside the partial), and renders it inline. The expression you pass with `data=` is evaluated against the caller's current scope and bound to `{{ data.* }}` inside the partial. Use `as=<name>` to expose the binding under a different name (handy when partials are nested and the inner one also wants `data` for its own caller).
+
+`@data <name>` opens a block whose body is a list of `<key> = <expression>` assignments and `...<expression>` spreads. Each entry is evaluated through the same engine that powers `@set` and `@foreach`, so any directive call, interpolation, or literal that works there works here. The composed object is stored under `<name>` in the same scope as `@set` variables, ready to be passed to one or many template calls.
+
+Inside the partial, reads inherit from the caller (your `@set` values, `@db` results, `@connect` connections, macros, env fallbacks). Writes are sandboxed: any `@define`, `@connect`, `@set`, or `@env` declared inside the partial stays local to that render. This is the deliberate difference from `@include` - it means you can call the same partial repeatedly inside an `@foreach` without name collisions piling up.
+
+#### How To Use Them
+
+Place `@data` near the top of your document and list the fields you want bundled. Dot-notation keys build nested objects (`site.name = "Acme"` and `site.theme = "dark"` produce `{ site: { name: 'Acme', theme: 'dark' } }`). Spread lines (`...other`) deep-merge another object into the composite at that point. Later entries override earlier ones, so a default block plus a single overriding line is a clean variant pattern.
+
+To render a partial, drop `@template <path> data=<expression> /` on its own line. The trailing ` /` is required because `@template` is a single-line directive in the v2 syntax. Path rules match `@include`: relative only, no absolute paths, no `..` traversal.
+
+To render the same partial once per item in a collection, wrap the call in an `@foreach` block. The loop variable is in scope when the engine evaluates the `data=` expression, so `data=row` binds each iteration's row to `{{ data }}` inside the partial.
+
+#### Configuration
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `@template` path | string | required | Relative path to the partial (same rules as `@include`) |
+| `data=` | expression | none | Expression evaluated in caller scope and bound to `{{ data.* }}` inside the partial |
+| `as=` | identifier | `data` | Local name for the binding inside the partial (e.g. `as=row` exposes it as `{{ row.* }}`) |
+| `if` | expression | none | Conditional render - the call produces no output when the expression is false |
+
+| `@data` body | Shape | Description |
+|---|---|---|
+| `<key> = <expression>` | assignment | Adds the evaluated expression to the composite under the given key. Dot-notation builds nested objects. |
+| `...<expression>` | spread | Evaluates an expression to an object, deep-clones it, and deep-merges into the composite. Non-object values WARN and skip. |
+| `# <text>` | comment | Ignored. |
+
+#### Examples
+
+A single partial rendered with a composed data object:
+
+```
+@db users from=mainDb query="SELECT * FROM users" label=users /
+@set siteName = "Acme" /
+
+@data myReport
+  users = users
+  site.name = siteName
+  site.theme = "dark"
+@data-end
+
+@template ./summary.md data=myReport /
+```
+
+Inside `summary.md`:
+
+```
+@markdownai v1.0
+# {{ data.site.name }}
+
+Theme: {{ data.site.theme }}
+Total users: {{ data.users }}
+```
+
+One partial per row inside a loop, with a sibling caller value visible inside each render:
+
+```
+@markdownai v1.0
+@db users from=mainDb query="SELECT id, name FROM users" label=users /
+@set siteName = "Acme" /
+
+@foreach row in {{ users }}
+  @template ./user-card.md data=row /
+@foreach-end
+```
+
+Inside `user-card.md`:
+
+```
+@markdownai v1.0
+- **{{ data.name }}** at {{ siteName }} (id={{ data.id }})
+```
+
+A default config block plus a variant via spread:
+
+```
+@data baseConfig
+  site.name = "Acme"
+  site.theme = "light"
+  features.search = true
+@data-end
+
+@data emailVariant
+  ...baseConfig
+  site.theme = "dark"
+  features.compactLayout = true
+@data-end
+
+@template ./web.md data=baseConfig /
+@template ./email.md data=emailVariant /
+```
+
+Renaming the binding so a nested partial can call another partial without shadowing:
+
+```
+@template ./section.md data=row as=section /
+```
+
+Inside `section.md` you reference `{{ section.title }}`, freeing `data` for any inner `@template ./inner.md data=row.detail /` to use.
+
+<!-- /mdd-section: 99-lang-template-data -->
 
 <!-- mdd-section: 86-lang-test-check -->
 ### @test and @check - Code Quality Directives

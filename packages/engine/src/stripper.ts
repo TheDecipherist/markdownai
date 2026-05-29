@@ -118,6 +118,8 @@ function stripNode(node: ASTNode, env: Record<string, string>, warnings: string[
     case 'foreach':
     case 'hash':
     case 'read-frontmatter':
+    case 'template':
+    case 'data':
       return ''
     default:
       throw new Error(`stripNode: unhandled AST node type "${(node as ASTNode).type}"`)
