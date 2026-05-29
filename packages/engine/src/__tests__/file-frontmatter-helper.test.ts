@@ -83,4 +83,39 @@ has beta
     )
     expect(result.output).toContain('has beta')
   })
+
+  // read_frontmatter(path, field) is the top-level expression form used for
+  // file-driven rendering: bind a frontmatter field into a var with @set
+  // WITHOUT @read-frontmatter's inline echo.
+  it('read_frontmatter binds a field via @set with no inline echo', () => {
+    writeFileSync(join(projectDir, 'doc.md'),
+      '---\nid: 03-widget\nstatus: complete\n---\nbody', 'utf8')
+    const result = render(
+      `@markdownai v1.0
+@set s = {{ read_frontmatter("doc.md", "status") }} /
+@set i = {{ read_frontmatter("doc.md", "id") }} /
+id={{ i }} status={{ s }}`,
+    )
+    expect(result.output).toContain('id=03-widget status=complete')
+    // no echo of the raw values before the formatted line
+    expect(result.output).not.toContain('\ncomplete\n')
+  })
+
+  it('read_frontmatter is usable directly in @if and returns empty for a missing file', () => {
+    writeFileSync(join(projectDir, 'doc.md'), '---\nstatus: draft\n---\nbody', 'utf8')
+    const r1 = render(
+      `@markdownai v1.0
+@if {{ read_frontmatter("doc.md", "status") == "draft" }}
+yes
+@if-end`,
+    )
+    expect(r1.output).toContain('yes')
+    const r2 = render(
+      `@markdownai v1.0
+@if {{ read_frontmatter("nope.md", "status") == "" }}
+missing
+@if-end`,
+    )
+    expect(r2.output).toContain('missing')
+  })
 })

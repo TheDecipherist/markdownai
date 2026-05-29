@@ -4,6 +4,7 @@ import { existsSync, statSync } from 'node:fs'
 import { runInNewContext } from 'node:vm'
 import type { InterpolationSpan, ShellInlineSpan } from '@markdownai/parser'
 import { readMarkdownSection, parseFeatureBrief, extractFilePaths } from './sources.js'
+import { readFrontmatterField } from './frontmatter-utils.js'
 import { resolveEnv, type EngineContext } from './context.js'
 import { allowed } from './conditions.js'
 import { logEngineError } from './error-log.js'
@@ -159,6 +160,11 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
       if (abs === null) return ''
       return readMarkdownSection(abs, headingContains)
     },
+    readFrontmatter: (p: string, field: string): string => {
+      const abs = confinedPath(p)
+      if (abs === null) return ''
+      try { return readFrontmatterField(readFileSync(abs, 'utf8'), field) ?? '' } catch { return '' }
+    },
   }
   // Build the sandbox with skill context variables exposed at the top level
   // (mirrors conditions.ts so {{ arg0 }} / {{ argsList[0] }} / etc. resolve correctly).
@@ -227,6 +233,9 @@ export function evalExpr(expr: string, ctx: EngineContext): string {
     },
     extract_paths: (text: unknown): string[] => {
       return extractFilePaths(String(text ?? ''))
+    },
+    read_frontmatter: (path: unknown, field: unknown): string => {
+      return fileHelper.readFrontmatter(String(path ?? ''), String(field ?? ''))
     },
   }
   try {

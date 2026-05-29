@@ -350,6 +350,12 @@ function buildSandbox(ctx: EngineContext): Record<string, unknown> {
     extract_paths: (text: unknown): string[] => {
       return extractFilePaths(String(text ?? ''))
     },
+    // Read a single frontmatter field from a doc into the expression (no
+    // emit) - the file-driven primitive for reading .mdd frontmatter in @set /
+    // @if without @read-frontmatter's inline echo.
+    read_frontmatter: (path: unknown, field: unknown): string => {
+      return file.frontmatterField(String(path ?? ''), String(field ?? ''))
+    },
   }
 }
 
