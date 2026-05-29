@@ -85,6 +85,10 @@ A `skill_session_id` keys per-(session x document) state inside the MCP server. 
 
 Framework descriptors (`mdd.plugin.md`, others) declare project layout at render time. Documents pull layout facts from the descriptor instead of guessing - no more layout-inference hallucinations when the AI hasn't seen the project before.
 
+### Reusable partials with bound data
+
+`@template ./row.md data=<expression> /` inlines another MarkdownAI document at the call site and binds it to a data context, like a partial in Angular or Vue. `@data <name> ... @data-end` composes a single object from any in-scope values (db results, set variables, env fallbacks) using `<key> = <expression>` assignments, dot-notation for nested keys, and `...<expression>` spreads. Inside the partial, the bound value is accessible as `{{ data.* }}` (or `{{ <name>.* }}` via `as=<name>`). Reads inherit from the caller's scope; writes stay local, so the same partial can be called repeatedly inside `@foreach` without name collisions.
+
 ### `@touch` directive
 
 Idempotent empty-file creation for scaffolding. Safe to re-run.

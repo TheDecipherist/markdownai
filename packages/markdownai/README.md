@@ -25,6 +25,10 @@ MarkdownAI is a superset of Markdown that makes documents live. Add `@markdownai
 
 This org contains the full MarkdownAI toolchain as a set of focused, composable packages.
 
+## v1.3
+
+- **Reusable partials with bound data:** `@template <path> data=<expr> [as=<name>] /` inlines another `.md` file at the call site and binds the expression to `{{ data.* }}` inside the partial. `@data <name> ... @data-end` composes a single object from any in-scope values using `<key> = <expression>` assignments, dot-notation, and `...<expression>` spreads. Reads inherit from the caller; writes stay local, so the same partial composes cleanly inside `@foreach`.
+
 ## v1.0
 
 - **Iteration:** `@foreach` and `@set` turn documents into programs.
