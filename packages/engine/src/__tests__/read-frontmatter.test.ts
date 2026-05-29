@@ -44,6 +44,19 @@ Status is {{ doc_status }}.
     expect(result.output).toContain('Status is complete.')
   })
 
+  it('interpolates {{ }} in the path attribute at top level (not only inside @foreach)', () => {
+    writeFileSync(join(projectDir, '01-widget.md'),
+      '---\nid: 01-widget\nstatus: draft\n---\n\nBody.\n', 'utf8')
+    const result = render(
+      `@markdownai v1.0
+@set fid = {{ "01" + "-" + "widget" }} /
+@read-frontmatter path="{{ fid }}.md" field="status" label=st /
+Status is {{ st }}.
+`,
+    )
+    expect(result.output).toContain('Status is draft.')
+  })
+
   it('reads a list field as comma-separated text', () => {
     writeFileSync(join(projectDir, 'doc.md'),
       '---\nid: 01-test\nsource_files:\n  - src/a.ts\n  - src/b.ts\n---\n\nBody.\n', 'utf8')
