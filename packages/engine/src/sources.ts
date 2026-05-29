@@ -25,7 +25,17 @@ function resolveDataPath(path: string, ctx: EngineContext, directive: string): s
     ctx.warnings.push(`SECURITY_ALERT: ${directive} no data jail configured: ${path}`)
     return null
   }
-  const full = isAbsolute(path) ? path : resolve(dataJail, path)
+  // Expand the path before resolving, mirroring @query (and the read-ops
+  // fix). Without this, `${CLAUDE_SKILL_DIR}`, `${CWD}`, `${HOME}`, a leading
+  // `~/`, and `{{ }}` interpolations stay literal in @list/@read/@count/@tree
+  // paths — so a flow installed at ~/.claude/mdd2/ that lists its own skill
+  // tree (`@list ${CLAUDE_SKILL_DIR}/flows`) silently matches nothing.
+  const expandedPath = expandPattern(interpolatePathSoft(path, ctx), {
+    env: { ...ctx.env, ...ctx.envFiles },
+    skillDir: ctx.skillContext?.skillDir ?? '',
+    sessionId: ctx.skillContext?.sessionId ?? '',
+  })
+  const full = isAbsolute(expandedPath) ? expandedPath : resolve(dataJail, expandedPath)
   const check = checkDataPath(full, dataJail, ctx.security.allowedDataPaths, ctx.security.filesystemConfig)
   if (check.level === 'blocked') {
     ctx.warnings.push(`SECURITY_ALERT: ${directive} path blocked — ${check.reason}: ${path}`)

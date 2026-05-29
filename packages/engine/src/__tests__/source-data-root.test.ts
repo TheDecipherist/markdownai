@@ -49,6 +49,37 @@ describe('source vs data root split (v2.0)', () => {
     expect(result.output).toContain('test.md')
   })
 
+  it('expands ${CLAUDE_SKILL_DIR} in @list paths (skill tree self-enumeration)', () => {
+    // A flow installed at the skill dir lists its own flows/ subtree while the
+    // process cwd is the user's project. The path must expand to the skill dir,
+    // not stay a literal "${CLAUDE_SKILL_DIR}/flows" that matches nothing.
+    mkdirSync(join(skillDir, 'flows'), { recursive: true })
+    for (const f of ['build', 'audit', 'commands']) {
+      writeFileSync(join(skillDir, 'flows', `${f}.md`), '@markdownai v1.0\n', 'utf8')
+    }
+
+    const filePath = join(skillDir, 'flows', 'commands.md')
+    const content = '@markdownai v1.0\n@list ${CLAUDE_SKILL_DIR}/flows match="*.md" label=ff /\n{{ ff }}\n'
+    const ast = parse(content, { filePath })
+    const result = execute(ast, {
+      filePath,
+      ctx: {
+        cwd: projectDir,
+        docDir: projectDir,
+        skillContext: { args: '', argsList: [], namedArgs: {}, sessionId: '', effort: '', skillDir },
+        security: {
+          allowShell: false, allowHttp: false, allowDb: false,
+          jailRoot: projectDir,
+          allowedDataPaths: [`${skillDir}/**`],
+        },
+      },
+    })
+
+    expect(result.output).toContain('build.md')
+    expect(result.output).toContain('audit.md')
+    expect(result.output).toContain('commands.md')
+  })
+
   it('source ops still resolve relative to document directory', () => {
     // skill_dir has a sibling lib file; @import should find it
     writeFileSync(join(skillDir, 'lib.md'), '@markdownai v1.0\n@define hello\nlibrary loaded\n@define-end\n', 'utf8')
