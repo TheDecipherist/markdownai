@@ -45,3 +45,38 @@ describe('ISSUE-005 — @import absolute path graceful degradation', () => {
     expect(result.output).toContain('# Hello')
   })
 })
+
+// ISSUE: dynamic @call with {{ }} name interpolation was silently dropped.
+// handleCall read node.name literally instead of evaluating interpolations.
+describe('dynamic @call name interpolation', () => {
+  it('@call macro-{{ var }} / resolves to the correct macro at runtime', () => {
+    const src = [
+      '@markdownai v1.0',
+      '@define apply-check-express local',
+      'EXPRESS-CHECK',
+      '@define-end',
+      '@phase t',
+      "  @set entry = 'express' /",
+      '  @call apply-check-{{ entry }} /',
+      '@phase-end',
+    ].join('\n')
+    const ast = parse(src)
+    const result = execute(ast, { ctx: { phase: 't', security: { allowShell: false, allowHttp: false, allowDb: false, jailRoot: null } } })
+    expect(result.errors).toHaveLength(0)
+    expect(result.output).toContain('EXPRESS-CHECK')
+  })
+
+  it('dynamic @call to non-existent macro silently returns empty string', () => {
+    const src = [
+      '@markdownai v1.0',
+      '@phase t',
+      "  @set name = 'does-not-exist' /",
+      '  @call {{ name }} /',
+      '@phase-end',
+    ].join('\n')
+    const ast = parse(src)
+    const result = execute(ast, { ctx: { phase: 't', security: { allowShell: false, allowHttp: false, allowDb: false, jailRoot: null } } })
+    expect(result.errors).toHaveLength(0)
+    expect(result.output.trim()).toBe('')
+  })
+})

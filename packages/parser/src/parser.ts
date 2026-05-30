@@ -39,7 +39,12 @@ const PARAM_BODY_DIRECTIVES = new Set(['render-template'])
 // detail that would be lost if the parser pre-consumed key=value lines as
 // attrs. @data needs this so its <key> = <expression> body is delivered to the
 // directive parser verbatim.
-const VERBATIM_BODY_DIRECTIVES = new Set(['data'])
+// Directives whose body starts immediately on the line after the opener —
+// no attribute-collection phase. Every continuation line goes to body.
+// @define: body is the macro template; single-word lines were incorrectly
+// consumed as bare flags before body mode started.
+// @data: unchanged (was already in the set).
+const VERBATIM_BODY_DIRECTIVES = new Set(['data', 'define'])
 
 // Block directives that get their body recursively parsed into ASTNodes.
 const RECURSIVE_BODY_DIRECTIVES = new Set([

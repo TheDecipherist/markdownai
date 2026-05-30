@@ -454,14 +454,19 @@ function executeConstraint(node: ConstraintNode, ctx: EngineContext): string {
 }
 
 function handleCall(node: CallNode, ctx: EngineContext): string {
-  const macro = ctx.macros[node.name]
+  // Evaluate interpolations in the macro name so dynamic calls like
+  // @call prefix-{{ entry }} / resolve to the actual macro name at runtime.
+  const macroName = node.name.includes('{{')
+    ? resolveInterpolations(node.name, scanInterpolations(node.name), ctx, [])
+    : node.name
+  const macro = ctx.macros[macroName]
   if (!macro) return ''
   const namedArgs: Record<string, string> = { ...node.args }
   for (let i = 0; i < node.positionalArgs.length; i++) {
     const paramName = macro.params[i]
     if (paramName !== undefined) namedArgs[paramName] = node.positionalArgs[i] ?? ''
   }
-  ctx.callstack.push(`call:${node.name}`)
+  ctx.callstack.push(`call:${macroName}`)
   try {
     return walkNodes(substituteParams(macro.body, namedArgs), ctx).join('\n').trimStart()
   } finally {
