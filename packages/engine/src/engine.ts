@@ -154,6 +154,7 @@ function expandAllowList(raw: string[] | undefined, ctx: EngineContext): string[
   const expandCtx: import('./security/path-expand.js').PatternExpandContext = { env }
   if (skillDir) expandCtx.skillDir = skillDir
   if (sessionId) expandCtx.sessionId = sessionId
+  if (ctx.cwd) expandCtx.cwd = ctx.cwd
   return expandPatterns(raw, expandCtx)
 }
 

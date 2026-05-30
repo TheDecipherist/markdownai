@@ -8,6 +8,7 @@ export interface PatternExpandContext {
   env: Record<string, string>          // process.env + envFiles
   skillDir?: string                    // CLAUDE_SKILL_DIR
   sessionId?: string                   // CLAUDE_SESSION_ID
+  cwd?: string                         // logical project directory (ctx.cwd from MCP call)
 }
 
 const VAR_RE = /\$\{([A-Z_][A-Z0-9_]*)\}/gi
@@ -42,13 +43,13 @@ export function expandPattern(pattern: string, ctx: PatternExpandContext): strin
   return expanded.replace(VAR_RE, (_, name: string) => {
     const upper = name.toUpperCase()
     if (upper === 'HOME') return homedir()
-    // ${CWD} resolves to the process working directory. This is essential
-    // for flow files installed at a system location (e.g.
-    // ~/.claude/mdd2/flows/X.md) that need to @include or @read files in
-    // the user's project (e.g. ${CWD}/.mdd/.startup.md). Without it,
-    // relative paths in those flows resolve against the flow file's
-    // directory, which is the wrong tree.
-    if (upper === 'CWD') return process.cwd()
+    // ${CWD} resolves to the logical project directory. When an MCP tool
+    // call provides ctx.cwd (the user's project), that wins — the MCP
+    // server process may be started from a global location unrelated to
+    // the user's project, so process.cwd() would be wrong for project-
+    // relative writes like ${CWD}/.mdd/settings.json.
+    // Falls back to process.cwd() for direct engine use (CLI / tests).
+    if (upper === 'CWD') return ctx.cwd ?? process.cwd()
     if (upper === 'CLAUDE_SKILL_DIR' && ctx.skillDir) return ctx.skillDir
     if (upper === 'CLAUDE_SESSION_ID' && ctx.sessionId) return ctx.sessionId
     return ctx.env[name] ?? ctx.env[upper] ?? ''

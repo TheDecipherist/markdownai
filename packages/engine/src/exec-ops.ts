@@ -25,6 +25,7 @@ function buildExpandContext(ctx: EngineContext) {
   const sessionId = ctx.skillContext?.sessionId
   if (skillDir) expandCtx.skillDir = skillDir
   if (sessionId) expandCtx.sessionId = sessionId
+  if (ctx.cwd) expandCtx.cwd = ctx.cwd
   return expandCtx
 }
 
