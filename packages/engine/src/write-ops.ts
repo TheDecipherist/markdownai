@@ -12,17 +12,7 @@ import { checkDataPath, checkWritePath } from './security/filesystem.js'
 import { expandPattern } from './security/path-expand.js'
 import { interpolatePathSoft } from './engine-include.js'
 import { extractFrontmatter, fieldRegex } from './frontmatter-utils.js'
-
-function buildExpandContext(ctx: EngineContext) {
-  const env: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
-  const expandCtx: import('./security/path-expand.js').PatternExpandContext = { env }
-  const skillDir = ctx.skillContext?.skillDir
-  const sessionId = ctx.skillContext?.sessionId
-  if (skillDir) expandCtx.skillDir = skillDir
-  if (sessionId) expandCtx.sessionId = sessionId
-  if (ctx.cwd) expandCtx.cwd = ctx.cwd
-  return expandCtx
-}
+import { buildExpandContext } from './expand-context.js'
 
 function ensureWriteEnabled(ctx: EngineContext, directive: string): boolean {
   if (!ctx.security.writeEnabled) {

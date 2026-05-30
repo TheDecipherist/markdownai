@@ -27,6 +27,7 @@ import { emitSpan } from './trace/emit.js'
 import { extractArgs } from './trace/span.js'
 import { applyMasking } from './security/masking.js'
 import { expandPatterns } from './security/path-expand.js'
+import { buildExpandContext } from './expand-context.js'
 import { executeMarkdownaiDetect, executePluginData } from './plugin-detect-exec.js'
 
 export type { EngineContext }
@@ -148,14 +149,7 @@ function resolveJailRoots(ctx: EngineContext, mainFile: string | null): void {
 
 function expandAllowList(raw: string[] | undefined, ctx: EngineContext): string[] {
   if (!raw || raw.length === 0) return []
-  const env: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
-  const skillDir = ctx.skillContext?.skillDir
-  const sessionId = ctx.skillContext?.sessionId
-  const expandCtx: import('./security/path-expand.js').PatternExpandContext = { env }
-  if (skillDir) expandCtx.skillDir = skillDir
-  if (sessionId) expandCtx.sessionId = sessionId
-  if (ctx.cwd) expandCtx.cwd = ctx.cwd
-  return expandPatterns(raw, expandCtx)
+  return expandPatterns(raw, buildExpandContext(ctx))
 }
 
 export function execute(ast: ParseResult, options?: EngineOptions): EngineResult {

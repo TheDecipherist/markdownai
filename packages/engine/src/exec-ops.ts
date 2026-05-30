@@ -17,17 +17,7 @@ import { checkDataPath, checkWritePath } from './security/filesystem.js'
 import { checkShellCommand } from './security/shell.js'
 import { expandPattern } from './security/path-expand.js'
 import { interpolatePathSoft } from './engine-include.js'
-
-function buildExpandContext(ctx: EngineContext) {
-  const env: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
-  const expandCtx: import('./security/path-expand.js').PatternExpandContext = { env }
-  const skillDir = ctx.skillContext?.skillDir
-  const sessionId = ctx.skillContext?.sessionId
-  if (skillDir) expandCtx.skillDir = skillDir
-  if (sessionId) expandCtx.sessionId = sessionId
-  if (ctx.cwd) expandCtx.cwd = ctx.cwd
-  return expandCtx
-}
+import { buildExpandContext } from './expand-context.js'
 
 function resolveReadPath(rawPath: string, ctx: EngineContext, directive: string): string | null {
   const expanded = expandPattern(rawPath, buildExpandContext(ctx))

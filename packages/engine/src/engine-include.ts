@@ -7,6 +7,7 @@ import { type EngineContext, type Connection } from './context.js'
 import { evalCondition, evalExpression } from './conditions.js'
 import { checkSourcePath } from './security/filesystem.js'
 import { expandPattern } from './security/path-expand.js'
+import { buildExpandContext } from './expand-context.js'
 
 /**
  * Expand ${VAR} placeholders in @import / @include source paths.
@@ -17,14 +18,7 @@ import { expandPattern } from './security/path-expand.js'
  * same set; this brings the source directives to parity.
  */
 function expandImportPath(rawPath: string, ctx: EngineContext): string {
-  const env: Record<string, string> = { ...ctx.env, ...ctx.envFiles }
-  const expandCtx: import('./security/path-expand.js').PatternExpandContext = { env }
-  const skillDir = ctx.skillContext?.skillDir
-  const sessionId = ctx.skillContext?.sessionId
-  if (skillDir) expandCtx.skillDir = skillDir
-  if (sessionId) expandCtx.sessionId = sessionId
-  if (ctx.cwd) expandCtx.cwd = ctx.cwd
-  return expandPattern(rawPath, expandCtx)
+  return expandPattern(rawPath, buildExpandContext(ctx))
 }
 
 export class FatalError extends Error {
