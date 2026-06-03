@@ -1410,6 +1410,13 @@ footer .footer-projects {
   .step {
     flex-direction: column;
     gap: 0.75rem;
+    align-items: stretch;
+  }
+
+  .step-content {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   #content h2 {
