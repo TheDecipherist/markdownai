@@ -10,7 +10,7 @@
   </a>
 </p>
 
-**documentation that cannot lie.**
+**the AI workflow engine.**
 
 **Packages:**
 [@markdownai/core](https://www.npmjs.com/package/@markdownai/core) &nbsp;·&nbsp;
@@ -21,7 +21,7 @@
 
 ---
 
-MarkdownAI is a superset of Markdown that makes documents live. Add `@markdownai` to the first line of any `.md` file and it becomes executable - fetching real values from your environment, databases, APIs, and shell every time it renders.
+MarkdownAI is a phase-aware AI workflow engine for Claude and AI agents. It phases runbooks, injects live data, and delivers scoped context one step at a time. Add `@markdownai` to the first line of any `.md` file and it becomes executable - fetching real values from your environment, databases, APIs, and shell at render time.
 
 This org contains the full MarkdownAI toolchain as a set of focused, composable packages.
 

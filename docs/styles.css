@@ -1,5 +1,36 @@
 /* MarkdownAI docs theme */
 /* Colors: Graphite, Watermelon, Pumpkin Spice, Willow Green, Emerald */
+
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #000;
+  color: #fff;
+  padding: 8px;
+  z-index: 100;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 0;
+}
+
+.author-meta {
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+.author-byline {
+  font-style: normal;
+  margin: 0 0 0.25rem 0;
+}
+.author-byline a {
+  color: var(--text-secondary);
+}
+.pub-dates {
+  margin: 0;
+  color: var(--text-muted);
+}
 :root {
   --bg-primary: #06070e;
   --bg-secondary: #262527;

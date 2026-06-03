@@ -1,0 +1,39 @@
+# MarkdownAI llms.txt
+# https://markdownai.dev/llms.txt
+
+> MarkdownAI is the AI Workflow Engine -- a phase-aware, MCP-backed system for building runbooks and workflows that give Claude and AI agents live, scoped context at every step.
+
+## Key pages
+
+- [Home](https://markdownai.dev): Product overview, quick start, directive reference, architecture
+- [User Guide](https://markdownai.dev/user-guide.html): Complete usage documentation
+
+## What MarkdownAI does
+
+MarkdownAI is an npm package that turns markdown files into executable AI workflows. Key capabilities:
+
+- @phase directive: delivers one workflow step at a time to the agent, preventing context rot
+- @query / @db / @http / @env: inject live system data at agent read time, not write time
+- MCP server (mai serve): 11 tools for phase navigation, live document execution, and session state
+- PreToolUse hook (mai init): Claude Code automatically renders MarkdownAI files before reading them
+- VS Code extension: syntax highlighting, snippets, live preview for .md workflow files
+
+## Install
+
+npm install -g @markdownai/core
+
+## Author
+
+TheDecipherist (https://thedecipherist.com)
+Staff Content Engineer, MongoDB
+
+## License
+
+MIT
+
+## Related
+
+- MDD (Manual-Driven Development): https://mddai.dev
+- GitHub: https://github.com/TheDecipherist/markdownai
+- npm: https://www.npmjs.com/package/@markdownai/core
+- Reddit community discussions: https://reddit.com/r/ClaudeWorkflows
