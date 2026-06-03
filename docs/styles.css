@@ -620,7 +620,33 @@ pre[class*="language-"] {
   margin: 1.5rem 0;
   padding: 1.25rem !important;
   font-size: 0.875rem;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Plain pre elements (non-Prism) */
+#content pre:not([class*="language-"]) {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  font-size: 0.875rem;
+}
+
+/* Table scroll wrapper — injected by JS for all #content tables */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+  margin: 1.5rem 0;
+}
+.table-scroll table {
+  margin: 0;
 }
 
 pre[class*="language-"]::-webkit-scrollbar {
@@ -1472,6 +1498,13 @@ footer .footer-projects {
     margin: 0;
     padding: 0.25rem 0;
     align-self: center;
+  }
+}
+
+/* Small mobile — hide header nav links (all in hamburger menu) */
+@media (max-width: 480px) {
+  header nav ul:last-child {
+    display: none;
   }
 }
 

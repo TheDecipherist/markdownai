@@ -95,11 +95,24 @@
     }
   }
 
+  // Wrap all tables in a scroll container so they scroll horizontally on mobile
+  function initTableScroll() {
+    var tables = document.querySelectorAll('#content table');
+    tables.forEach(function (table) {
+      if (table.parentElement.classList.contains('table-scroll')) return;
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-scroll';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  }
+
   // Initialize
   function init() {
     initMobileMenu();
     initScrollSpy();
     initHighlighting();
+    initTableScroll();
     handleHash();
   }
 
