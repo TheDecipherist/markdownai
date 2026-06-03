@@ -1501,10 +1501,31 @@ footer .footer-projects {
   }
 }
 
-/* Small mobile — hide header nav links (all in hamburger menu) */
-@media (max-width: 480px) {
+/* Small mobile — hamburger left, brand centered, hide crowded right links */
+@media (max-width: 540px) {
   header nav ul:last-child {
     display: none;
+  }
+
+  header nav {
+    position: relative;
+  }
+
+  /* Stretch first ul to full nav width */
+  header nav ul:first-child {
+    width: 100%;
+  }
+
+  /* Absolutely center the brand title in the nav bar */
+  .brand-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    overflow: visible;
+    text-overflow: unset;
+    font-size: 1rem;
+    font-weight: 700;
   }
 }
 
