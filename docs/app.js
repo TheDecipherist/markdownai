@@ -95,6 +95,18 @@
     }
   }
 
+  // Constrain pre elements to viewport width on mobile so they scroll internally
+  function initPreScroll() {
+    if (window.innerWidth > 768) return;
+    var maxW = window.innerWidth - 32;
+    document.querySelectorAll('#content pre').forEach(function (pre) {
+      pre.style.maxWidth = maxW + 'px';
+      pre.style.overflowX = 'auto';
+      pre.style.webkitOverflowScrolling = 'touch';
+      pre.style.boxSizing = 'border-box';
+    });
+  }
+
   // Wrap all tables in a scroll container so they scroll horizontally on mobile
   function initTableScroll() {
     var tables = document.querySelectorAll('#content table');
@@ -112,6 +124,7 @@
     initMobileMenu();
     initScrollSpy();
     initHighlighting();
+    initPreScroll();
     initTableScroll();
     handleHash();
   }
