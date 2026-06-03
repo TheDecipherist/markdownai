@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="docs/markdownAI_hero.webp" alt="MarkdownAI - Documentation That Cannot Lie" width="100%" />
+  <img src="docs/markdownAI_hero.webp" alt="MarkdownAI - The AI Workflow Engine" width="100%" />
 </p>
 
 # MarkdownAI
 
-> **documentation that cannot lie.**
+> **the AI workflow engine.**
 
 [![npm version](https://img.shields.io/badge/version-2.0.0-0891b2)](https://www.npmjs.com/package/@markdownai/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -14,7 +14,7 @@
 
 ## What is MarkdownAI
 
-A Markdown superset for AI-assisted workflows. Documents mix prose with executable directives - data sources, control flow, file ops, test runs, DB queries - and the engine renders directives at read time so docs stay synced with the underlying project. Originally built for the MDD (Manual-Driven Development) workflow, but the grammar and runtime are generic enough for any agentic-coding pipeline.
+MarkdownAI is a phase-aware AI workflow engine for Claude and AI agents. It phases runbooks, injects live data, and delivers scoped context one step at a time. Documents mix prose with executable directives - data sources, control flow, file ops, test runs, DB queries - so the engine renders exactly what the agent needs for the current step, nothing more.
 
 ---
 

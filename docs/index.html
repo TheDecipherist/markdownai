@@ -4,11 +4,11 @@
   <script>if(location.hostname==="thedecipherist.github.io")location.replace("https://markdownai.dev"+location.pathname.replace("/markdownai","")+location.search+location.hash);</script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MarkdownAI - documentation that cannot lie.</title>
+  <title>MarkdownAI - The AI Workflow Engine</title>
 
   <!-- SEO Meta Tags -->
-  <meta name="description" content="MarkdownAI - documentation that cannot lie. Add @markdownai to any .md file and it becomes a live document that fetches real values every time it renders." />
-  <meta name="keywords" content="MarkdownAI, live documentation, markdown directives, mai, Claude Code, MCP server, documentation as code, dynamic markdown" />
+  <meta name="description" content="Phase-aware AI workflows for Claude. MarkdownAI phases your runbooks, injects live data, and hands your agent scoped context -- one step at a time." />
+  <meta name="keywords" content="MarkdownAI, AI workflow engine, MCP runbook, Claude Code workflow, phase-based AI context, context rot prevention, AI runbook automation, live context injection, CLAUDE.md scale, cold-start agent amnesia" />
   <meta name="author" content="TheDecipherist" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="https://markdownai.dev" />
@@ -16,15 +16,15 @@
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://markdownai.dev" />
-  <meta property="og:title" content="MarkdownAI - documentation that cannot lie." />
-  <meta property="og:description" content="Add @markdownai to any .md file and it becomes a live document. Directives fetch real values every time it renders. Documentation that cannot lie." />
+  <meta property="og:title" content="MarkdownAI - The AI Workflow Engine" />
+  <meta property="og:description" content="Write AI workflows as markdown. MarkdownAI phases your runbook, injects live data, and hands your agent exactly what it needs -- step by step. No context rot. No stale data." />
   <meta property="og:image" content="https://markdownai.dev/markdownAI_hero.webp" />
   <meta property="og:site_name" content="MarkdownAI" />
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="MarkdownAI - documentation that cannot lie." />
-  <meta name="twitter:description" content="Add @markdownai to any .md file and it becomes a live document. Directives fetch real values every time it renders." />
+  <meta name="twitter:title" content="MarkdownAI - The AI Workflow Engine" />
+  <meta name="twitter:description" content="Build AI workflows in plain markdown. Phase-aware. Live data injection. Zero context rot. The workflow engine for Claude and AI agents." />
   <meta name="twitter:image" content="https://markdownai.dev/markdownAI_hero.webp" />
 
   <!-- Schema.org JSON-LD -->
@@ -34,13 +34,12 @@
     "@type": "SoftwareApplication",
     "name": "MarkdownAI",
     "alternateName": "mai",
-    "description": "Add @markdownai to any .md file and it becomes a live document. Directives fetch real values every time it renders. Documentation that cannot lie.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS, Linux, Windows",
+    "description": "A phase-aware AI workflow engine for Claude and AI agents. MarkdownAI phases runbooks, injects live data via MCP, and delivers scoped context to AI agents one step at a time.",
     "url": "https://markdownai.dev",
     "downloadUrl": "https://www.npmjs.com/package/@markdownai/core",
-    "applicationCategory": "DeveloperApplication",
-    "operatingSystem": "Any",
-    "softwareVersion": "2.0.0",
-    "license": "https://opensource.org/licenses/MIT",
+    "softwareVersion": "2.0",
     "author": {
       "@type": "Person",
       "name": "TheDecipherist",
@@ -50,7 +49,114 @@
       "@type": "Offer",
       "price": "0",
       "priceCurrency": "USD"
-    }
+    },
+    "codeRepository": "https://github.com/TheDecipherist/markdownai",
+    "keywords": "AI workflow engine, MCP runbook, Claude Code, context rot prevention, phase-aware AI, AI agent workflow"
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How does MarkdownAI prevent context rot?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "MarkdownAI's @phase directive eliminates context rot at the file level. Each phase is a named, isolated block. The MCP server's resolve_phase tool returns exactly one phase per call. The agent never sees phases it is not currently executing, so there is no accumulated noise from previous steps. A 20-phase runbook only ever loads one phase at a time into the agent's context window."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does MarkdownAI automate AI runbooks with live data?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "MarkdownAI runbooks do not store state -- they declare data sources. The @db directive queries your database at agent read time, not when the runbook was written. The @http directive hits live endpoints. The @query directive runs shell commands and returns actual current output. Every fact is fetched fresh on every execution, so runbooks never go stale when the underlying system changes."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do you keep CLAUDE.md small at scale?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The MarkdownAI architecture replaces a monolithic CLAUDE.md with a thin 10-20 line entry point that uses @read to pull phase-specific instruction files from .mdd/ on demand, and @db or @env to inject live state at session start. The agent sees a focused, accurate slice instead of a 600-line document it has to parse to find what is relevant."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does MarkdownAI solve AI agent cold-start amnesia?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "MarkdownAI's MCP server maintains per-session, per-document state keyed by skill_session_id. Values written with @set in phase 1 are readable in phase 5 even across full session resets. Complex multi-session workflows maintain continuity without requiring the developer to manually re-feed context after every Claude Code session restart."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How is MarkdownAI different from n8n and visual workflow builders?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Visual workflow builders like n8n and Make are designed for non-technical operators connecting SaaS tools through a browser-based drag-and-drop interface. MarkdownAI is designed for developers who want their workflow defined as a markdown file in their repository -- reviewed in pull requests, diffed in git, and executed by Claude via MCP. MarkdownAI installs with npm install -g @markdownai/core and requires no running service."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the difference between MarkdownAI and Jinja or Handlebars?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Template engines like Jinja, Handlebars, and EEx render once at build time and output to a browser. MarkdownAI renders at read time, for an AI agent, and scopes output to exactly the phase that agent is currently executing. A browser has no context window. Claude does. MarkdownAI's @phase system, MCP server, and live data directives have no equivalent in template engines because template engines were not designed for AI agent consumption."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I install MarkdownAI?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Install with: npm install -g @markdownai/core. Then run mai init to install the PreToolUse and SessionStart hooks into Claude Code. Run mai serve to start the MCP server. Node.js 18 or higher required. Works on macOS, Linux, and Windows (WSL recommended on Windows for shell features)."
+        }
+      }
+    ]
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    "name": "How to Install and Run Your First MarkdownAI Workflow",
+    "description": "Install MarkdownAI, create a live workflow document, and connect it to Claude Code via the MCP server.",
+    "totalTime": "PT5M",
+    "tool": [
+      { "@type": "HowToTool", "name": "Node.js 18+" },
+      { "@type": "HowToTool", "name": "Claude Code or any MCP-compatible AI agent" }
+    ],
+    "step": [
+      {
+        "@type": "HowToStep",
+        "name": "Install the CLI",
+        "text": "Run: npm install -g @markdownai/core. This installs the mai binary globally.",
+        "position": 1
+      },
+      {
+        "@type": "HowToStep",
+        "name": "Install the VS Code extension",
+        "text": "Open Extensions in VS Code (Ctrl+Shift+X), search MarkdownAI, click Install. Provides syntax highlighting, snippets, completions, and live preview.",
+        "position": 2
+      },
+      {
+        "@type": "HowToStep",
+        "name": "Install the PreToolUse hook",
+        "text": "Run: mai init. This installs hooks so Claude Code automatically renders MarkdownAI documents before reading them -- Claude always sees live data.",
+        "position": 3
+      },
+      {
+        "@type": "HowToStep",
+        "name": "Initialize a security policy",
+        "text": "Run: mai security init. This creates .markdownai/security.json and configures which data sources are permitted for your project.",
+        "position": 4
+      }
+    ]
   }
   </script>
 
@@ -68,11 +174,13 @@
 </head>
 <body>
 
+  <a href="#content" class="skip-link">Skip to main content</a>
+
   <!-- ===================== -->
   <!-- Fixed Glassmorphism Header -->
   <!-- ===================== -->
   <header>
-    <nav class="container">
+    <nav class="container" aria-label="MarkdownAI site navigation">
       <ul>
         <li>
           <button
@@ -178,24 +286,39 @@
     <div class="hero-glow" aria-hidden="true"></div>
     <div class="hero-content container">
       <div class="hero-badge">v2.0 - npm install -g @markdownai/core</div>
-      <h1>MarkdownAI</h1>
+      <h1>The AI Workflow Engine</h1>
       <p class="hero-subtitle">
-        documentation that cannot lie.
+        Stop dumping entire files into your AI's context window. MarkdownAI phases your runbooks, injects live data, and delivers exactly what your agent needs -- one step at a time, never stale.
       </p>
       <div class="hero-actions">
-        <a href="user-guide.html" class="btn btn-primary">Read the Guide &rarr;</a>
-        <a href="https://github.com/TheDecipherist/markdownai" target="_blank" rel="noopener" class="btn btn-secondary">View on GitHub</a>
+        <a href="user-guide.html" class="btn btn-primary">Build Your First AI Workflow &rarr;</a>
+        <a href="https://github.com/TheDecipherist/markdownai" target="_blank" rel="noopener" class="btn btn-secondary">MarkdownAI on GitHub</a>
       </div>
     </div>
     <div class="hero-banner">
       <img
         src="markdownAI_hero.webp"
-        alt="MarkdownAI hero image - documentation that cannot lie"
+        alt="MarkdownAI workflow engine -- phase-based AI runbook architecture diagram showing @phase, @query, and MCP server integration"
         width="1400"
         loading="eager"
       />
     </div>
   </section>
+
+  <!-- ===================== -->
+  <!-- Author / E-E-A-T      -->
+  <!-- ===================== -->
+  <div class="container author-meta">
+    <address class="author-byline">
+      Built by <a rel="author" href="https://thedecipherist.com">TheDecipherist</a> --
+      Staff Content Engineer at <a href="https://mongodb.com">MongoDB</a>,
+      creator of <a href="https://thedecipherist.com">thedecipherist.com</a>.
+    </address>
+    <p class="pub-dates">
+      <time datetime="2025-01-01">First published 2025</time>.
+      <time datetime="2026-06-02">Last updated June 2026</time>.
+    </p>
+  </div>
 
   <!-- ===================== -->
   <!-- Main Layout           -->
@@ -329,17 +452,45 @@
       </section>
 
       <!-- ============================== -->
+      <!-- Section: Why MarkdownAI       -->
+      <!-- ============================== -->
+      <section id="why-workflow-engine" aria-labelledby="why-workflow-heading">
+        <h2 id="why-workflow-heading">Why Developers Switch to MarkdownAI</h2>
+
+        <h3>Context rot is killing your Claude Code sessions</h3>
+        <p>Every serious Claude Code session eventually degrades. Not because the model fails -- because the context window fills. Past tool results, failed attempts, and full-file reads accumulate until the AI loses the thread. The community calls this context rot. The structural fix is not better prompting. It is scoping.</p>
+        <p>MarkdownAI's <code>@phase</code> directive implements scoping at the file level. A 20-phase deployment runbook only ever loads one phase at a time. Claude executes phase 3, calls <code>next_phase</code>, and phase 4 loads. Phases 1, 2, and 5 through 20 have never touched the context window. There is nothing to rot.</p>
+        <p>The pattern is well-documented: see <a href="https://www.mindstudio.ai/blog/context-rot-ai-coding-agents-explained" rel="noopener" target="_blank">Context Rot in AI Coding Agents</a> (MindStudio) and the <a href="https://agenteer.com/blog/the-two-context-bloat-problems-every-ai-agent-builder-must-understand/" rel="noopener" target="_blank">Two Context Bloat Problems</a> (Agenteer) for independent analysis of the same failure mode.</p>
+
+        <h3>Your CLAUDE.md should not be 600 lines</h3>
+        <p>Anthropic's own best practice: keep CLAUDE.md under 200 lines. Every serious project exceeds that within a week. The result is a bloated file the AI has to read entirely on every session start, burning context before any work begins.</p>
+        <p>The MarkdownAI architecture replaces the monolithic CLAUDE.md with a thin entry point that calls <code>@read</code> on phase-specific files and injects live state on demand. Claude sees a focused, accurate slice -- not a 600-line document it has to search.</p>
+        <p>This pattern is also discussed in the official <a href="https://www.anthropic.com/engineering/claude-code-best-practices" rel="noopener" target="_blank">Claude Code Best Practices</a> documentation (Anthropic Engineering).</p>
+
+        <h3>Runbooks that never go stale</h3>
+        <p>DevOps and engineering teams typically have dozens of runbooks nobody has time to keep current. The port changes, the endpoint moves, the flag flips -- but the runbook does not know. The AI follows the instructions. The wrong thing happens.</p>
+        <p>MarkdownAI runbooks do not store values. They declare data sources. The <code>@query</code>, <code>@db</code>, <code>@http</code>, and <code>@env</code> directives resolve against live system state at the moment the agent reads the file. A runbook that calls <code>@query docker service ls</code> hands Claude a current container list -- not what you typed last month.</p>
+      </section>
+
+      <!-- ============================== -->
       <!-- Section: What is MarkdownAI   -->
       <!-- ============================== -->
       <section id="what-is">
         <h2>What is MarkdownAI</h2>
 
         <p>
-          A Reddit commenter looked at this and said: <em>"I mean I get it but you've basically made
-          jinja/handlebars/eex with a lil flava."</em>
+          Most developers who land here expect another template engine or a documentation generator.
+          MarkdownAI is neither. It is a workflow execution engine -- the difference is not cosmetic.
         </p>
         <p>
-          This is a reasonable first impression and a completely wrong conclusion.
+          A template engine (Jinja, Handlebars, EEx) renders a file once at build time and hands
+          the output to a browser. The template is consumed, gone. MarkdownAI renders at read time,
+          for an AI agent, and the output is scoped to exactly the phase that agent is currently
+          executing. A browser has no context window. Claude does.
+        </p>
+        <p>
+          One Reddit commenter called it <em>"basically jinja with a lil flava."</em> Here is the
+          precise reason that is wrong:
         </p>
         <p>
           Jinja, Handlebars, and EEx are template engines. You write a template with
@@ -428,43 +579,39 @@
       <!-- ============================== -->
       <!-- Section: The Problem With Docs -->
       <!-- ============================== -->
-      <section id="why">
-        <h2>The Problem With Documentation</h2>
+      <section id="why" aria-labelledby="why-heading">
+        <h2 id="why-heading">The Three Reasons AI Workflows Break</h2>
 
         <p>
-          Here is something that happens at every company: someone writes great documentation.
-          It is accurate. It is detailed. It is helpful.
-        </p>
-        <p>
-          Then the code changes.
-        </p>
-        <p>
-          The database schema gets a new field. The API endpoint moves. The environment variable
-          gets renamed. The service goes from port 3000 to 8080. But the docs stay exactly as they
-          were - frozen at the moment someone last had time to update them. Within weeks, the
-          documentation is wrong. Within months, it actively misleads. People stop trusting it.
-          Eventually, they stop reading it.
-        </p>
-
-        <div class="callout">
-          <p>
-            <strong>This is not a process failure. This is physics.</strong> Static text cannot
-            track a moving system.
-          </p>
-        </div>
-
-        <p>
-          Add <code>@markdownai</code> to the first line of any <code>.md</code> file and it becomes
-          a live document. Instead of writing values that will go stale, you write directives that
-          fetch the current value every time the document is rendered. Your database record count is
-          queried when someone reads the doc, not when you wrote it. Your API response is real. Your
-          environment variables are live. Your file tree reflects what is actually on disk right now.
+          Every developer who builds seriously with Claude Code or AI agents hits the same wall.
+          It is not the model. It is the architecture.
         </p>
 
         <p>
-          Run <code>mai render</code>. The document executes. The output is clean, standard Markdown
-          with everything resolved. The result is documentation that cannot lie - because it does not
-          store facts, it fetches them.
+          <strong>Context rot.</strong> Your AI's output quality degrades as the context window fills
+          with history, tool results, and noise from earlier in the session. By step 12, it is
+          hallucinating variable names that do not exist.
+        </p>
+
+        <p>
+          <strong>Stale data.</strong> Your runbook tells the AI your API is at
+          <code>localhost:3000</code>. It moved to 8080 last Tuesday. The AI does not know. It acts
+          on what the doc says, not what is true right now. Static text cannot track a moving system.
+        </p>
+
+        <p>
+          <strong>Cold-start amnesia.</strong> Every new Claude Code session starts from zero. The AI
+          re-derives the same conclusions from scratch. There is no memory of phase 3 state from the
+          session that ended an hour ago.
+        </p>
+
+        <p>
+          MarkdownAI solves all three. The <code>@phase</code> directive exposes only the current
+          workflow step -- the rest of the document does not exist to the AI yet. The
+          <code>@query</code>, <code>@db</code>, <code>@env</code>, and <code>@http</code> directives
+          inject live system state at the moment the AI reads the file. The MCP server preserves
+          session state across <code>next_phase</code> calls so a 20-step runbook survives context
+          resets.
         </p>
       </section>
 
@@ -472,7 +619,7 @@
       <!-- Section: How It Works -->
       <!-- ===================== -->
       <section id="how">
-        <h2>How It Works</h2>
+        <h2>How the AI Workflow Engine Works</h2>
 
         <p>
           One line changes everything. Add <code>@markdownai</code> to the top of any
@@ -560,7 +707,7 @@
       <!-- Section: Quick Start  -->
       <!-- ===================== -->
       <section id="quickstart">
-        <h2>Quick Start</h2>
+        <h2>How to Install and Run Your First MarkdownAI Workflow</h2>
 
         <div class="step">
           <div class="step-number">1</div>
@@ -614,7 +761,7 @@
       <!-- Section: Language Features -->
       <!-- ========================= -->
       <section id="language">
-        <h2>Language Features</h2>
+        <h2>What Directives Does MarkdownAI Support?</h2>
 
         <p>
           MarkdownAI extends standard Markdown with a small set of directives. They compose naturally
@@ -696,7 +843,7 @@
       <!-- Section: Data Sources    -->
       <!-- ======================== -->
       <section id="data">
-        <h2>Data Sources</h2>
+        <h2>What Data Sources Can MarkdownAI Inject at Runtime?</h2>
 
         <p>
           MarkdownAI can pull from the filesystem, structured files, databases, HTTP APIs, and shell
@@ -1081,7 +1228,7 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
       <!-- Section: AI Integration  -->
       <!-- ======================== -->
       <section id="ai">
-        <h2>AI Integration</h2>
+        <h2>How to Integrate MarkdownAI with Claude and AI Agents</h2>
 
         <p>
           MarkdownAI was designed with AI-native workflows in mind. Every feature is built to serve
@@ -1260,6 +1407,52 @@ mai cache seed my-doc.md     # pre-populate by running all fetches ahead of time
             <tr><td><code>mai security http add-domain &lt;domain&gt;</code></td><td>Add a domain to the allowlist</td></tr>
             <tr><td><code>mai security db add &lt;connection&gt;</code></td><td>Register a database connection</td></tr>
             <tr><td><code>mai security db test "&lt;query&gt;"</code></td><td>Test whether a query would be permitted</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ================================== -->
+      <!-- Section: Keyword Anchor Sections  -->
+      <!-- ================================== -->
+      <section id="context-rot-prevention" aria-labelledby="context-rot-heading">
+        <h2 id="context-rot-heading">How does MarkdownAI prevent context rot?</h2>
+        <p>Context rot is the gradual degradation of AI agent output quality as the context window fills with accumulated noise -- conversation history, intermediate tool results, failed attempts, and full-file reads. By session hour two, even capable models hallucinate variable names that do not exist and repeat approaches they already tried. The problem is not the model. It is the architecture.</p>
+        <p>MarkdownAI's <code>@phase</code> directive eliminates context rot at the file level. Each phase is a named, isolated block. The MCP server's <code>resolve_phase</code> tool returns exactly one phase per call. The agent never sees phases it is not currently executing. Previous phases never entered the current context window. There is no accumulated noise because there is no accumulation.</p>
+        <p>Related directives: <code>@phase</code>, <code>@on-complete</code>. Related MCP tools: <code>next_phase</code>, <code>get_session_state</code>.</p>
+      </section>
+
+      <section id="ai-runbook-automation" aria-labelledby="runbook-heading">
+        <h2 id="runbook-heading">How does MarkdownAI automate AI runbooks with live data?</h2>
+        <p>A runbook is only useful if it reflects the current state of the system. Static runbooks go stale the moment the system changes. The standard response -- "update the runbook" -- fails at scale because teams have hundreds of runbooks and nobody has time.</p>
+        <p>MarkdownAI runbooks do not store state. They declare data sources. The <code>@db</code> directive queries your database when the agent reads the file -- not when you wrote it. The <code>@http</code> directive hits your health endpoint live. The <code>@query</code> directive runs a shell command and returns the actual current output. Combined with <code>@phase</code>, a MarkdownAI runbook is a self-contained execution system: phase-gated, live-data-backed, and safe to run against a production system because every fact is fetched fresh on every execution.</p>
+      </section>
+
+      <section id="claudemd-at-scale" aria-labelledby="claudemd-heading">
+        <h2 id="claudemd-heading">How do you keep CLAUDE.md small at scale?</h2>
+        <p>Anthropic recommends keeping CLAUDE.md under 200 lines. In practice, every project that uses Claude Code seriously exceeds this limit within a week -- conventions, schemas, connection strings, workflow steps, and environment context all accumulate. The result is a bloated file that burns context before any actual work begins.</p>
+        <p>The MarkdownAI architecture solves this with a thin entry point. The CLAUDE.md or <code>CLAUDE-MarkdownAI.md</code> file stays under 20 lines. It calls <code>@read</code> on phase-specific instruction files that live in <code>.mdd/</code>. It fetches live state from the database or environment at session start. The agent sees a focused, accurate, pre-resolved context -- not a file it has to parse to find what is relevant to the current step.</p>
+      </section>
+
+      <section id="cold-start-continuity" aria-labelledby="coldstart-heading">
+        <h2 id="coldstart-heading">How does MarkdownAI solve AI agent cold-start amnesia?</h2>
+        <p>Every new Claude Code session starts from zero. The model has no memory of what phase 3 decided, what state was built up in the last session, or what variable values were set two hours ago. Complex multi-session workflows break at every context reset because the agent re-derives the same conclusions from scratch.</p>
+        <p>MarkdownAI's MCP server solves this at the protocol level. A <code>skill_session_id</code> keys per-session, per-document state inside the server. <code>@set</code> values written in phase 1 are readable in phase 5 even across full session resets. The document manages state. The agent follows steps. A 20-phase deployment runbook survives overnight without losing position.</p>
+      </section>
+
+      <section id="vs-n8n" aria-labelledby="vsn8n-heading">
+        <h2 id="vsn8n-heading">How is MarkdownAI different from n8n, Make, and visual workflow builders?</h2>
+        <p>Visual workflow builders (n8n, Make, Relay, Zapier) and MarkdownAI solve different problems for different audiences. Visual builders are designed for non-technical operators connecting SaaS tools via a drag-and-drop interface. MarkdownAI is designed for developers who want their workflow definition to live in the repository as a text file, reviewed in pull requests, diffed in git, and executed by an AI agent via MCP.</p>
+
+        <table>
+          <thead><tr><th></th><th>MarkdownAI</th><th>n8n / Make / Relay</th></tr></thead>
+          <tbody>
+            <tr><td>Target user</td><td>Developer building with AI agents</td><td>Non-technical operator</td></tr>
+            <tr><td>Workflow format</td><td>Markdown file in your repo</td><td>Visual node graph in a browser</td></tr>
+            <tr><td>Version control</td><td>Git-native, diff-friendly</td><td>Export JSON, not code-native</td></tr>
+            <tr><td>AI integration</td><td>MCP-native, phase-aware</td><td>API calls as workflow steps</td></tr>
+            <tr><td>Live data injection</td><td>Resolved at agent read time</td><td>Pulled at workflow trigger time</td></tr>
+            <tr><td>Context scoping</td><td>One phase per agent call</td><td>Full payload per trigger</td></tr>
+            <tr><td>Install</td><td><code>npm install -g @markdownai/core</code></td><td>Docker stack or cloud subscription</td></tr>
           </tbody>
         </table>
       </section>
@@ -1683,15 +1876,17 @@ mai security init</code></pre>
   <footer>
     <div class="container">
       <div class="footer-projects">
-        <span class="footer-label">documentation that cannot lie.</span>
+        <span class="footer-label">The AI Workflow Engine</span>
       </div>
-      <div class="footer-projects">
+      <nav aria-label="MarkdownAI community links" class="footer-projects">
         <span class="footer-label">Links:</span>
         <a href="https://github.com/TheDecipherist/markdownai" target="_blank" rel="noopener">GitHub</a>
         <a href="https://www.npmjs.com/package/@markdownai/core" target="_blank" rel="noopener">npm</a>
         <a href="https://marketplace.visualstudio.com/items?itemName=markdownai.markdownai" target="_blank" rel="noopener">VS Code</a>
+        <a href="https://reddit.com/r/ClaudeWorkflows" target="_blank" rel="noopener">Reddit community</a>
+        <a href="https://thedecipherist.com" target="_blank" rel="noopener">TheDecipherist</a>
         <a href="https://mddai.dev" target="_blank" rel="noopener">MDD</a>
-      </div>
+      </nav>
       <p>
         MarkdownAI - MIT License - by
         <a href="https://thedecipherist.com" target="_blank" rel="noopener">TheDecipherist</a>
