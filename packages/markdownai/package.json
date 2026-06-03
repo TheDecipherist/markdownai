@@ -1,6 +1,6 @@
 {
   "name": "@markdownai/markdownai",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "MarkdownAI - The AI Workflow Engine. Meta-package and org index.",
   "type": "module",
   "exports": {},
