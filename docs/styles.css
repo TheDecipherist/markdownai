@@ -1417,6 +1417,15 @@ footer .footer-projects {
     width: 100%;
     min-width: 0;
     max-width: 100%;
+    overflow: hidden;
+  }
+
+  /* Constrain pre elements to viewport width regardless of flex container quirks */
+  #content pre {
+    max-width: calc(100vw - 2rem);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
   }
 
   #content h2 {
